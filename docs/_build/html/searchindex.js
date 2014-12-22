@@ -1,1 +1,0 @@
-Search.setIndex({envversion:46,terms:{content:0,index:0,modul:0,search:0,page:0},objtypes:{},objnames:{},filenames:["index"],titles:["Welcome to genosuber&#8217;s documentation!"],objects:{},titleterms:{indic:0,document:0,welcom:0,genosub:0,tabl:0}})
