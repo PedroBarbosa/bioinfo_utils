@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#Script to run bowtie multiple times for each library. One sam per library will be produced. 
 display_usage() { 
 printf "First argument must be the file. In this file the Paired end libraries need to be first
 Second argument must be a flag true/false to use paired end reads to generate the command
@@ -22,7 +22,7 @@ fi
 
 index_database="-x $4"
 threads="-p $5"
-sam_file="-S $6"
+sam_basename="-S $6"
 numb_samples=0
 first_pair=true
 second_pair=false
@@ -31,10 +31,10 @@ matepairFlag=false
 
 #check if the optional argument of seed coverage is provided
 if [ -z "$7" ]; then	
-	command="$exec $index_database $threads"
+	base_command="$exec $index_database $threads"
 else
 	mismatches=" -N $7"
-	command="$exec $index_database $threads $mismatches"
+	base_command="$exec $index_database $threads $mismatches"
 fi
 
 #Create command for paired files
@@ -68,8 +68,8 @@ do
 		second_pair=false     
 		let "numb_samples += 1"
 		printf "Running bowtie2 aligner for library ${numb_samples}.."
-		sam_file="$sam_file_${numb_samples}.sam"
-		command="$command -1 $pair1 -2 $pair2 $sam_file"	    	
+		sam_file="${sam_basename}_${numb_samples}.sam"
+		command="$base_command -1 $pair1 -2 $pair2 $sam_file"	    	
 		$command
 
 	elif [ ! -f "$filename" -a "$matepairFlag" = "false"  ]; then
@@ -90,9 +90,10 @@ do
 		second_pair=false      
 		let "numb_samples += 1"	 
 		printf "Running bowtie2 aligner for library ${numb_samples}.."
-		sam_file="$sam_file_${numb_samples}.sam"
-		command="$command -1 $pair1 -2 $pair2 $sam_file"
+		sam_file="${sam_basename}_${numb_samples}.sam"
+		command="$base_command -1 $pair1 -2 $pair2 $sam_file"
 		$command
+
 	
 	elif [ ! -f "$filename" -a "$matepairFlag" = "true" ]; then
 		echo "$filename" is not a file

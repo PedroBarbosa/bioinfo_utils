@@ -1,5 +1,5 @@
 #!/bin/bash
-
+#Script to generate the bowtie2 command to run the mapping of multiple libraries in one run.
 display_usage() { 
 printf "First argument must be the file. In this file the Paired end libraries need to be first
 Second argument must be a flag true/false to use paired end reads to generate the command
