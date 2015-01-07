@@ -1,7 +1,7 @@
 #!/bin/bash
 
 display_usage() { 
-printf "First argument must bee the file. In this file the Paired end libraries need to be first
+printf "First argument must be the file. In this file the Paired end libraries need to be first
 Second argument must be a flag true/false to use paired end reads to generate the command
 Third argument must be a flag true/false to use mate pair reads to generate the command
 Fourth argument must be the reference indexed database
@@ -97,8 +97,8 @@ done <$1
 
 
 #Remove first comma in the pairs
-pair1=$(echo "$pair1" | sed 's/,//')
-pair2=$(echo "$pair2" | sed 's/,//')
+pair1=$(echo "$pair1" | sed 's/,/ /')
+pair2=$(echo "$pair2" | sed 's/,/ /')
 
 #Finish command
 command="$command $pair1 $pair2"
