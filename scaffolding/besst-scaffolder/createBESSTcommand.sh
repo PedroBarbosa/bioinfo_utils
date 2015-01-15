@@ -4,8 +4,10 @@ display_usage(){
 	printf "First argument must be the file of contigs to scaffold.
 Second argument must be the path to the directory where all the sorted and indexed bam files are located. Within this script a sorting of the files based on their insert size will be done. Insert size increases accordingly as the number present in the name of the bam file. This is needed because it is a besst requirement.
 Third argument must be the orientation of the libraries aligned in the bam file. Available option: [fr|rf].
-Fourth argument must be the path to the output.\n"
+Fourth argument must be the path to the output.
+Fifth argument is optional. It refers to the option of providing the insert size and stdv for the mate pair libraries. Available options: [true|false]. Default: false.\n"
 }
+
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
 	printf "Too few arguments.\n"
@@ -28,7 +30,16 @@ do
 done
 
 ORIENTATION="--orientation $ORIENTATION"
-command="runBESST $CONTIG_FILE $BAM_FILES $OUTPUT $ORIENTATION $INSERT_SIZES_MP $INSERT_STDV_MP"
+
+if [ -z "$5" ] || [ "$5" = "false" ]; then
+	command="runBESST $CONTIG_FILE $BAM_FILES $OUTPUT $ORIENTATION"
+elif [ "$5" = "yes" ]; then
+	command="runBESST $CONTIG_FILE $BAM_FILES $OUTPUT $ORIENTATION $INSERT_SIZES_MP $INSERT_STDV_MP"
+else
+	printf "Not a valid option for the mate pair manual insert size flag [5th argument]"
+	display_usage
+	exit 1
+fi
 
 ##Pass command to script and give permissions to run
 file="runBESST.sh"
