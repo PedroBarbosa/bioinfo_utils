@@ -17,7 +17,7 @@ fi
 
 CONTIG_FILE="-c $1"
 #sort list of files (increasing insert size)
-list_sorted=( $(find $2 -name *sorted.bam | sort -n -t _ -k 2) )
+list_sorted=( $(find $2 -name *.bam | sort -n -t _ -k 2) )
 BAM_FILES="-f ${list_sorted[@]}"
 ORIENTATION=""
 OUTPUT="-o $4"
