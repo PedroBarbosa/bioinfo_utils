@@ -1,8 +1,8 @@
 __author__ = 'pedro'
 
-import scaffolding.evaluation.extractContigs
 import argparse
 import sys
+import extractContigs
 
 class MyParser(argparse.ArgumentParser):
     def error(self, message):
