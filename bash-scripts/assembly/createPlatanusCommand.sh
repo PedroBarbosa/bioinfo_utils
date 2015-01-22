@@ -10,7 +10,7 @@ Sixth argument is optional. If set to yes, only performs the assemble [default: 
 Seventh argument is optional. If set to yes, only performs scaffolding. The prefix needs to be same as the contigs file, normally 'output' [default: assembly and scaffolding together].
 Eighth argument is optionaç. It refers to the orientation of the mate pair libraries. Available options: [rf|fr]. Default:[rf]
 Ninth argument is optional. If set to yes, platanus will use the given mp insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"} 
-
+}
 
 
 function assembly_concatenated_file() {
@@ -206,7 +206,7 @@ function generate_final_file_contigs(){
 	fi
 
 	##Pass command to script and give permissions to run
-	echo -e "#!/bin/bash \n$command_contigs" > ./$file | chmod 755 ./$file
+	echo -e "#!/bin/bash \n$command_contigs" > ./$file | chmod +x ./$file
 }
 
 function generate_final_file_scaffolds(){
@@ -216,16 +216,18 @@ function generate_final_file_scaffolds(){
 		echo -e "\n$command_scaffolds" >> ./$file
 	elif [[ -f "$file" &&  $1 = "true" ]] ; then
 		rm $file
-		echo -e "#!/bin/bash \n$command_scaffolds" > ./$file | chmod 755 ./$file
+		echo -e "#!/bin/bash \n$command_scaffolds" > ./$file | chmod +x ./$file
 	else
-		echo -e "#!/bin/bash \n$command_scaffolds" > ./$file | chmod 755 ./$file
+		echo -e "#!/bin/bash \n$command_scaffolds" > ./$file | chmod +x ./$file
 	fi	
 }
 
 
 
 
-
+#########################################################
+#################General variables#######################
+#########################################################
 exec="/mnt/msa/assembly/platanus-assembly/platanus"
 #check if required arguments are there and display usage message
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
@@ -258,18 +260,18 @@ if [ -z "$6" ] && [ -z "$7" ] ; then
 		generate_final_file_contigs 
 		#scaffolds
 		if [ -z "$8" ]  ; then
-                	scaffolding $1 $2 $3
-                	generate_final_file_scaffolds $7
-    		else
-        		scaffolding $1 $2 $3 $8
-        		generate_final_file_scaffolds $7
-    		fi
+		    scaffolding $1 $2 $3
+            generate_final_file_scaffolds $7
+        else
+            scaffolding $1 $2 $3 $8
+        	generate_final_file_scaffolds $7
+        fi
 
 	else	
 		#contigs only
 		assembly_concatenated_file $1
 		printf "\nDone. Note that as only one concatenated fastq file was provided, no scaffolding command was created because it needs the paired end and/or matepair information.\n\n"					
-        fi
+    fi
 
 elif [ $6 = "yes" ] && [ -z $7 ] || [ $6 = "yes" ] && [ $7 = "no" ] ; then
 
@@ -304,4 +306,3 @@ else
 	display_usage
 	exit 1
 fi
-
