@@ -8,8 +8,9 @@ Fourth argument must be the number of threads to use.
 Fifth argument must be the maximum amount of memory allowed.
 Sixth argument is optional. If set to yes, only performs the assemble [default: assembly and scaffolding together].
 Seventh argument is optional. If set to yes, only performs scaffolding. The prefix needs to be same as the contigs file, normally 'output' [default: assembly and scaffolding together].
-Eighth argument is option. It refers to the orientation of the mate pair libraries. Available option: [rf|fr]. Default:[rf]\n\n"} 
-}
+Eighth argument is optionaç. It refers to the orientation of the mate pair libraries. Available options: [rf|fr]. Default:[rf]
+Ninth argument is optional. If set to yes, platanus will use the given mp insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"} 
+
 
 
 function assembly_concatenated_file() {
@@ -82,6 +83,10 @@ numb_samples=0
 matepairFlag=false
 first_pair=true
 second_pair=false
+INSERT_SIZES_PE="170 170 170 170 170 170 170 170 500 500 500 500 500 500 500 500 500 800 800 800 800 800 800 800 800 800 800 800 800"
+INSERT_STDV_PE="30 30 30 30 30 30 30 30 60 60 60 60 60 60 60 60 60 90 90 90 90 90 90 90 90 90 90 90 90"
+INSERT_SIZES_MP="2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 5000 5000 5000 5000 5000 5000"
+INSERT_STDV_MP="250 250 250 250 250 250 250 250 250 250 250 250 600 600 600 600 600 600"
 
 #mate pair orientatin provided?
 if [ -z "$4" ] ; then 
@@ -156,14 +161,28 @@ done < "$1"
 
 #add samples to the command
 if [ "$3" = "true" -a "$orientation" = "inward" ]; then
-	command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP"
-
+	if [ -z "$5" ];then
+		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP"	
+	elif [ "$2" = "true" ]; then
+		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP -a $INSERT_SIZES_PE $INSERT_SIZES_MP -d $INSERT_STDV_PE $INSERT_STDV_MP"
+	else 
+		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP -a $INSERT_SIZES_MP -d $INSERT_STDV_MP"
+	fi
 elif [ "$3" = "true" -a "$orientation" = "outward" ]; then
 	
-	if [ "$2" = "true" ]; then
-		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $OP"
-	else 
-		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $OP"
+	if [ -z "$5" ] ;then
+		if [ "$2" = "true" ] ; then
+			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $OP"
+		else
+			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $OP"
+		fi
+	else
+		if [ "$2" = "true" ]; then
+			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $OP -a $INSERT_SIZES_PE $INSERT_SIZES_MP -d $INSERT_STDV_PE $INSERT_STDV_MP"
+		else
+			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $OP -a $INSERT_SIZES_MP -d $INSERT_STDV_MP"
+		fi
+		
 	fi
 	
 elif [ "$3" = "false" ]; then	
@@ -238,7 +257,7 @@ if [ -z "$6" ] && [ -z "$7" ] ; then
 		assembly_contigs $1 $2 $3
 		generate_final_file_contigs 
 		#scaffolds
-		if [ -z "$8" ] ; then
+		if [ -z "$8" ]  ; then
                 	scaffolding $1 $2 $3
                 	generate_final_file_scaffolds $7
     		else
@@ -271,8 +290,14 @@ elif [ $7 = "yes" ]; then
 		scaffolding $1 $2 $3
 		generate_final_file_scaffolds $7
 	else 
-		scaffolding $1 $2 $3 $8
-		generate_final_file_scaffolds $7
+		if [ -z "$9" ] || [ "$9" = "no" ]; then
+			scaffolding $1 $2 $3 $8
+			generate_final_file_scaffolds $7
+		elif [ "$9" = "yes" ]; then
+			scaffolding $1 $2 $3 $8 $9
+		else
+			printf "\nPlease set a valid value for the ninth argument: [yes|no].\n\n"
+		fi
 	fi
 else 
 	printf "\nPlease check if you provided the right parameters [script is not case sensitive].\n\n"
