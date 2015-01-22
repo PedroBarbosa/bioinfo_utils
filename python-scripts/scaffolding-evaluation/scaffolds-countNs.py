@@ -1,5 +1,12 @@
 __author__ = 'pedro'
 
+"""
+Description: This script counts the length and number of Ns of each scaffold in a file, exporting the results in a
+sorted tab separated file.
+"""
+
+#TODO import script that extracts contigs/scaffolds longer than X
+
 import argparse
 import sys
 import os
