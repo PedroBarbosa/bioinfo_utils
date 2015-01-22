@@ -1,6 +1,8 @@
 import argparse
+from itertools import islice
 import sys
-
+from collections import defaultdict
+from os.path import expanduser
 
 #This script extracts from a contigs/scaffolds file the ones longer than a given number
 
