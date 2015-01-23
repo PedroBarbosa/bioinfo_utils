@@ -9,7 +9,7 @@ Fifth argument must be the maximum amount of memory allowed.
 Sixth argument is optional. If set to yes, only performs the assemble [default: assembly and scaffolding together].
 Seventh argument is optional. If set to yes, only performs scaffolding. The prefix needs to be same as the contigs file, normally 'output' [default: assembly and scaffolding together].
 Eighth argument is optionaç. It refers to the orientation of the mate pair libraries. Available options: [rf|fr]. Default:[rf]
-Ninth argument is optional. If set to yes, platanus will use the given mp insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"} 
+Ninth argument is optional. If set to yes, platanus will use the given mp insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"
 }
 
 
@@ -297,6 +297,7 @@ elif [ $7 = "yes" ]; then
 			generate_final_file_scaffolds $7
 		elif [ "$9" = "yes" ]; then
 			scaffolding $1 $2 $3 $8 $9
+			generate_final_file_scaffolds $7
 		else
 			printf "\nPlease set a valid value for the ninth argument: [yes|no].\n\n"
 		fi
@@ -306,3 +307,4 @@ else
 	display_usage
 	exit 1
 fi
+
