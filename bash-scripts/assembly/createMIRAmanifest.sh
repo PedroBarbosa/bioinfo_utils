@@ -1,24 +1,28 @@
 #!/bin/bash
 
 display_usage(){
- printf "Script to automatically generate the manifest file to input in Mira for de novo assembly projects. Paired end
- reads mus be in the traditional 'forward-reverse' orientation while mate pair must come in the 'reverse-forward' orientation'.\n\n
+ printf "Script to automatically generate the manifest file to input in Mira for de novo assembly projects. Paired end reads\
+ must be in the traditional 'forward-reverse' orientation while mate pair must come in the 'reverse-forward' orientation'.\n
  Usage:
     -1st argument must be the project name to use in Mira.The name will be the prefix for the manifest file generated.
     -2nd argument must be a flag to use paired end reads to generate the command.Available option: [true|false].
     -3rd argument must be a flag to use mate pair reads to generate the command.Available option: [true|false].
     -4th argument must be a flag to use 454 reads reads to generate the command.Available option: [true|false].
-    -5th argument must be a flag to Mira auto estimate insert sizes of libraries [true|false].
-"
+    -5th argument must be a flag to Mira auto estimate insert sizes of libraries: [true|false].\n"
 }
 
-
+#################Check if required arguments were provided########
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] ; then
+    printf "Please provide the required arguments for the script.\n\n"
+    display_usage
+    exit 1
+fi
 ####################VARIABLES####################
 #Project name
 PROJECT_NAME="$1"
 
 #Output file
-OUTPUT_FILE="$PROJECT_NAME-manifest.txt"
+OUTPUT_FILE="${PROJECT_NAME}-manifest.txt"
 
 #Path to the genomic 454 sequencing FASTA files - All files of the directory will be used so we can provide a path in Mira
 GENOMIC_454_PATH="/mnt/msa/BIOCANT/genomic-data/SFF_genom/FASTA_FILES/"
@@ -41,11 +45,15 @@ MP2000=""
 MP5000=""
 
 ##############################START APPENDING GENERAL SETTINGS TO OUTPUT FILE##########
-cat <<EOT >> $OUTPUT_FILE
+if [ -f "$OUTPUT_FILE" ] ; then
+		rm $OUTPUT_FILE
+fi
+
+cat <<EOF >> $OUTPUT_FILE
 #Name to the assembly and purpose of the job
-project = $PROJECT_NAME
+project = ${PROJECT_NAME}
 job = genome,denovo,accurate
-EOT
+EOF
 
 
 
@@ -55,80 +63,83 @@ EOT
 #If assemble paired end
 if [ "$2" = "true" ]; then
     #check if is file
+ 
     if [ -f ${LIST_ILLUM_PE_MP_PATH} ]; then
 
         #loop to separate PE libraries by insert size to create the read group
         while read line
+        
         do
-            if [[ "$line" == *"PE170"* && "$line" =~ *"Single"* ]] ; then
-                PE170="$PE170 $line"
-
-            elif [[ "$line" == *"PE500"* && "$line" =~ *"Single"* ]] ; then
-                PE500="$PE500 $line"
-
-            elif [[ "$line" == *"PE800"* && "$line" =~ *"Single"* ]] ; then
-                PE800="$PE800 $line"
+          
+            if [[ "$line" == *"PE170"* ]] ; then
+                PE170="${PE170}fastq::$line ";
+            elif [[ "$line" == *"PE500"* ]]; then
+                PE500="${PE500}fastq::$line ";
+            elif [[ "$line" == *"PE800"* ]] ; then
+                PE800="${PE800}fastq::$line ";
 
             else
                 continue
             fi
-
-        done < $LIST_ILLUM_PE_MP_PATH
+        done < ${LIST_ILLUM_PE_MP_PATH}
 
         #check the auto estimate parameter
         if [ "$5" = "true" ] ; then
-            cat <<EOT>> $OUTPUT_FILE
-                #pe170 read group
-                readgroup = illumina-pe-170
-                data = ${PE170}
-                autopairing
-                segment_placement = ---> <---
-                segment_naming = solexa
+            cat <<EOF >> $OUTPUT_FILE
+            
+#pe170 read group
+readgroup = illumina-pe-170
+data = ${PE170}
+autopairing
+segment_placement = ---> <---
+technology = solexa
 
-                #pe500 read group
-                readgroup = illumina-pe-500
-                data = ${PE500}
-                autopairing
-                segment_placement = ---> <---
-                segment_naming = solexa
+#pe500 read group
+readgroup = illumina-pe-500
+data = ${PE500}
+autopairing
+segment_placement = ---> <---
+technology = solexa
 
-                #pe800 read group
-                readgroup = illumina-pe-800
-                data = ${PE800}
-                autopairing
-                segment_placement = ---> <---
-                segment_naming = solexa
-            EOT
+#pe800 read group
+readgroup = illumina-pe-800
+data = ${PE800}
+autopairing
+segment_placement = ---> <---
+technology = solexa
+EOF
 
         elif [ "$5" = "false" ]; then
-            cat <<EOT>> $OUTPUT_FILE
-                #pe170 read group
-                readgroup = illumina-pe-170
-                data = ${PE170}
-                template_size ${PE170_INSZ_MIN_MAX}
-                segment_placement = ---> <---
-                segment_naming = solexa
+            cat <<EOF >> $OUTPUT_FILE
 
-                #pe500 read group
-                readgroup = illumina-pe-500
-                data = ${PE500}
-                template_size ${PE500_INSZ_MIN_MAX}
-                segment_placement = ---> <---
-                segment_naming = solexa
+#pe170 read group
+readgroup = illumina-pe-170
+data = ${PE170}
+template_size = ${PE170_INSZ_MIN_MAX}
+segment_placement = ---> <---
+technology = solexa
 
-                #pe800 read group
-                readgroup = illumina-pe-800
-                data = ${PE800}
-                template_size ${PE800_INSZ_MIN_MAX}
-                segment_placement = ---> <---
-                segment_naming = solexa
-            EOT
+#pe500 read group
+readgroup = illumina-pe-500
+data = ${PE500}
+template_size = ${PE500_INSZ_MIN_MAX}
+segment_placement = ---> <---
+technology = solexa
+
+#pe800 read group
+readgroup = illumina-pe-800
+data = ${PE800}
+template_size = ${PE800_INSZ_MIN_MAX}
+segment_placement = ---> <---
+technology = solexa
+EOF
+
         else
             printf "Please set a valid value for the 5th argument: [true|false].\n\n"
             display_usage
             exit 1
         fi
-            data =
+
 
     else
         printf "File regarding the list of illumina pairs is not valid. Change the '$LIST_ILLUM_PE_MP_PATH' variable in
@@ -154,54 +165,55 @@ if [ "$3" = "true" ]; then
         #loop to separate MP libraries by insert size to create the read group
         while read line
         do
-            if [[ "$line" == *"MP2000"* && "$line" =~ *"Single"* ]] ; then
-                MP2000="$MP2000 $line"
+            if [[ "$line" == *"MP2000"* ]] ; then
+                MP2000="${MP2000}fastq::$line "
 
-            elif [[ "$line" == *"MP5000"* && "$line" =~ *"Single"* ]] ; then
-                MP5000="$MP5000 $line"
+            elif [[ "$line" == *"MP5000"* ]] ; then
+                MP5000="${MP5000}fastq::$line "
 
             else
                 continue
             fi
 
-        done < $LIST_ILLUM_PE_MP_PATH
+        done < ${LIST_ILLUM_PE_MP_PATH}
 
         #check the auto estimate parameter
         if [ "$5" = "true" ] ; then
-            cat <<EOT>> $OUTPUT_FILE
-                #mp2000 read group
-                readgroup = illumina-mp-2000
-                data = ${MP2000}
-                autopairing
-                segment_placement = <--- --->
-                segment_naming = solexa
+            cat <<EOF >> $OUTPUT_FILE
+            
+#mp2000 read group
+readgroup = illumina-mp-2000
+data = ${MP2000}
+autopairing
+segment_placement = <--- --->
+technology = solexa
 
-                #mp5000 read group
-                readgroup = illumina-pe-5000
-                data = ${MP5000}
-                autopairing
-                segment_placement = <--- --->
-                segment_naming = solexa
-
-            EOT
+#mp5000 read group
+readgroup = illumina-pe-5000
+data = ${MP5000}
+autopairing
+segment_placement = <--- --->
+technology = solexa
+EOF
 
         elif [ "$5" = "false" ]; then
-            cat <<EOT>> $OUTPUT_FILE
-                #mp2000 read group
-                readgroup = illumina-mp-2000
-                data = ${MP2000}
-                template_size ${MP2000_INSZ_MIN_MAX}
-                segment_placement = <--- --->
-                segment_naming = solexa
+            cat <<EOF >> $OUTPUT_FILE
+            
+#mp2000 read group
+readgroup = illumina-mp-2000
+data = ${MP2000}
+template_size = ${MP2000_INSZ_MIN_MAX}
+segment_placement = <--- --->
+technology = solexa
 
-                #mp5000 read group
-                readgroup = illumina-pe-5000
-                data = ${MP5000}
-                template_size ${MP2000_INSZ_MIN_MAX}
-                segment_placement = <--- --->
-                segment_naming = solexa
+#mp5000 read group
+readgroup = illumina-pe-5000
+data = ${MP5000}
+template_size = ${MP5000_INSZ_MIN_MAX}
+segment_placement = <--- --->
+technology = solexa
+EOF
 
-            EOT
         else
             printf "Please set a valid value for the 5th argument: [true|false].\n\n"
             display_usage
@@ -223,12 +235,13 @@ if [ "$4" = "true" ]; then
 
         #check if path to 454 files exists
         if [ -d "$GENOMIC_454_PATH" ] ; then
-            cat <<EOT>> $OUTPUT_FILE
-                #454 read group
-                readgroup = 454-genomic-data
-                data = FASTA_FILES/
-                technology = 454
-            EOT
+            cat <<EOF >> $OUTPUT_FILE
+
+#454 read group
+readgroup = 454-genomic-data
+data = ${GENOMIC_454_PATH}
+technology = 454
+EOF
         else
             printf "File regarding the path for the 454 fasta files is not valid. Change the '$GENOMIC_454_PATH' variable in
         the script to a valid path.\n"
