@@ -183,8 +183,8 @@ if [ "$3" = "true" -a "$orientation" = "inward" ]; then
 	else
 	    #add ins and stdv for mp libs
         for (( i = 0; i < ${#INSERT_SIZES_MP[@]}; i++ )); do
-            INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_MP[$i]} "
-            STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_MP[$i]} "
+            INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_MP[$i]}"
+            STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_MP[$i]}"
         done
 		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $INS_STRING $STDV_STRING"
 	fi
@@ -202,15 +202,15 @@ elif [ "$3" = "true" -a "$orientation" = "outward" ]; then
 
 		    #add ins and stdv for pe libs
             for (( i = 0; i < ${#INSERT_SIZES_PE[@]}; i++ )); do
-                INS_STRING="$INS_STRING -a$(expr $i + 1) ${INSERT_SIZES_PE[$i]} "
-                STDV_STRING="$STDV_STRING -d$(expr $i + 1) ${INSERT_STDV_PE[$i]} "
+                INS_STRING="$INS_STRING -a$(expr $i + 1) ${INSERT_SIZES_PE[$i]}"
+                STDV_STRING="$STDV_STRING -d$(expr $i + 1) ${INSERT_STDV_PE[$i]}"
             done
 
             #add ins and stdv for mp libs
 
             for (( i = 0; i < ${#INSERT_SIZES_MP[@]}; i++ )); do
-                INS_STRING="$INS_STRING -a$(expr ${#INSERT_SIZES_PE[@]} + $i + 1) ${INSERT_SIZES_MP[$i]} "
-                STDV_STRING="$STDV_STRING -d$(expr ${#INSERT_STDV_PE[@]} + $i + 1) ${INSERT_STDV_MP[$i]} "
+                INS_STRING="$INS_STRING -a$(expr ${#INSERT_SIZES_PE[@]} + $i + 1) ${INSERT_SIZES_MP[$i]}"
+                STDV_STRING="$STDV_STRING -d$(expr ${#INSERT_STDV_PE[@]} + $i + 1) ${INSERT_STDV_MP[$i]}"
             done
 			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $OP $INS_STRING $STDV_STRING"
 
@@ -218,8 +218,8 @@ elif [ "$3" = "true" -a "$orientation" = "outward" ]; then
 
 		    #add ins and stdv for mp libs
             for (( i = 0; i < ${#INSERT_SIZES_MP[@]}; i++ )); do
-                INS_STRING="$INS_STRING -a$(expr $i + 1) ${INSERT_SIZES_MP[$i]} "
-                STDV_STRING="$STDV_STRING -d$(expr $i + 1) ${INSERT_STDV_MP[$i]} "
+                INS_STRING="$INS_STRING -a$(expr $i + 1) ${INSERT_SIZES_MP[$i]}"
+                STDV_STRING="$STDV_STRING -d$(expr $i + 1) ${INSERT_STDV_MP[$i]}"
             done
 			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $OP $INS_STRING $STDV_STRING"
 		fi
