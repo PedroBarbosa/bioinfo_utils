@@ -88,7 +88,7 @@ second_pair=false
 declare -a INSERT_SIZES_PE=('170' '170' '170' '170' '170' '170' '170' '170' '500' '500' '500' '500' '500' '500' '500' '500' '500' '800' '800' '800' '800' '800' '800' '800' '800' '800' '800' '800' '800')
 declare -a INSERT_STDV_PE=('30' '30' '30' '30' '30' '30' '30' '30' '60' '60' '60' '60' '60' '60' '60' '60' '60' '90' '90' '90' '90' '90' '90' '90' '90' '90' '90' '90' '90')
 declare -a INSERT_SIZES_MP=('2100' '2100' '2100' '2100' '2100' '2100' '2100' '2100' '2100' '2100' '2100' '2100' '5000' '5000' '5000' '5000' '5000' '5000')
-declare -a INSERT_SIZES_MP=('250' '250' '250' '250' '250' '250' '250' '250' '250' '250' '250' '250' '600' '600' '600' '600' '600' '600')
+declare -a INSERT_STDV_MP=('250' '250' '250' '250' '250' '250' '250' '250' '250' '250' '250' '250' '600' '600' '600' '600' '600' '600')
 
 #mate pair orientatin provided?
 if [ -z "$4" ] ; then 
@@ -168,13 +168,13 @@ if [ "$3" = "true" -a "$orientation" = "inward" ]; then
 	elif [ "$2" = "true" ]; then
 
 	    #add ins and stdv for pe libs
-        for (( i = 0; i < ${INSERT_SIZES_PE[@]}; i++ )); do
+        for (( i = 0; i < ${#INSERT_SIZES_PE[@]}; i++ )); do
             INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_PE[$i]} "
             STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_PE[$i]} "
         done
 
         #add ins and stdv for mp libs
-        for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
+        for (( i = 0; i < ${#INSERT_SIZES_MP[@]}; i++ )); do
             INS_STRING="$INS_STRING -a{$(expr ${#INSERT_SIZES_PE[@]} + $i + 1) ${INSERT_SIZES_MP[$i]} "
             STDV_STRING="$STDV_STRING -d{$(expr ${#INSERT_STDV_PE[@]} + $i + 1) ${INSERT_STDV_MP[$i]} "
         done
@@ -182,7 +182,7 @@ if [ "$3" = "true" -a "$orientation" = "inward" ]; then
 
 	else
 	    #add ins and stdv for mp libs
-        for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
+        for (( i = 0; i < ${#INSERT_SIZES_MP[@]}; i++ )); do
             INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_MP[$i]} "
             STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_MP[$i]} "
         done
@@ -201,24 +201,25 @@ elif [ "$3" = "true" -a "$orientation" = "outward" ]; then
 		if [ "$2" = "true" ]; then
 
 		    #add ins and stdv for pe libs
-            for (( i = 0; i < ${INSERT_SIZES_PE[@]}; i++ )); do
-                INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_PE[$i]} "
-                STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_PE[$i]} "
+            for (( i = 0; i < ${#INSERT_SIZES_PE[@]}; i++ )); do
+                INS_STRING="$INS_STRING -a$(expr $i + 1) ${INSERT_SIZES_PE[$i]} "
+                STDV_STRING="$STDV_STRING -d$(expr $i + 1) ${INSERT_STDV_PE[$i]} "
             done
 
             #add ins and stdv for mp libs
-            for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
-                INS_STRING="$INS_STRING -a{$(expr ${#INSERT_SIZES_PE[@]} + $i + 1) ${INSERT_SIZES_MP[$i]} "
-                STDV_STRING="$STDV_STRING -d{$(expr ${#INSERT_STDV_PE[@]} + $i + 1) ${INSERT_STDV_MP[$i]} "
+
+            for (( i = 0; i < ${#INSERT_SIZES_MP[@]}; i++ )); do
+                INS_STRING="$INS_STRING -a$(expr ${#INSERT_SIZES_PE[@]} + $i + 1) ${INSERT_SIZES_MP[$i]} "
+                STDV_STRING="$STDV_STRING -d$(expr ${#INSERT_STDV_PE[@]} + $i + 1) ${INSERT_STDV_MP[$i]} "
             done
 			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $OP $INS_STRING $STDV_STRING"
 
 		else
 
 		    #add ins and stdv for mp libs
-            for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
-                INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_MP[$i]} "
-                STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_MP[$i]} "
+            for (( i = 0; i < ${#INSERT_SIZES_MP[@]}; i++ )); do
+                INS_STRING="$INS_STRING -a$(expr $i + 1) ${INSERT_SIZES_MP[$i]} "
+                STDV_STRING="$STDV_STRING -d$(expr $i + 1) ${INSERT_STDV_MP[$i]} "
             done
 			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $OP $INS_STRING $STDV_STRING"
 		fi
