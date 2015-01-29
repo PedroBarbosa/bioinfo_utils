@@ -21,7 +21,7 @@ fi
 while read line
 do	
 	printf "Processing $line file ..\n"
-	command="/opt/tools/sga/bin/sga-bam2de.pl -n $min_pairs --prefix ${line/.bam/} -m 200 $line"
+	command="/opt/tools/sga/bin/sga-bam2de.pl --prefix ${line/.bam/} -n $min_pairs -m 200 $line"
 	$command
 done < $1
 printf "Done.\n"

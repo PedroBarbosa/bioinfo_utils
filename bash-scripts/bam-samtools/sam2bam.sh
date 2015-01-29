@@ -10,9 +10,9 @@ while read line
 do
 
 if [ -f "$line" ]; then
-	printf "Processing $line file .."
+	printf "Processing $line file ..\n"
 	samtools view -bS "$line" > ${line/.sam/.bam}	
-	printf "Done .."
+	printf "Done ..\n"
 fi
 done < $1
 printf "Finished processing all the files"
