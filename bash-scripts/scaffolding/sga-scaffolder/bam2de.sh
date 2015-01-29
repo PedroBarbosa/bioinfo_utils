@@ -22,6 +22,6 @@ while read line
 do	
 	printf "Processing $line file ..\n"
 	command="/opt/tools/sga/bin/sga-bam2de.pl --prefix ${line/.bam/} -n $min_pairs -m 200 $line"
-	$command
+	$command 2> "$PWD/error.log"
 done < $1
 printf "Done.\n"

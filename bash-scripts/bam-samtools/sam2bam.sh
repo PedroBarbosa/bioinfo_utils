@@ -15,4 +15,4 @@ if [ -f "$line" ]; then
 	printf "Done ..\n"
 fi
 done < $1
-printf "Finished processing all the files"
+printf "Finished processing all the files.\n"
