@@ -8,8 +8,8 @@ Fourth argument must be the number of threads to use.
 Fifth argument must be the maximum amount of memory allowed.
 Sixth argument is optional. If set to yes, only performs the assemble [default: assembly and scaffolding together].
 Seventh argument is optional. If set to yes, only performs scaffolding. The prefix needs to be same as the contigs file, normally 'output' [default: assembly and scaffolding together].
-Eighth argument is optionaç. It refers to the orientation of the mate pair libraries. Available options: [rf|fr]. Default:[rf]
-Ninth argument is optional. If set to yes, platanus will use the given mp insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"
+Eighth argument is optional. It refers to the orientation of the mate pair libraries. Available options: [rf|fr]. Default:[rf]
+Ninth argument is optional. If set to yes, platanus will use the given mp/pe insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"
 }
 
 
@@ -79,14 +79,16 @@ bubbles_file="-b output_contigBubble.fa"
 #Paired end and/or MP reads [mp reads are treated as IP because they are already with the correct orientation]. Case letter on IP because it is two different files for each pair
 IP=""
 OP=""
+INS_STRING=""
+STDV_STRING=""
 numb_samples=0
 matepairFlag=false
 first_pair=true
 second_pair=false
-INSERT_SIZES_PE="170 170 170 170 170 170 170 170 500 500 500 500 500 500 500 500 500 800 800 800 800 800 800 800 800 800 800 800 800"
-INSERT_STDV_PE="30 30 30 30 30 30 30 30 60 60 60 60 60 60 60 60 60 90 90 90 90 90 90 90 90 90 90 90 90"
-INSERT_SIZES_MP="2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 5000 5000 5000 5000 5000 5000"
-INSERT_STDV_MP="250 250 250 250 250 250 250 250 250 250 250 250 600 600 600 600 600 600"
+declare -a INSERT_SIZES_PE=(170 170 170 170 170 170 170 170 500 500 500 500 500 500 500 500 500 800 800 800 800 800 800 800 800 800 800 800 800)
+declare -a INSERT_STDV_PE=(30 30 30 30 30 30 30 30 60 60 60 60 60 60 60 60 60 90 90 90 90 90 90 90 90 90 90 90 90)
+declare -a INSERT_SIZES_MP=(2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 2100 5000 5000 5000 5000 5000 5000)
+declare -a INSERT_SIZES_MP=(250 250 250 250 250 250 250 250 250 250 250 250 600 600 600 600 600 600)
 
 #mate pair orientatin provided?
 if [ -z "$4" ] ; then 
@@ -164,10 +166,29 @@ if [ "$3" = "true" -a "$orientation" = "inward" ]; then
 	if [ -z "$5" ];then
 		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP"	
 	elif [ "$2" = "true" ]; then
-		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP -a $INSERT_SIZES_PE $INSERT_SIZES_MP -d $INSERT_STDV_PE $INSERT_STDV_MP"
-	else 
-		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP -a $INSERT_SIZES_MP -d $INSERT_STDV_MP"
+
+	    #add ins and stdv for pe libs
+        for (( i = 0; i < ${INSERT_SIZES_PE[@]}; i++ )); do
+            INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_PE[$i]} "
+            STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_PE[$i]} "
+        done
+
+        #add ins and stdv for mp libs
+        for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
+            INS_STRING="$INS_STRING -a{$(expr ${#INSERT_SIZES_PE[@]} + $i + 1) ${INSERT_SIZES_MP[$i]} "
+            STDV_STRING="$STDV_STRING -d{$(expr ${#INSERT_STDV_PE[@]} + $i + 1) ${INSERT_STDV_MP[$i]} "
+        done
+		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $INS_STRING $STDV_STRING"
+
+	else
+	    #add ins and stdv for mp libs
+        for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
+            INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_MP[$i]} "
+            STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_MP[$i]} "
+        done
+		command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $INS_STRING $STDV_STRING"
 	fi
+
 elif [ "$3" = "true" -a "$orientation" = "outward" ]; then
 	
 	if [ -z "$5" ] ;then
@@ -178,9 +199,28 @@ elif [ "$3" = "true" -a "$orientation" = "outward" ]; then
 		fi
 	else
 		if [ "$2" = "true" ]; then
-			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $OP -a $INSERT_SIZES_PE $INSERT_SIZES_MP -d $INSERT_STDV_PE $INSERT_STDV_MP"
+
+		    #add ins and stdv for pe libs
+            for (( i = 0; i < ${INSERT_SIZES_PE[@]}; i++ )); do
+                INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_PE[$i]} "
+                STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_PE[$i]} "
+            done
+
+            #add ins and stdv for mp libs
+            for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
+                INS_STRING="$INS_STRING -a{$(expr ${#INSERT_SIZES_PE[@]} + $i + 1) ${INSERT_SIZES_MP[$i]} "
+                STDV_STRING="$STDV_STRING -d{$(expr ${#INSERT_STDV_PE[@]} + $i + 1) ${INSERT_STDV_MP[$i]} "
+            done
+			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $IP $OP $INS_STRING $STDV_STRING"
+
 		else
-			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $OP -a $INSERT_SIZES_MP -d $INSERT_STDV_MP"
+
+		    #add ins and stdv for mp libs
+            for (( i = 0; i < ${INSERT_SIZES_MP[@]}; i++ )); do
+                INS_STRING="$INS_STRING -a{$(expr $i + 1) ${INSERT_SIZES_MP[$i]} "
+                STDV_STRING="$STDV_STRING -d{$(expr $i + 1) ${INSERT_STDV_MP[$i]} "
+            done
+			command_scaffolds="$command_scaffolds $contigs_file $bubbles_file $OP $INS_STRING $STDV_STRING"
 		fi
 		
 	fi
