@@ -3,12 +3,15 @@
 display_usage(){
  printf "Script to automatically generate the manifest file to input in Mira for de novo assembly projects. Paired end reads\
  must be in the traditional 'forward-reverse' orientation while mate pair must come in the 'reverse-forward' orientation'.\n
+ You should always use the resume option ('-r') when calling Mira. It will resume the assembly at the point where some special files were written.\n
  Usage:
     -1st argument must be the project name to use in Mira.The name will be the prefix for the manifest file generated.
     -2nd argument must be a flag to use paired end reads to generate the command.Available option: [true|false].
     -3rd argument must be a flag to use mate pair reads to generate the command.Available option: [true|false].
     -4th argument must be a flag to use 454 reads reads to generate the command.Available option: [true|false].
-    -5th argument must be a flag to Mira auto estimate insert sizes of libraries: [true|false].\n"
+    -5th argument must be a flag to Mira auto estimate insert sizes of libraries: [true|false].
+    -6th argument must be the number of threads to use [INT value].
+    -7th argument must be the maximum ammount of memory to use [INT value].\n"
 }
 
 #################Check if required arguments were provided########
@@ -44,21 +47,12 @@ PE800=""
 MP2000=""
 MP5000=""
 
-##############################START APPENDING GENERAL SETTINGS TO OUTPUT FILE##########
-if [ -f "$OUTPUT_FILE" ] ; then
-		rm $OUTPUT_FILE
-fi
-
-cat <<EOF >> $OUTPUT_FILE
-#Name to the assembly and purpose of the job
-project = ${PROJECT_NAME}
-job = genome,denovo,accurate
-EOF
 
 
 
 ###################DEFINING READ GROUPS#############################
 
+function read_groups(){
 
 #If assemble paired end
 if [ "$2" = "true" ]; then
@@ -250,8 +244,37 @@ EOF
         fi
 fi
 
+}
 
-
-
+function settings(){
 ####PARAMETERS###
 #parameters = COMMON SETTINGS -GE:not=
+cat <<EOF >> $OUTPUT_FILE
+
+#PARAMETERS
+parameters = COMMON SETTINGS -GE:not=$1 -GE:mps=$2
+EOF
+}
+
+
+
+
+##################################################################
+###################Create command#################################
+##################################################################
+
+##START APPENDING GENERAL SETTINGS TO OUTPUT FILE
+if [ -f "$OUTPUT_FILE" ] ; then
+		rm $OUTPUT_FILE
+fi
+
+cat <<EOF >> $OUTPUT_FILE
+#Name to the assembly and purpose of the job
+project = ${PROJECT_NAME}
+job = genome,denovo,accurate
+EOF
+
+
+####READ GROUPS
+read_groups $1 $2 $3 $4 $5
+settings $6 $7
