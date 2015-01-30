@@ -16,8 +16,8 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
 fi
 
 CONTIG_FILE="-c $1"
-#sort list of files (increasing insert size)
-list_sorted=( $(find $2 -name *.bam | sort -n -t _ -k 2) )
+#sort list of sorted and indexed files (increasing insert size)
+list_sorted=( $(find $2 -name '*sorted*.bam' | sort -n -t _ -k 2) )
 BAM_FILES="-f ${list_sorted[@]}"
 ORIENTATION=""
 OUTPUT="-o $4"
@@ -43,4 +43,4 @@ fi
 
 ##Pass command to script and give permissions to run
 file="runBESST.sh"
-echo -e "#!/bin/bash \n$command" > ./$file | chmod 755 $file
+echo -e "#!/bin/bash \n$command 2> error.log" > ./$file | chmod 755 $file
