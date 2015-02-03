@@ -33,8 +33,8 @@ OUTPUT_FILE="${PROJECT_NAME}-manifest.txt"
 GENOMIC_454_PATH="/mnt/msa/BIOCANT/genomic-data/SFF_genom/FASTQ_RAW/"
 
 #Path to the file that lists Illumina files wit the threshold Q20L80/Q20L40
-LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q20L80-PE_Q20L20-MP.txt"
-
+#LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q20L80-PE_Q20L20-MP.txt"
+LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q35L90-PE_Q35L40-MP.txt"
 ##Fragment sizes estimations for each type of library
 PE170_INSZ_MIN_MAX="100 450 exclusion_criterion autorefine"
 PE500_INSZ_MIN_MAX="350 800 exclusion_criterion autorefine"
