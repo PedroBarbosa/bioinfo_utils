@@ -29,7 +29,7 @@ PROJECT_NAME="$1"
 OUTPUT_FILE="${PROJECT_NAME}-manifest.txt"
 
 #Path to the genomic 454 sequencing FASTA files - All files of the directory will be used so we can provide a path in Mira
-GENOMIC_454_PATH="/mnt/msa/BIOCANT/genomic-data/SFF_genom/FASTA_FILES/"
+GENOMIC_454_PATH="/mnt/msa/BIOCANT/genomic-data/SFF_genom/FASTQ_RAW/"
 
 #Path to the file that lists Illumina files wit the threshold Q20L80/Q20L40
 LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q20L80-PE_Q20L20-MP.txt"
