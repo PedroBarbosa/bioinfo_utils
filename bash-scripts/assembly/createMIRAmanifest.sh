@@ -11,7 +11,8 @@ display_usage(){
     -5th argument must be a flag to Mira auto estimate insert sizes of libraries: [true|false].
     -6th argument must be the number of threads to use [INT value].
     -7th argument must be the maximum ammount of memory to use [INT value].
-    -8th argument must be the percentage of memory to keep free [0< INT <100}.\n"
+    -8th argument must be the percentage of memory to keep free [0< INT <100}.
+    -9th argument is optional. If set to yes, Mira will force some steps to use less memory, with the cost in the runtime. [yes|no] Default:no.\n"
 }
 #You should always use the resume option ('-r') when calling Mira. It will resume the assembly at the point where some special files were written.\n
 
@@ -249,12 +250,21 @@ fi
 
 function settings(){
 ####PARAMETERS###
-#parameters = COMMON SETTINGS -GE:not=
+
 cat <<EOF >> $OUTPUT_FILE
 
 #PARAMETERS
-parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3
+parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn \
 EOF
+
+#add parameters to force memory reduction
+if [ -z "$4" ] || [ "$4" = "no" ]; then
+    printf "Not forcing Mira to use less memory.\n"
+else
+cat <<EOF >> $OUTPUT_FILE
+-SK:mhpr=500:mhim=10000000
+EOF
+fi
 }
 
 
@@ -278,4 +288,13 @@ EOF
 
 ####READ GROUPS
 read_groups $1 $2 $3 $4 $5
-settings $6 $7 $8
+###PARAMETERS
+if [ -z "$9" ]; then
+    settings $6 $7 $8
+elif [ "$9" = "yes" ] || [ "$9" = "no" ]; then
+    settings $6 $7 $8 $9
+else
+    printf "\nPlease provide a rigth value for the 9th parameter.\n\n"
+    display_usage
+    exit 1
+fi
