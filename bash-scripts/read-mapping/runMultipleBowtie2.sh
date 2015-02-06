@@ -70,7 +70,7 @@ do
 		printf "Running bowtie2 aligner for library ${numb_samples}.."
 		sam_file="${sam_basename}_${numb_samples}.sam"
 		command="$base_command -1 $pair1 -2 $pair2 $sam_file"	    	
-		$command
+		$command 2> "./stderr.txt"
 
 	elif [ ! -f "$filename" -a "$matepairFlag" = "false"  ]; then
 		echo "$filename" is not a file
@@ -92,7 +92,7 @@ do
 		printf "Running bowtie2 aligner for library ${numb_samples}.."
 		sam_file="${sam_basename}_${numb_samples}.sam"
 		command="$base_command -1 $pair1 -2 $pair2 $sam_file"
-		$command
+		$command 2> "./stderr.txt"
 
 	
 	elif [ ! -f "$filename" -a "$matepairFlag" = "true" ]; then

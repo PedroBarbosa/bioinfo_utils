@@ -10,10 +10,14 @@ memory=107374182400
 while read line
 do	
 	printf "Processing $line file..\n"
-	output=${line/.bam/-sorted}
-	command_view="samtools view -Sb $line" 	
-	command_sort="samtools sort -m $memory $line"
+	output=${line/.sam/-sorted}
+	command_view="samtools view -Shub $line" 	
+	echo "$command_view" 
+	command_sort="samtools sort -m $memory - ${output}"
+	echo "$command_sort"
 	command_index="samtools index ${output}.bam"
-	$command_view | $command_sort | $command_index
+	$command_view | $command_sort 
+	printf "Indexing now..\n"
+	$command_index
 	printf "$line file processed.\n" 
 done < "$1"

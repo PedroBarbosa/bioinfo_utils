@@ -255,7 +255,7 @@ function settings(){
 cat <<EOF >> $OUTPUT_FILE
 
 #PARAMETERS
-parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn \
+parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn \   
 EOF
 
 #add parameters to force memory reduction
@@ -299,3 +299,4 @@ else
     display_usage
     exit 1
 fi
+
