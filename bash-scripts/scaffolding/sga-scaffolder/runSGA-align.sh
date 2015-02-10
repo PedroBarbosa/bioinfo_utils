@@ -33,7 +33,7 @@ do
 	#check if reached the MATE PAIR samples, and if not supposed to assemble them, break the loop
 	if [[ "$filename" == *"MP"* && "$3" = "true" ]];then
 		matepairFlag=true
-    
+
 	elif [[ "$filename" == *"MP"* && "$3" = "false" ]];then
 		break
 	fi
@@ -43,7 +43,7 @@ do
 		pair1=$filename
 		first_pair=false
 		second_pair=true
-    
+
 	elif [ -f "$filename" -a  "$second_pair" = "true" -a "$2" = "true" -a "$matepairFlag" = "false" ]; then
 		pair2=$filename
 		first_pair="true"
@@ -64,7 +64,7 @@ do
 		pair1=$filename
 		first_pair=false
 		second_pair=true
-   
+
 	elif [ "$matepairFlag" = "true" -a -f "$filename" -a  "$second_pair" = "true" -a "$3" = "true" ]; then
 		pair2=$filename
 		first_pair="true"
