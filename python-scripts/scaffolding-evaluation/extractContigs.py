@@ -21,7 +21,7 @@ def processFastaFiles(inputFile, n, outputFile):
         discardedcontigs = -1 ##to account for the first line
         with open(inputFile[0]) as file:
             for line in file:
-                line.strip()
+                line=line.rstrip()
                 #print contig_seq
                 if line.startswith('>') and len(list(contig_seq)) >= n:
 
@@ -46,7 +46,7 @@ def processFastaFiles(inputFile, n, outputFile):
 
 
             ###process last contig (after last >) ###
-            if len(list(contig_seq)) >= n:
+            if len(list(contig_seq)) > n:
                 with open(outputFile, "a") as out:
                         out.write(contig_id + contig_seq)
                 keptcontigs+=1
