@@ -34,6 +34,7 @@ def count(inputfile):
         firstScaff=True
         with open(inputfile[0]) as file:
             for line in file:
+                line=line.rstrip()
                 if line.startswith('>'):
                     if firstScaff:
                         scaffold_id = line
@@ -71,14 +72,13 @@ def write2file(dict,outputfile):
             #get keys of the tuples sorted by the length of scaffolds and write to file
             for key in dict.keys():
                 if dict[key] == tuple :
-                    key.strip()
+                    key = key.rstrip()
                     percentageNs = round((float(tuple[1]) / tuple[0]) * 100,2)
                     writer.writerow((key.rstrip(), str(tuple[0]),str(tuple[1]), str(percentageNs)))
 
-                else:
-                    continue
 
-    csvfile.close()
+
+        csvfile.close()
 
 
 parser = MyParser()

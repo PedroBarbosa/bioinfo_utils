@@ -26,7 +26,7 @@ def processFastaFiles(inputFile, n, outputFile):
                 if line.startswith('>') and len(list(contig_seq)) >= n:
 
                     with open(outputFile, "a") as out:
-                        out.write(contig_id + contig_seq)
+                        out.write(contig_id + "\n" + contig_seq + "\n")
 
                     contig_id = line
                     contig_seq = ""
@@ -48,7 +48,7 @@ def processFastaFiles(inputFile, n, outputFile):
             ###process last contig (after last >) ###
             if len(list(contig_seq)) > n:
                 with open(outputFile, "a") as out:
-                        out.write(contig_id + contig_seq)
+                        out.write(contig_id + "\n" + contig_seq)
                 keptcontigs+=1
             else:
 
