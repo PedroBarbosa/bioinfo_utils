@@ -72,7 +72,7 @@ if [ -z "$4" ] || [ "$4" = "no" ]; then
 cat <<EOF >> $OUTPUT_FILE
 
 #PARAMETERS
-parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn -SK:not=$1 \\
+parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn -SK:not=$1:mmhr=10 \\
 EOF
 
 #add parameters to force memory reduction
@@ -81,7 +81,7 @@ else
 cat <<EOF >> $OUTPUT_FILE
 
 #PARAMETERS
-parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn -SK:not=$1:mhpr=500:mhim=10000000 \\
+parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn -SK:not=$1:mmhr=10:mhpr=500:mhim=10000000 \\
 EOF
 fi
 

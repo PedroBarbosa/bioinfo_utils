@@ -1,5 +1,4 @@
 #!/bin/bash
-
 display_usage(){
  printf "Script to automatically generate the executable command for the RNA assembly with transabyss. If you want to customize more parameters you can add them manually after this script is ran.\n
  Usage:
@@ -37,9 +36,10 @@ THREADS="--threads $5"
 if [ -z "$8" ] || [ "$8" == "yes" ]; then
     BLAT='yes'
 elif [ "$8" == no ]; then
+    printf "Blat will not be performed.\n"
     BLAT='no'
 else
-    printf "Please provide a valid valid for the 8th argument, or don't provide it at all, since it is optional.\n\n"
+    printf "Please provide a valid valid for the 8th argument, or don't provide it at all, since it is optional. [yes|no].\n\n"
     display_usage
     exit 1
 fi
@@ -54,6 +54,26 @@ FIRST_PAIR=true
 SECOND_PAIR=false
 
 
+function process_paired_end(){
+
+    	if [ "$1" = "true" -a "$2" = "false" ]; then
+		    pair1=$3
+		    FIRST_PAIR="false"
+		    SECOND_PAIR="true"
+            SINGLE_END_DATA="$SINGLE_END_DATA $pair1"
+
+	    elif [ "$1" = "false" -a "$2" = "true" ]; then
+		    pair2=$3
+		    FIRST_PAIR="true"
+		    SECOND_PAIR="false"
+		    SINGLE_END_DATA="$SINGLE_END_DATA $pair2"
+            PAIRED_END_DATA="$PAIRED_END_DATA $pair1 $pair2"
+	    else
+	        printf "Something went wrong with the paired end file processing.\n\n"
+	    fi
+}
+
+
 
 #Single end files to assemble.
 if [ "$3" = "true" ] ; then
@@ -66,7 +86,7 @@ if [ "$3" = "true" ] ; then
                 SINGLE_END_DATA="$SINGLE_END_DATA $line"
 
             else
-                printf "File $line does not exist. Please check this out.\n"
+                printf "File $line does not exist. Please check this out.\n\n"
                 display_usage
                 exit 1
             fi
@@ -74,12 +94,12 @@ if [ "$3" = "true" ] ; then
 
     elif [ "$7" = "-" ]; then
 
-        printf "You set the 3rd argument to true, so please provide a file with the single end reads to use.\n"
+        printf "You set the 3rd argument to true, so please provide a file with the single end reads to use.\n\n"
         display_usage
         exit 1
 
     else
-        printf "Please use a valid value for the 7th argument.\n"
+        printf "Please use a valid value for the 7th argument.\n\n"
         display_usage
         exit 1
     fi
@@ -89,8 +109,10 @@ elif [ "$3" = "false" ] && [ -f "$7" ]; then
     display_usage
     exit 1
 
+elif [ "$3" = "false" ] && [ "$7" = "-" ]; then
+    printf "No single end reads will be used to generate the command.\n\n"
 else
-    printf "Please provide valid values for the 3rd argument: [true|false].\n\n"
+    printf "Please provide valid values for the 3rd argument: [true|false], or the 7th argument: [FILE|-].\n\n"
     display_usage
     exit 1
 fi
@@ -107,7 +129,7 @@ if [ "$2" = "true" ] ; then
             if [ -f "$line" ] ; then
                 process_paired_end $FIRST_PAIR $SECOND_PAIR $line
             else
-                printf "File $line does not exist. Please check this out.\n"
+                printf "File $line does not exist. Please check this out.\n\n"
                 display_usage
                 exit 1
             fi
@@ -115,63 +137,58 @@ if [ "$2" = "true" ] ; then
 
     elif [ "$6" = "-" ]; then
 
-        printf "You set the 2nd argument to true, so please provide a file with the paired end reads to use.\n"
+        printf "You set the 2nd argument to true, so please provide a file with the paired end reads to use.\n\n"
         display_usage
         exit 1
 
     else
-        printf "Please use a valid value for the 6th argument.\n"
+        printf "Please use a valid value for the 6th argument.\n\n"
         display_usage
         exit 1
     fi
 
-elif [ "$2" = "false" ] && [ -f "$7" ]; then
+elif [ "$2" = "false" ] && [ -f "$6" ]; then
     printf "No need to provide a file representing paired end reads. 2rd argument was set to false. Please check this out.\n\n"
     display_usage
     exit 1
 
+elif [ "$2" = "false" ] && [ "$6" = "-" ]; then
+    printf "No paired end reads will be used to generate the command.\n\n"
+
 else
-    printf "Please provide valid values for the 2nd argument: [true|false].\n\n"
+    printf "Please provide valid values for the 2nd argument: [true|false], or the 7th argument: [FILE|-].\n\n"
     display_usage
     exit 1
 fi
 
 
 
-function process_paired_end(){
 
-    	if [ "$1" = "true" -a "$2" = "false" ]; then
-		    pair1=$3
-		    FIRST_PAIR="false"
-		    SECOND_PAIR="true"
-            SINGLE_END_DATA="$SINGLE_END_DATA $pair1"
-            
-	    elif [ "$1" = "false" -a "$2" = "true" ]; then
-		    pair2=$3
-		    FIRST_PAIR="true"
-		    SECOND_PAIR="false"
-		    SINGLE_END_DATA="$SINGLE_END_DATA $pair2"
-            PAIRED_END_DATA="$PAIRED_END_DATA $pair1 $pair2"
-	    else 
-	        printf "Something went wrong with the paired end file processing.\n\n"
-	    fi
-}
 
 
 
 
 #########Generate final command###########
 if [ "$2" = "true" ]; then
-    COMMAND="$TRANSABYSS $SINGLE_END_DATA $PAIRED_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME"
+    if [ "$BLAT" = "no" ] ; then
+        COMMAND="$TRANSABYSS $SINGLE_END_DATA $PAIRED_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME --noblat"
+    else
+        COMMAND="$TRANSABYSS $SINGLE_END_DATA $PAIRED_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME"
+    fi
 else
-    COMMAND="$TRANSABYSS $SINGLE_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME"
+    if [ "$BLAT" = "no" ]; then
+        COMMAND="$TRANSABYSS $SINGLE_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME --noblat"
+    else
+        COMMAND="$TRANSABYSS $SINGLE_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME"
+    fi
 fi
 
 #check if output file already exists. If so, delete it
-EXEC_FILE="$PWD/run_transabyss.sh"
+EXEC_FILE="$PWD/run_transabyss_k$4.sh"
 if [ -f "$EXEC_FILE" ]; then
-	rm $EXEC_FILE
+	rm "$EXEC_FILE"
 fi
 
 ##Pass command to script and give permissions to run
-echo -e "#!/bin/bash \nEXEC_FILE" > ./$EXEC_FILE | chmod +x ./$EXEC_FILE
+printf "Done.\n"
+echo -e "#!/bin/bash \n$COMMAND" > "$EXEC_FILE" | chmod +x "$EXEC_FILE"
