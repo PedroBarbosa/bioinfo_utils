@@ -66,6 +66,7 @@ function settings(){
 #Min reads per contigs [default 2]. Should i put one to get very low abundant transcripts? test it later : −AS:mrpc = 1
 #Is poly tails removed by seqclean ? If so, disable this in Mira
 #Repeat mask parameters. [-HS:mnr] and [-HS:nrr] respectively [-HS:nrc]. I'll come back to [-SK:bph]"
+#mmhr=10 megahubs ratio - default 0. For ESTs projects it should be changed otherwise MIRA will crash in the middle of the process
 
 if [ -z "$4" ] || [ "$4" = "no" ]; then
     printf "Not forcing Mira to use less memory.\n"
