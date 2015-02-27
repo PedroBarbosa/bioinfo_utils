@@ -1,6 +1,6 @@
 import argparse
 from lib2to3.pgen2.tokenize import double3prog
-
+from decimal import *
 
 __author__ = 'pedro'
 
@@ -19,7 +19,7 @@ def processEvalue(blastFile, eval_threshold):
         for line in file:
             if not line.startswith('#'):
                 vector = line.split("\t") #read itself
-                eValue = round(10 ** (float(vector[10])),8) #new eValue
+                eValue = round(10 ** (Decimal(vector[10])),8) #new eValue
                 if eValue < float(eval_threshold):
                     vector[10] = str(eValue)
                     fileoutput.write('\t'.join(vector))
