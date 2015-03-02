@@ -6,11 +6,10 @@ __author__ = 'pedro'
 
 parser = argparse.ArgumentParser(description='This is a script to correct the evalue of rapsearch results')
 parser.add_argument('-i', dest='blast_results_file', help='Blast results file', required=True)
-parser.add_argument('-e', dest='evalue_threshold', help='Threshold to accept hits', required=True)
 parser.add_argument('-o', dest='outputed_file', help='Corrected evalue file', required=True)
 args = parser.parse_args()
 
-def processEvalue(blastFile, eval_threshold):
+def processEvalue(blastFile):
     print "Reading and processing file ..."
     filename = args.outputed_file
     open(filename, 'w').close() ## empty output file, just in case
@@ -20,9 +19,8 @@ def processEvalue(blastFile, eval_threshold):
             if not line.startswith('#'):
                 vector = line.split("\t") #read itself
                 eValue = round(10 ** (Decimal(vector[10])),8) #new eValue
-                if eValue < float(eval_threshold):
-                    vector[10] = str(eValue)
-                    fileoutput.write('\t'.join(vector))
+                vector[10] = str(eValue)
+                fileoutput.write('\t'.join(vector))
             else:
                 vector = line.split("\t") #read itself
                 if len(vector) > 10:
@@ -33,4 +31,4 @@ def processEvalue(blastFile, eval_threshold):
     print "Done."
     return fileoutput
 
-processEvalue(args.blast_results_file, args.evalue_threshold)
+processEvalue(args.blast_results_file)
