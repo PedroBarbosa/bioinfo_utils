@@ -1,6 +1,5 @@
 __author__ = 'pedro'
 
-
 import argparse
 import os
 import csv
@@ -57,7 +56,7 @@ args = parser.parse_args()
 
 
 if __name__ == "__main__":
-    print("Checking qualities of the reads..")
+    print("Checking qualities of the reads.. This may take a while..")
     dict, numb_nuc, numb_reads = process_qual_file(args.qualities_file)
     print("Writing the output to " + args.output_file[0] + "..")
     write2file(dict, numb_nuc, numb_reads, args.output_file[0])
