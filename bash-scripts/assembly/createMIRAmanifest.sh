@@ -11,7 +11,7 @@ display_usage(){
     -5th argument must be a flag to Mira auto estimate insert sizes of libraries: [true|false].
     -6th argument must be the number of threads to use [INT value].
     -7th argument must be the maximum ammount of memory to use [INT value].
-    -8th argument must be the percentage of memory to keep free [0< INT <100}.
+    -8th argument must be the percentage of memory to keep free [0< INT <100].
     -9th argument is optional. If set to yes, Mira will force some steps to use less memory, with the cost in the runtime. [yes|no] Default:no.\n"
 }
 #You should always use the resume option ('-r') when calling Mira. It will resume the assembly at the point where some special files were written.\n

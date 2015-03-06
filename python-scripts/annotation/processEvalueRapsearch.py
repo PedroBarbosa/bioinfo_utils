@@ -11,7 +11,7 @@ parser.add_argument('-o', dest='outputed_file', help='Corrected evalue file', re
 args = parser.parse_args()
 
 def processEvalue(blastFile, eval_threshold):
-    print "Reading and processing file ..."
+    print("Reading and processing file ...")
     filename = args.outputed_file
     open(filename, 'w').close() ## empty output file, just in case
     fileoutput = open (filename, 'w')
@@ -30,7 +30,7 @@ def processEvalue(blastFile, eval_threshold):
                     fileoutput.write('\t'.join(vector))
                 else:
                     fileoutput.write(line)
-    print "Done."
+    print("Done.")
     return fileoutput
 
 processEvalue(args.blast_results_file, args.evalue_threshold)
