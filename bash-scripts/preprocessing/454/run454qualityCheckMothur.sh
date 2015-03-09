@@ -1,9 +1,9 @@
 #!/bin/bash
 
 display_usage(){
-	printf "Script to perform the quality trimming of reads from the Roche 454 platform using Mothur trim.seqs program under the hood. \n
-	It is required that Mothur is in the system path.\n
-	Please provide the fasta file with the extension '.fasta', otherwise the script will not work properly.\n\n
+	printf "Script to perform the quality trimming of reads from the Roche 454 platform using Mothur trim.seqs program under the hood.
+It is required that Mothur is in the system path.
+Please provide the fasta file with the extension '.fasta', otherwise the script will not work properly.\n
 
     -1st argument must be a file with the list of FASTA files to process.
     -2nd argument must be a file with the qualities associated. Each line of the 1st and 2nd argument must represent the same sample.
