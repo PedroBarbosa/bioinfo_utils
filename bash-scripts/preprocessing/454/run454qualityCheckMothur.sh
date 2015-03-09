@@ -1,7 +1,9 @@
 #!/bin/bash
 
 display_usage(){
-	printf "Script to perform the quality trimming of reads from the Roche 454 platform using Mothur trim.seqs program under the hood. It is required that Mothur is in the system path.
+	printf "Script to perform the quality trimming of reads from the Roche 454 platform using Mothur trim.seqs program under the hood. \n
+	It is required that Mothur is in the system path.\n
+	Please provide the fasta file with the extension '.fasta', otherwise the script will not work properly.\n\n
 
     -1st argument must be a file with the list of FASTA files to process.
     -2nd argument must be a file with the qualities associated. Each line of the 1st and 2nd argument must represent the same sample.
@@ -30,7 +32,7 @@ PROCESSORS="processors=$3"
 AVG_READ_QUAL="qaverage=$4"
 AVG_WINDOW_QUAL="qwindowaverage=$5"
 WINDOW_SIZE="qwindowsize=$6"
-EXEC="#trim.seqs($FASTA_FILE,$QUAL_FILE,$PROCESSORS,$AVG_READ_QUAL,$AVG_WINDOW_QUAL,$WINDOW_SIZE"
+EXEC="trim.seqs($FASTA_FILE,$QUAL_FILE,$PROCESSORS,$AVG_READ_QUAL,$AVG_WINDOW_QUAL,$WINDOW_SIZE"
 if [ "$7"  != "-" ]; then
     MIN_LENGTH="minlength=$7"
     EXEC="$EXEC,$MIN_LENGTH"
@@ -55,8 +57,8 @@ fi
 #Close command
 EXEC="$EXEC)"
 echo $EXEC
-#TRANSFORM TWO FILES IN LISTS AND THEN ACCESS TO THE SAME POSITION OF LISTS TO INSERT AND RUN  THE MOTHUR COMMAND
-#ALSO PERFORM SUMMARY.SEQS.
+
+
 
 #Transform lines in files into arrays
 readarray LIST_FASTA < "$1"
@@ -75,19 +77,20 @@ do
 
     #exec command ready
     EXEC="${EXEC/$FASTA_FILE,$QUAL_FILE/$NEW_FASTA_FILE,$NEW_QUAL_FILE}"
+
+    echo -e "#File to run mothur in batch mode.\n$EXEC\nsummary.seqs()\nsummary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta})" > "$PWD/batch_file.txt"
     #add trimming points
-    EXEC="$EXEC; summary.seqs(); summary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta})"
+    #EXEC="$EXEC; summary.seqs(); summary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta})"
 
     #Run mothur
     printf "Running mothur on ${NEW_FASTA_FILE/fasta=/} sample ..\n"
-    RUN_EXEC="mothur \"$EXEC\""
-    $RUN_EXEC
+    RUN_EXEC="mothur $PWD/batch_file.txt"
+    $RUN_EXEC &> "$PWD/log_${NEW_FASTA_FILE/fasta=/}.txt"
     printf "Done.\n\n"
 
 
     #exec command reset
     EXEC="${EXEC/$NEW_FASTA_FILE,$NEW_QUAL_FILE/$FASTA_FILE,$QUAL_FILE}"
-    echo $EXEC
 done
 
 
