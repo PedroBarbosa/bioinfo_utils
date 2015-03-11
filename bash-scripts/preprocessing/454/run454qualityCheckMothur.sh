@@ -56,13 +56,50 @@ fi
 
 #Close command
 EXEC="$EXEC)"
-echo $EXEC
 
 
 
 #Transform lines in files into arrays
 readarray LIST_FASTA < "$1"
 readarray LIST_QUAL < "$2"
+
+#Print parameters set
+printf "\nMothur will run with the following settings for all files:
+Number of processors:   $3
+Minimum average quality for a read: $4
+Minimum average quality of a window:    $5
+Size of the window: $6\n"
+if [ "$7"  == "-" ]; then
+    printf "Minimum length for a read:  Disabled\n"
+else
+    printf "Minimum length for a read:  $7\n"
+fi
+
+if [ "$8"  == "-" ]; then
+    printf "Maximum length for a read:  Disabled\n"
+else
+    printf "Maximum length for a read:  $8\n"
+fi
+
+if [ "$9" == "-" ]; then
+    printf "Quality threshold for a base call:  Disabled\n"
+else
+    printf "Quality threshold for a base call:  $9\n"
+fi
+
+if [ "${10}"  == "-" ]; then
+    printf "Maximum number of ambiguous call allowed (N's): Disabled\n"
+else
+    printf "Maximum number of ambiguous call allowed (N's): ${10}\n"
+fi
+
+if [ "${11}"  == "-" ]; then
+    printf "Maximum length of homopolymer allowed:  Disabled\n\n"
+else
+    printf "Maximum length of homopolymer allowed:  ${11}\n\n"
+fi
+
+
 
 #Process and run each sample
 for i in "${!LIST_FASTA[@]}"
@@ -78,7 +115,9 @@ do
     #exec command ready
     EXEC="${EXEC/$FASTA_FILE,$QUAL_FILE/$NEW_FASTA_FILE,$NEW_QUAL_FILE}"
 
-    echo -e "#File to run mothur in batch mode.\n$EXEC\nsummary.seqs()\nsummary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta})" > "$PWD/batch_file.txt"
+    echo $NEW_QUAL_FILE
+    echo -e "#File to run mothur in batch mode.\n$EXEC\nsummary.seqs()\nsummary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta)}\nmake.fastq(\
+${NEW_FASTA_FILE/.fasta/.trim.fasta},${NEW_QUAL_FILE/.qual/.trim.qual})" > "$PWD/batch_file.txt"
     #add trimming points
     #EXEC="$EXEC; summary.seqs(); summary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta})"
 
@@ -86,7 +125,7 @@ do
     printf "Running mothur on ${NEW_FASTA_FILE/fasta=/} sample ..\n"
     RUN_EXEC="mothur $PWD/batch_file.txt"
     $RUN_EXEC &> "$PWD/log_${NEW_FASTA_FILE/fasta=/}.txt"
-    printf "Done.\n\n"
+    printf "Conversion to fastq finished.\nDone.\n\n"
 
 
     #exec command reset
