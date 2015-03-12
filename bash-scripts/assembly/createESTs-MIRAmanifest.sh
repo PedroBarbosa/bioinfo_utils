@@ -8,7 +8,9 @@ display_usage(){
     -4th argument must be the maximum ammount of memory to use [INT value].
     -5th argument must be the percentage of memory to keep free [0< INT <100}.
     -6th argument is optional. If set to yes, Mira will force some steps to use less memory, with the cost in the runtime. [yes|no] Default:no.
-    -7th argument is optional. If set to yes, Mira will execute the clipping algorithm on the reads along with the Poly-A tail removal. [yes|no] Default: yes.\n\n"
+    -7th argument is optional. If set to yes, Mira will execute the clipping algorithm on the reads along with the Poly-A tail removal. [yes|no] Default: yes.
+    -8th argument is optional. If set yo yes, Mira will execute the mask of nasty repeats during assembly. Highly useful in ESTs projects with non-normalized\
+libraries. [yes|no] Default:yes\n\n"
 }
 #You should always use the resume option ('-r') when calling Mira. It will resume the assembly at the point where some special files were written.\n
 
@@ -38,8 +40,11 @@ do
     fi
 done < "$2"
 
-
-
+#Threads
+THREADS="$3"
+#Memory arguments
+MAX_MEM="$4"
+MEM_FREE_PERCENT="$5"
 
 ###################DEFINING READ GROUPS#############################
 
@@ -64,7 +69,6 @@ function settings(){
 
 ####PARAMETERS###
 #Min reads per contigs [default 2]. Should i put one to get very low abundant transcripts? test it later : −AS:mrpc = 1
-#Is poly tails removed by seqclean ? If so, disable this in Mira
 #Repeat mask parameters. [-HS:mnr] and [-HS:nrr] respectively [-HS:nrc]. I'll come back to [-SK:bph]"
 #mmhr=10 megahubs ratio - default 0. For ESTs projects it should be changed otherwise MIRA will crash in the middle of the process
 
@@ -86,6 +90,17 @@ parameters = COMMON_SETTINGS -GE:not=$1:amm=no:mps=$2:kpmf=$3 -NW:cmrnl=warn -SK
 EOF
 fi
 
+#mask nasty repeats
+if [ -z "$6" ] || [ "$6" = "yes" ]; then
+    printf "Masking of nasty repeats will be performed as default.\n"
+else
+    printf "Masking of nasty repeats will not be performed.\n"
+cat <<EOF >> $OUTPUT_FILE
+-HS:mnr=no
+EOF
+fi
+
+
 ##clipping algorithm [disable both poly-A tail removal step and the proposed end clipping algorithm]
 if [ -z "$5" ] || [ "$5" = "yes" ]; then
     printf "Clipping will be performed as default.\n"
@@ -93,10 +108,8 @@ else
     printf "Clipping will not be performed.\n"
 cat <<EOF >> $OUTPUT_FILE
 454_SETTINGS -CL:pec=no:cpat=no
-
 EOF
 fi
-
 
 }
 
@@ -123,14 +136,16 @@ EOF
 read_groups
 
 ###PARAMETERS
-if [ -z "$6" ] && [ -z "$7" ]; then
+if [ -z "$6" ] ; then
     settings $3 $4 $5
 elif [ "$6" = "yes" ] || [ "$6" = "no" ] && [ -z "$7" ]; then
     settings $3 $4 $5 $6
-elif [ "$6" = "yes" ] || [ "$6" = "no" ] && [ "$7" = "yes" ] || [ "$7" = "no" ] ; then
+elif [ "$6" = "yes" ] || [ "$6" = "no" ] && [ "$7" = "yes" ] || [ "$7" = "no" ] && [ -z "$8" ] ; then
     settings $3 $4 $5 $6 $7
+elif [ "$6" = "yes" ] || [ "$6" = "no" ] && [ "$7" = "yes" ] || [ "$7" = "no" ] && [ "$8" = "yes" ] || [ "$8" = "no" ]  ; then
+    settings $3 $4 $5 $6 $7 $8
 else
-    printf "\nPlease provide a rigth value for the 6th or 7th parameter.\n\n"
+    printf "\nPlease provide a rigth value for the 6th, 7th or 8th parameter.\n\n"
     display_usage
     exit 1
 fi
