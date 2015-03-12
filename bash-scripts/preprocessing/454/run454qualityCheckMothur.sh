@@ -54,8 +54,9 @@ if [ "${11}" != "-" ]; then
     EXEC="$EXEC,$MAX_HOMOPOLYMER"
 fi
 
-#Close command
-EXEC="$EXEC)"
+#Add output dir and close command
+OUT_DIR="outputdir=$PWD"
+EXEC="$EXEC,$OUT_DIR)"
 
 
 
@@ -67,7 +68,7 @@ readarray LIST_QUAL < "$2"
 printf "\nMothur will run with the following settings for all files:
 Number of processors:   $3
 Minimum average quality for a read: $4
-Minimum average quality of a window:    $5
+Minimum average quality over a window:    $5
 Size of the window: $6\n"
 if [ "$7"  == "-" ]; then
     printf "Minimum length for a read:  Disabled\n"
@@ -88,9 +89,9 @@ else
 fi
 
 if [ "${10}"  == "-" ]; then
-    printf "Maximum number of ambiguous call allowed (N's): Disabled\n"
+    printf "Maximum number of ambiguous calls allowed (N's): Disabled\n"
 else
-    printf "Maximum number of ambiguous call allowed (N's): ${10}\n"
+    printf "Maximum number of ambiguous calls allowed (N's): ${10}\n"
 fi
 
 if [ "${11}"  == "-" ]; then
@@ -98,7 +99,8 @@ if [ "${11}"  == "-" ]; then
 else
     printf "Maximum length of homopolymer allowed:  ${11}\n\n"
 fi
-
+printf "Most of the running time will take place in the conversion of the output files to fastq format. This is because 'make.fastq' program\
+ within Mothur does not have an option to run in several threads.\n\n"
 
 
 #Process and run each sample
@@ -115,21 +117,30 @@ do
     #exec command ready
     EXEC="${EXEC/$FASTA_FILE,$QUAL_FILE/$NEW_FASTA_FILE,$NEW_QUAL_FILE}"
 
-    echo $NEW_QUAL_FILE
-    echo -e "#File to run mothur in batch mode.\n$EXEC\nsummary.seqs()\nsummary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta)}\nmake.fastq(\
-${NEW_FASTA_FILE/.fasta/.trim.fasta},${NEW_QUAL_FILE/.qual/.trim.qual})" > "$PWD/batch_file.txt"
-    #add trimming points
-    #EXEC="$EXEC; summary.seqs(); summary.seqs(${NEW_FASTA_FILE/.fasta/.scrap.fasta})"
+    #remove full path
+    SHORT_NEW_FASTA_FILE=$(basename ${NEW_FASTA_FILE})
+    SHORT_NEW_QUAL_FILE=$(basename ${NEW_QUAL_FILE})
+
+    #create the batch file to run mothur programs at once. trim.seqs [quality trimming], summary.seqs [produce trimming points file] and make.fastq [produce final fastq file]
+    echo -e "#File to run mothur in batch mode.\n$EXEC\nsummary.seqs()\nsummary.seqs(fasta=${SHORT_NEW_FASTA_FILE/.fasta/.scrap.fasta})\nmake.fastq(\
+fasta=${SHORT_NEW_FASTA_FILE/.fasta/.trim.fasta},qfile=${SHORT_NEW_QUAL_FILE/.qual/.trim.qual})" > "$PWD/batch_file.txt"
+
 
     #Run mothur
     printf "Running mothur on ${NEW_FASTA_FILE/fasta=/} sample ..\n"
     RUN_EXEC="mothur $PWD/batch_file.txt"
-    $RUN_EXEC &> "$PWD/log_${NEW_FASTA_FILE/fasta=/}.txt"
-    printf "Conversion to fastq finished.\nDone.\n\n"
+    LOG_BASENAME=${SHORT_NEW_FASTA_FILE/.fasta/.txt}
+    $RUN_EXEC &> "$PWD/log_${LOG_BASENAME}"
 
+    #change the name of final fastq output file
+    mv "${SHORT_NEW_FASTA_FILE/.fasta/}.trim.fastq" "${SHORT_NEW_FASTA_FILE/.fasta/}.mothur-output.fastq"
+
+    #remove all log files produced by mothur
+    rm *.logfile
 
     #exec command reset
     EXEC="${EXEC/$NEW_FASTA_FILE,$NEW_QUAL_FILE/$FASTA_FILE,$QUAL_FILE}"
+    printf "Done.\n\n"
 done
 
 
