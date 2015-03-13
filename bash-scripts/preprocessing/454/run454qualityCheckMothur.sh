@@ -116,7 +116,7 @@ do
 
     #exec command ready
     EXEC="${EXEC/$FASTA_FILE,$QUAL_FILE/$NEW_FASTA_FILE,$NEW_QUAL_FILE}"
-    echo $SHORT_NEW_FASTA_FILE
+    
     #remove full path
     SHORT_NEW_FASTA_FILE=$(basename ${NEW_FASTA_FILE})
     SHORT_NEW_QUAL_FILE=$(basename ${NEW_QUAL_FILE})
