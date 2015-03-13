@@ -121,7 +121,6 @@ do
     SHORT_NEW_FASTA_FILE=$(basename ${NEW_FASTA_FILE})
     SHORT_NEW_QUAL_FILE=$(basename ${NEW_QUAL_FILE})
 
-    echo $SHORT_NEW_FASTA_FILE
 
     #create the batch file to run mothur programs at once. trim.seqs [quality trimming], summary.seqs [produce trimming points file] and make.fastq [produce final fastq file]
     echo -e "#File to run mothur in batch mode.\n$EXEC\nsummary.seqs()\nsummary.seqs(fasta=${SHORT_NEW_FASTA_FILE/.fasta/.scrap.fasta})\nmake.fastq(\
