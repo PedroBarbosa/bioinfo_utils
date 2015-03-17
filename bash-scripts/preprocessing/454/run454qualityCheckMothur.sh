@@ -116,7 +116,7 @@ do
 
     #exec command ready
     EXEC="${EXEC/$FASTA_FILE,$QUAL_FILE/$NEW_FASTA_FILE,$NEW_QUAL_FILE}"
-    
+
     #remove full path
     SHORT_NEW_FASTA_FILE=$(basename ${NEW_FASTA_FILE})
     SHORT_NEW_QUAL_FILE=$(basename ${NEW_QUAL_FILE})
@@ -143,5 +143,3 @@ fasta=${SHORT_NEW_FASTA_FILE/.fasta/.trim.fasta},qfile=${SHORT_NEW_QUAL_FILE/.qu
     EXEC="${EXEC/$NEW_FASTA_FILE,$NEW_QUAL_FILE/$FASTA_FILE,$QUAL_FILE}"
     printf "Done.\n\n"
 done
-
-
