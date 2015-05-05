@@ -29,11 +29,9 @@ def processFile(vcf):
                         map_GQ[headers[i]].append("noSNP")
 
                     else:
-
                         #get values
                         dp=int(sample.split(':')[2])
                         gq=int(sample.split(':')[3])
-
                         #add new value to the dict
                         map_DP[headers[i]].append(dp)
                         map_GQ[headers[i]].append(gq)
