@@ -237,7 +237,7 @@ class InterproDomains:
                 writer.writerow(('','Total number of matches to Reactome database:', self.reactome))
                 writer.writerow(('','Total number of matches to UniPathway database:', self.unipathway))
                 writer.writerow((''))
-                writer.writerow(('','tNumber of different KEGG pathways identified:', len(self.unique_kegg_pathways)))
+                writer.writerow(('','Number of different KEGG pathways identified:', len(self.unique_kegg_pathways)))
                 writer.writerow(('','Number of different KEGG enzymes identified:', len(self.unique_kegg_enzymes)))
                 writer.writerow(('','Number of different MetaCyc matches identified:', len(self.unique_metacyc_pathways)))
                 writer.writerow(('','Number of different Reactome mathes identified:', len(self.unique_reactome)))
