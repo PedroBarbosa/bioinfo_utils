@@ -59,7 +59,7 @@ def processInterproRun(interproScanFile,):
                         hashmap[gene].append(tuple_go)
 
                     elif len(attributes) == 15:  #with pathway information
-                        tuple_go_path = base_tuple + (attributes[11],) + (attributes[12],) +(attributes[13],), (attributes[14],)
+                        tuple_go_path = base_tuple + (attributes[11],) + (attributes[12],) +(attributes[13],) + (attributes[14],)
                         hashmap[gene].append(tuple_go_path)
                     else:
                         hashmap[gene].append(base_tuple)
@@ -73,7 +73,7 @@ class InterproDomains:
     def __init__(self):
        self.genes_with_domains=self.total_number_domains= self.prodom_hits= self.hamap_hits= self.smart_hits= self.prositeProfiles_hits= self.prositePatterns_hits= \
        self.superfamily_hits= self.prints_hits= self.panther_hits= self.gene3D_hits= self.pirsf_hits= self.pfam_hits= self.tigrfam_hits= self.coils_hits=\
-       self.interpro_hits=self.go_terms=self.pathway_annotation=self.with_good_score = 0
+       self.interpro_hits=self.go_terms=self.pathway_annotation=self.kegg_pathways= self.kegg_enzymes = self.metacyc = self.reactome = self.unipathway  = 0
 
        self.unique_prodom_hits= set()
        self.unique_hamap_hits= set()
@@ -87,10 +87,14 @@ class InterproDomains:
        self.unique_pirsf_hits = set()
        self.unique_pfam_hits = set()
        self.unique_tigrfam_hits = set()
-       self.unique_coils_hits = set()
        self.unique_interpro_id = set()
        self.unique_go_terms = set()
-       self.unique_pathway_ids = set()
+
+       self.unique_kegg_pathways = set()
+       self.unique_kegg_enzymes = set()
+       self.unique_metacyc_pathways = set()
+       self.unique_reactome = set ()
+       self.unique_unipathway = set()
 
        self.average_domains_gene = []
 
@@ -100,11 +104,12 @@ class InterproDomains:
         for gene,hits in inputDict.iteritems():
             self.average_domains_gene.append(len(hits)) #number of hits for this gene
 
-
+            #each hit has the following fields: analysis[0],signature_id[1], signature description[2], score[3], interpro_id[4], interpro_description[5], go_terms[6]
+            #pathway_analysis[7]
             for hit in hits:
+                #print (hit)
                 self.total_number_domains +=1
-                if float(hit[3]) < float(1E-05): #score evaluation
-                    self.with_good_score += 1
+
 
                 if len(hit) > 4 and len(hit) < 7: #with interpro annotation
                     self.interpro_hits +=1
@@ -122,13 +127,42 @@ class InterproDomains:
                     self.go_terms += 1
                     self.unique_go_terms.add(hit[6]) #go id
                     self.pathway_annotation +=1
-                    self.unique_pathway_ids.add(hit[7]) #pathway id
+
+                    ##parse pathway field##
+                    #print (hit[7])
+                    diff_info = hit[7].split("|")
+                    for analysis in diff_info:
+
+                        if "KEGG:" in analysis:
+                            #pathway
+                            kegg=analysis[5:].strip()
+                            self.kegg_pathways += 1
+                            self.unique_kegg_pathways.add(kegg.split('+')[0])
+                            #enzymes
+                            for enzyme in kegg.split('+')[1:]:
+                                self.kegg_enzymes += 1
+                                self.unique_kegg_enzymes.add(enzyme)
+
+                        elif "MetaCyc:" in analysis:
+                            metacyc_id=analysis[8:].strip()
+                            self.metacyc += 1
+                            self.unique_metacyc_pathways.add(metacyc_id)
+
+                        elif "Reactome:" in analysis:
+                            reactome_id=analysis[9:].strip()
+                            self.reactome += 1
+                            self.unique_reactome.add(reactome_id)
+
+                        elif "UniPathway:" in analysis:
+                            unipathway_id = analysis[11:].strip()
+                            self.unipathway +=1
+                            self.unique_unipathway.add(unipathway_id)
 
 
 
                 if hit[0] == 'ProDom': #Analysis
                     self.prodom_hits +=1
-                    self.unique_prodom_hits.update(hit[1]) #Signature acession
+                    self.unique_prodom_hits.add(hit[1]) #Signature acession
 
                 elif hit[0] == 'Hamap':
                     self.hamap_hits +=1
@@ -176,7 +210,7 @@ class InterproDomains:
 
                 elif hit[0] == 'Coils':
                     self.coils_hits +=1
-                    self.unique_coils_hits.add(hit[1])
+
 
 
 
@@ -188,7 +222,6 @@ class InterproDomains:
 
                 writer.writerow(('Number of genes with a match to an interpro domain:', self.genes_with_domains))
                 writer.writerow(('Total number of domains found:', self.total_number_domains))
-                writer.writerow(('Number of matches with a good score (E-value < 1E-05):', self.with_good_score))
                 writer.writerow(('Average number of matches per gene:', round(np.mean(self.average_domains_gene),4)))
                 writer.writerow('')
                 writer.writerow(('Total number of domains with Interpro ID:', self.interpro_hits))
@@ -197,11 +230,59 @@ class InterproDomains:
                 writer.writerow(('Total number of domains with GO terms:', self.go_terms))
                 writer.writerow(('Number of different GO terms found:', len(self.unique_go_terms)))
                 writer.writerow('')
-                writer.writerow(('Total number of pathway IDs:', self.pathway_annotation))
-                writer.writerow(('Number of different pathway IDs found:', self.unique_pathway_ids))
+                writer.writerow(('Total number of matches with pathway analysis:', self.pathway_annotation))
+                writer.writerow(('','Total number of matches to KEGG pathways:', self.kegg_pathways))
+                writer.writerow(('','Total number of matches to KEGG enzymes:', self.kegg_enzymes))
+                writer.writerow(('','Total number of matches to MetaCyc database:', self.metacyc))
+                writer.writerow(('','Total number of matches to Reactome database:', self.reactome))
+                writer.writerow(('','Total number of matches to UniPathway database:', self.unipathway))
+                writer.writerow((''))
+                writer.writerow(('','tNumber of different KEGG pathways identified:', len(self.unique_kegg_pathways)))
+                writer.writerow(('','Number of different KEGG enzymes identified:', len(self.unique_kegg_enzymes)))
+                writer.writerow(('','Number of different MetaCyc matches identified:', len(self.unique_metacyc_pathways)))
+                writer.writerow(('','Number of different Reactome mathes identified:', len(self.unique_reactome)))
+                writer.writerow(('','Number of different UniPathway matches identified:', len(self.unique_unipathway)))
                 writer.writerow('')
-
                 writer.writerow('')
+                writer.writerow('')
+                writer.writerow('')
+                writer.writerow(('Total number of ProDom protein domain families:', self.prodom_hits))
+                writer.writerow(('Number of different ProDom protein domains found:', len(self.unique_prodom_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of HaMap manually curated family profiles:', self.hamap_hits))
+                writer.writerow(('Number of different HaMap manually curated family profiles found:', len(self.unique_hamap_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of SMART domain architectures:', self.smart_hits))
+                writer.writerow(('Number of different SMART domain architectures found:', len(self.unique_smart_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of ProSiteProfiles protein domain families:', self.prositeProfiles_hits))
+                writer.writerow(('Number of different ProSiteProfiles protein domains found:', len(self.unique_prositeProfiles_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of ProSitePatterns protein domain families:', self.prositePatterns_hits))
+                writer.writerow(('Number of different ProSitePatterns protein domains found:', len(self.unique_prositePatterns_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of SUPERFAMILY structural annotations:', self.superfamily_hits))
+                writer.writerow(('Number of different SUPERFAMILY structural annotations:', len(self.unique_superfamily_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of PRINTS motifs:', self.prints_hits))
+                writer.writerow(('Number of different PRINTS motifs found:', len(self.unique_prints_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of PANTHER protein families:', self.panther_hits))
+                writer.writerow(('Number of different PATNTHER protein families found:', len(self.unique_panther_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of Gene3D domains:', self.gene3D_hits))
+                writer.writerow(('Number of different Gene3D domains found:', len(self.unique_gene3D_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of PIRSF domains:', self.pirsf_hits))
+                writer.writerow(('Number of different PIRSF domains found:', len(self.unique_pirsf_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of Pfam domains:', self.pfam_hits))
+                writer.writerow(('Number of different Pfam domains found:', len(self.unique_pfam_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of TIGRFAM domains:', self.tigrfam_hits))
+                writer.writerow(('Number of different TIGRFAM domains found:', len(self.unique_tigrfam_hits)))
+                writer.writerow('')
+                writer.writerow(('Total number of genes with potential Coiled-coil conformation:', self.coils_hits))
 
 
 
