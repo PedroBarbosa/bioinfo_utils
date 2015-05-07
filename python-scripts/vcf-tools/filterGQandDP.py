@@ -115,5 +115,5 @@ if __name__ == "__main__":
     print("Writing the output to " + args.output_file[0] + "..")
     write2file(dictDP, dictGQ, headers, args.output_file[0])
     print("Drawing plots..")
-    drawPlot(dictDP,dictGQ,headers,args.output_file[0])
+    #drawPlot(dictDP,dictGQ,headers,args.output_file[0])
 
