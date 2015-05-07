@@ -82,27 +82,26 @@ def write2file(dictDP, dictGQ, headers,outputfile):
     csvfile.close()
 
 
-
-def drawPlot(dictDP,dictGQ,headers,outputfile):
-
-
-    for key,value in dictDP.iteritems():
-        int_list=[e for e in value if isinstance(e, int)]
-
-        plt.hist(int_list,alpha=0.5)
-        plt.xlabel('Value of Coverage')
-        plt.ylabel('Counts')
-        plt.title(r'Histogram of Depth of Coverage for the ' + key + " sample")
-
-
-        # add a 'best fit' line
-        #y = mlab.normpdf(bins, mu, sigma)
-        #plt.plot(bins, y, 'r--')
-
-
-        # Tweak spacing to prevent clipping of ylabel
-        #plt.subplots_adjust(left=0.15)
-        #plt.show()
+# def drawPlot(dictDP,dictGQ,headers,outputfile):
+#
+#
+#     for key,value in dictDP.iteritems():
+#         int_list=[e for e in value if isinstance(e, int)]
+#
+#         plt.hist(int_list,alpha=0.5)
+#         plt.xlabel('Value of Coverage')
+#         plt.ylabel('Counts')
+#         plt.title(r'Histogram of Depth of Coverage for the ' + key + " sample")
+#
+#
+#         # add a 'best fit' line
+#         #y = mlab.normpdf(bins, mu, sigma)
+#         #plt.plot(bins, y, 'r--')
+#
+#
+#         # Tweak spacing to prevent clipping of ylabel
+#         #plt.subplots_adjust(left=0.15)
+#         #plt.show()
 
 parser = argparse.ArgumentParser(description='Script to analyze the genotype quality and depth of coverage values in a vcf file.')
 parser.add_argument(dest='vcf_file', metavar='vcf_file', nargs=1,help='File to be processed.')
