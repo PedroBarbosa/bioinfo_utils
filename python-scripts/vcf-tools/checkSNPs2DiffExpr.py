@@ -9,8 +9,9 @@ def getGeneListFromTranscoder(file):
     geneList=[]
     with open(file) as file:
         for line in file:
-            if line.startswith("#") and not line:
-                geneList.append(line.split("|")[0])
+	   if not line.startswith("#"):
+           	geneList.append(line.split("|")[0].rstrip())
+
     return geneList
 
 
@@ -20,8 +21,8 @@ def getGeneList(file):
     geneList=[]
     with open(file) as file:
         for line in file:
-            if line.startswith("#") and not line:
-                geneList.append(line)
+            if not line.startswith("#"):
+		geneList.append(line.rstrip())
     return geneList
 
 
@@ -37,6 +38,7 @@ def processVCF(vcf,geneList):
             if not line.startswith("#"):
                 contig_name = line.split()[0]
                 if contig_name in geneList:
+
                     genes_with_snp.add(contig_name)
                     target_snps += 1
 
@@ -55,7 +57,7 @@ def writeOutput(genes_with_snp,target_snps,outputfile):
         writer.writerow('')
         writer.writerow(('#List of genes with SNPs:',''))
         for gene in genes_with_snp:
-            writer.writerow(gene)
+            writer.writerow((gene, ''))
 
     csvfile.close()
 
