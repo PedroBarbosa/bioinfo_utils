@@ -84,7 +84,7 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
 
-    if args.isTranscoder:
+    if args.isTransDecoder:
         geneList=getGeneListFromTranscoder(args.diffExpr_genes[0])
     else:
         geneList=getGeneList(args.diffExpr_genes[0])
