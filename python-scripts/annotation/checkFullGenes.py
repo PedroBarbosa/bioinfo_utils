@@ -106,11 +106,9 @@ if __name__ == "__main__":
     ####check file alphabet #############
     with open(args.inputFile[0], "r") as file:
         next_2_lines = list(islice(file, 2))
-        m = re.search('(^[AGTC]+$)',next_2_lines[1])
+	m = re.search('(^[agtcAGTC]+$)',next_2_lines[1])
         if not m:
             sys.stderr.write('\nIs your file with the DNA alphabet ? check it out!\nExiting..\n')
             sys.exit(2)
-
-
 
     calculateFullGenes(args.inputFile, args.outputDirectory)
