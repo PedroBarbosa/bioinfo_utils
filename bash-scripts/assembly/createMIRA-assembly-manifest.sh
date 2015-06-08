@@ -20,7 +20,7 @@ display_usage(){
 
 #################Check if required arguments were provided########
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ] || [ -z "$7" ] || [ -z "$8" ] ; then
-    printf "Please provide the required arguments for the script.\n\n"
+    printf "ERROR: Please provide the required arguments for the script.\n\n"
     display_usage
     exit 1
 fi
@@ -137,14 +137,14 @@ technology = solexa
 EOF
 
         else
-            printf "Please set a valid value for the 5th argument: [true|false].\n\n"
+            printf "ERROR: Please set a valid value for the 5th argument: [true|false].\n\n"
             display_usage
             exit 1
         fi
 
 
     else
-        printf "File regarding the list of illumina pairs is not valid. Change the '$LIST_ILLUM_PE_MP_PATH' variable in
+        printf "ERROR: File regarding the list of illumina pairs is not valid. Change the '$LIST_ILLUM_PE_MP_PATH' variable in
         the script to a valid file.\n"
         display_usage
         exit 1
@@ -217,13 +217,13 @@ technology = solexa
 EOF
 
         else
-            printf "Please set a valid value for the 5th argument: [true|false].\n\n"
+            printf "ERROR: Please set a valid value for the 5th argument: [true|false].\n\n"
             display_usage
             exit 1
         fi
 
     else
-        printf "String regarding the list of illumina pairs is not valid. Change the '$LIST_ILLUM_PE_MP_PATH' variable in the script to a valid file.\n\n"
+        printf "ERROR: String regarding the list of illumina pairs is not valid. Change the '$LIST_ILLUM_PE_MP_PATH' variable in the script to a valid file.\n\n"
         display_usage
         exit 1
     fi
@@ -244,7 +244,7 @@ data = ${GENOMIC_454_PATH}
 technology = 454
 EOF
         else
-            printf "String regarding the path for the 454 fastq files is not valid. Change the '$GENOMIC_454_PATH' variable in the script to a valid path.\n\n"
+            printf "ERROR: String regarding the path for the 454 fastq files is not valid. Change the '$GENOMIC_454_PATH' variable in the script to a valid path.\n\n"
             display_usage
             exit 1
         fi
@@ -263,7 +263,7 @@ data = ${ION_TORRENT_PATH}
 technology = iontor
 EOF
     else
-        printf "String regarding the path for the IonTorrent fastq files is not valid. Change the '$ION_TORRENT_PATH' variable in the script to a valid path.\n\n"
+        printf "ERROR: String regarding the path for the IonTorrent fastq files is not valid. Change the '$ION_TORRENT_PATH' variable in the script to a valid path.\n\n"
             display_usage
             exit 1
     fi
@@ -325,7 +325,7 @@ if [ -z "${10}" ]; then
 elif [ "${10}" = "true" ] || [ [ "${10}" = "false" ]; then
     read_groups $1 $2 $3 $4 $5 "${10}"
 else
-    printf "\nPlease provide a rigth value for the 10th parameter.\n\n"
+    printf "\nERROR: Please provide a rigth value for the 10th parameter.\n\n"
     display_usage
     exit 1
 fi
@@ -336,7 +336,7 @@ if [ -z "$9" ]; then
 elif [ "$9" = "true" ] || [ "$9" = "false" ]; then
     settings $6 $7 $8 $9
 else
-    printf "\nPlease provide a rigth value for the 9th parameter.\n\n"
+    printf "\nERROR: Please provide a rigth value for the 9th parameter.\n\n"
     display_usage
     exit 1
 fi

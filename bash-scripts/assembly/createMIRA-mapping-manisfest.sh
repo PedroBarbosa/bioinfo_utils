@@ -1,6 +1,6 @@
 #!/bin/bash
 display_usage(){
- printf "Script to automatically generate the manifest file to input in Mira for mapping assembly projectts.\n
+ printf "Script to automatically generate the manifest file to input in Mira for mapping assembly projects.\n
  Usage:
     -1st argument must be the project name to use in Mira.The name will be the prefix for the manifest file generated.
     -2nd argument must be a file representing the reference sequence to map onto.
@@ -22,7 +22,7 @@ Example of 4th argument:
 
 #################Check if required arguments were provided########
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ] || [ -z "$7" ] ; then
-    printf "Please provide the required arguments for the script.\n\n"
+    printf "ERROR: Please provide the required arguments for the script.\n\n"
     display_usage
     exit 1
 fi
@@ -38,29 +38,38 @@ if [ -f "$2" ]; then
     REF_GENOME="$2"
     REF_STRAIN="$3"
 else
-    printf "Please providee a valid file representing the reference sequence.\n"
+    printf "ERROR: Please provide a valid file representing the reference sequence.\n"
     display_usage
     exit 1
-
+fi
 #Sequences to map
 TYPE_OF_DATA="$5"
-while read line
-do
-    DATA_PATHS=()
-    STRAINS=()
-    dir=$(cut -f1 $line)
-    strain=$(cut -f2 $line)
 
-    if [ -d "$dir" ] ; then
-        DATA_PATHS+=("$dir")
-        STRAINS+=("$strain")
+if [ -f "$4" ]; then
+    declare -a DATA_PATHS=()
+    declare -a STRAINS=()
+    while read line
+    do
 
-    else
-        printf "The path $dir does not exist. Please check this out.\n"
-        display_usage
-        exit 1
-    fi
-done < "$4"
+        dir=$(echo "$line" | cut -f1 )
+        strain=$(echo "$line" | cut -f2 )
+        if [ -d "$dir" ] ; then
+            DATA_PATHS=("${DATA_PATHS[@]}" "$dir")
+            STRAINS=("${STRAINS[@]}" "$strain")
+
+        else
+            printf "ERROR: The path $dir does not exist. Please check this out.\n"
+            display_usage
+            exit 1
+        fi
+    done < "$4"
+
+else
+    printf "ERROR: $4 does not exist. Please provide a valid file with information regarding the mapping sequences to be used.\n\n"
+    display_usage
+    exit 1
+fi
+
 
 #Threads
 THREADS="$6"
@@ -80,28 +89,30 @@ data = $REF_GENOME
 strain = $REF_STRAIN
 EOF
 
-}
+
 
 ###Data to map########
 if [ "$TYPE_OF_DATA" = "solexa" ]; then
+
 
     for i in "${!DATA_PATHS[@]}";
     do
     pair1=$(ls ${DATA_PATHS[$i]} | grep "_1")
     pair2=$(ls ${DATA_PATHS[$i]} | grep "_2")
     if [ -z "$pair1" ] || [ -z "$pair2" ]; then
-        printf "Please check if the illumina files have the substrings '_1' and/or '_2' in the file names.\n\n"
+        printf "ERROR: Please check if the illumina files within the directory ${DATA_PATHS[$i]} have the substrings '_1' and/or '_2' in the file names.\n\n"
         display_usage
         exit 1
     else
     cat <<EOF >> $OUTPUT_FILE
 
-#Read group "$i"
+#Read group $i
 readgroup = data_${STRAINS[$i]}
-data = ${DATA_PATHS[$i]}$pair1 ${DATA_PATHS[$i]}$pair2
+data = ${DATA_PATHS[$i]}/$pair1 ${DATA_PATHS[$i]}/$pair2
 autopairing
 segment_placement = ---> <---
 technology = $TYPE_OF_DATA
+strain = ${STRAINS[$i]}
 EOF
     fi
     done
@@ -113,16 +124,16 @@ else
 
     cat <<EOF >> $OUTPUT_FILE
 
-#Read group "$i"
+#Read group $i
 readgroup = data_${STRAINS[$i]}
 data = ${DATA_PATHS[$i]}
 technology = $TYPE_OF_DATA
+strain = ${STRAINS[$i]}
 EOF
 
     done
 fi
-
-
+}
 
 
 function settings(){
@@ -131,9 +142,15 @@ function settings(){
 cat <<EOF >> $OUTPUT_FILE
 
 #PARAMETERS
-parameters = COMMON_SETTINGS -GE:not=$1:amm=no:kpmf=$2 -NW:cmrnl=warn -SK:not=$1:mmhr=4 \\
+parameters = COMMON_SETTINGS -GE:not=$2:amm=no:kpmf=$3 -NW:cmrnl=warn -SK:not=$2:mmhr=4 \\
 EOF
 
+if [ "$1" = "solexa" ]; then
+
+    cat <<EOF >> $OUTPUT_FILE
+SOLEXA_SETTINGS -CO:msr=no
+EOF
+fi
 
 
 }
@@ -161,10 +178,10 @@ EOF
 if [ "$5" = "solexa" ] || [ "$5" = "454" ] || [ "$5" = "iontor" ] || [ "$5" = "sanger" ]; then
     read_groups
 else
-    printf "Please provide a valid value for the type of data being used in the mapping process.\n"
+    printf "ERROR: Please provide a valid value for the type of data being used in the mapping process.\n\n"
     display_usage
     exit 1
 fi
 
 ###PARAMETERS
-settings $6 $7
+settings $5 $6 $7
