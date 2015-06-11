@@ -2,7 +2,7 @@
 display_usage(){
  printf "Script to automatically generate the executable command for the RNA seq assembly with Trinity. If you want to customize more parameters you can add them manually after this script is ran.\n
  Usage:
-    -1st argument must be the project name to use in Transabyss. This will include the name of the output folder and files.
+    -1st argument must be the project name to use in Trinity. This will include the name of the output folder and files.
     -2st argument must a file with the path for the paired end files. Pairs must come consecutively in file.
     -3nd argument must be the number of CPU threads to use [INT value].
     -4rd argument must be the maximum ammount of memory to use [INT value].
@@ -23,7 +23,7 @@ fi
 TRINITY="/opt/tools/trinity-2.0.6/Trinity"
 
 #Project name
-PROJECT_NAME="--output $PWD/$1"
+PROJECT_NAME="--output $PWD/$1-trinity"
 
 #File of paired end reads
 FILE="$2"
@@ -31,7 +31,7 @@ FILE="$2"
 THREADS="--CPU $3"
 
 #Max memory to use
-MEMORY="--max_memory $4"
+MEMORY="--max_memory $4G"
 
 #Flags
 FIRST_PAIR="--left "
@@ -65,7 +65,9 @@ do
 	fi
 
 done <$1
-printf "$numb_samples pairs will be used to feed trinity\n."
+FIRST_PAIR=${FIRST_PAIR::-1}
+SECOND_PAIR=${SECOND_PAIR::-1}
+printf "$numb_samples pairs of reads will be used to feed trinity.\n"
 }
 
 
@@ -80,6 +82,7 @@ elif [ -z "$6" ] ; then
         display_usage
         exit 1
     else
+        process_paired_end "$FILE"
         COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5"
     fi
 elif [ -z "$7" ]; then
@@ -88,9 +91,11 @@ elif [ -z "$7" ]; then
         display_usage
         exit 1
     elif [ "$6" = "true" ]; then
+        process_paired_end "$FILE"
         COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5 --normalize_reads"
     fi
 elif [ -n "$8" ]; then
+    process_paired_end "$FILE"
     COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5 --normalize_reads --genome_guided_bam $8"
 
 fi
@@ -102,5 +107,5 @@ if [ -f "$EXEC_FILE" ]; then
 fi
 
 ##Pass command to script and give permissions to run
-printf "Done.\n"
+printf "Command generated.\n"
 echo -e "#!/bin/bash \n$COMMAND" > "$EXEC_FILE" | chmod +x "$EXEC_FILE"
