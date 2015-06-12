@@ -35,7 +35,7 @@ OUTPUT_FILE="${PROJECT_NAME}-manifest.txt"
 GENOMIC_454_PATH="/mnt/msa/BIOCANT/genomic-data/SFF_genom/FASTQ_RAW/"
 
 #Path to the genomic IonTOrrent sequencing FASTQ file
-ION_TORRENT_PATH="/mnt/msa/celia_Leao_INIAV/old-analysis/Raw-data/strain-3A"
+ION_TORRENT_PATH="/mnt/msa/celia_Leao_INIAV/data/subsample-75/"
 
 #Path to the file that lists Illumina files wit the threshold Q20L80/Q20L40
 #LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q20L80-PE_Q20L20-MP.txt"
