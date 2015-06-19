@@ -7,8 +7,8 @@ display_usage(){
     -3nd argument must be the number of CPU threads to use [INT value].
     -4rd argument must be the maximum ammount of memory to use [INT value].
     -5th argument is optional. Is this RNA-seq study stranded specific ? If so, what's the read orientation? Availabe options: [RF|FR|unstranded]. Default:'unstranded'.
-    -6rd argument is optional. It refers to the reads normalization step. Available options [true|false].
-    -7th argument is optional. Perform genome_guided assembly when reference genome is available. INPUT: [bam file].\n\n"
+    -6rd argument is optional. It refers to the reads normalization step. If set to true, reads beyond 75 of coverage will be discaraded. Available options [true|false].
+    -7th argument is optional. Perform genome_guided assembly when reference genome is available. If BAM passed, a maximum genome intron size will be set to 15000, as trinity requires this parameter when running on genome guided mode. INPUT: [bam file].\n\n"
 }
 
 #################Check if required arguments were provided########
@@ -75,14 +75,14 @@ SECOND_PAIR=${SECOND_PAIR::-1}
 #########Generate final command###########
 if [ -z "$5" ] ; then
     process_paired_end "$FILE"
-    COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
+    COMMAND="$TRINITY --seqType fq --min_kmer_cov 2 $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
 
 elif [ "$5" = "RF" ] || [ "$5" = "FR" ]; then
     process_paired_end "$FILE"
-    COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5"
+    COMMAND="$TRINITY --seqType fq --min_kmer_cov 2 $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5"
 elif [ "$5" = "unstranded" ]; then
     process_paired_end "$FILE"
-    COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
+    COMMAND="$TRINITY --seqType fq --min_kmer_cov2 $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
 
 else
     printf "ERROR: Please provide a valid value for the strand specificity of the libraries.\n\n"
@@ -92,7 +92,7 @@ fi
 
 if [ -n "$6" ] ; then
     if [ "$6" == 'true' ] ; then
-        COMMAND="$COMMAND --normalize_reads"
+        COMMAND="$COMMAND --normalize_reads --normalize_max_read_cov 75"
 
     elif [ "$6" != "false" ]; then
         printf "ERROR: Please provide a valid value for the normalization parameter.\n\n"
@@ -104,7 +104,7 @@ fi
 
 if [ -n "$7" ]; then
     if [ -f "$7" ] ; then
-        COMMAND="$COMMAND --genome_guided_bam $7"
+        COMMAND="$COMMAND --genome_guided_bam $7 --genome_guided_max_intron 15000"
 
     else
         printf "ERROR: Please provide a valid file for the genome_guided parameter.\n\n"
@@ -124,3 +124,4 @@ fi
 printf "Command generated.\n"
 printf "$numb_samples pairs of reads will be used to feed trinity.\n"
 echo -e "#!/bin/bash \n$COMMAND" > "$EXEC_FILE" | chmod +x "$EXEC_FILE"
+
