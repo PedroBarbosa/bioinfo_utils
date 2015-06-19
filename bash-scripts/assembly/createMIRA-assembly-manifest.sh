@@ -32,7 +32,7 @@ PROJECT_NAME="$1"
 OUTPUT_FILE="${PROJECT_NAME}-manifest.txt"
 
 #Path to the genomic 454 sequencing FASTA files - All files of the directory will be used so we can provide a path in Mira
-GENOMIC_454_PATH="/mnt/msa/corkOakProjects/sg-corkQuality-454/"
+GENOMIC_454_PATH="/mnt/msa/corkOakProjects/sg-corkQuality-454/data"
 
 #Path to the genomic IonTOrrent sequencing FASTQ file
 ION_TORRENT_PATH="/mnt/msa/celia_Leao_INIAV/data/celia_MAP_C4A4.fastq"
