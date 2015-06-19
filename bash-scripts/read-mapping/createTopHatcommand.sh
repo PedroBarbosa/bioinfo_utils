@@ -38,7 +38,7 @@ do
 		first_pair=false
 		second_pair=true
 
-	elif [ -f "$filename" -a  "$second_pair" = "true" -a "$2" = "true" -a "$matepairFlag" = "false" ]; then
+	elif [ -f "$filename" -a  "$second_pair" = "true" ]; then
 		pair2="$pair2,$filename"
 		first_pair=true
 		second_pair=false     
@@ -59,12 +59,13 @@ pair1=$(echo "$pair1" | sed 's/,/ /')
 pair2=$(echo "$pair2" | sed 's/,/ /')
 
 #Finish command
-command="$exec $pair1 $pair2 $threads --b2-very-sensitive --fusion-search"
+command="$exec $index_database $pair1 $pair2 $threads --b2-very-sensitive --fusion-search"
 if [ -n "$4" ]; then
     if [ "$4" = "true" ]  ; then
         command="$command --coverage-search"
     elif [ "$4" != "false" ] ; then
         printf "ERROR: Please provide a valid value for the 4th argument"
+    fi
 fi
 
 if [ -n "$5" ]; then
@@ -72,6 +73,7 @@ if [ -n "$5" ]; then
         command="$command --no-mixed"
     elif [ "$5" != "false" ] ; then
         printf "ERROR: Please provide a valid value for the 5th argument"
+    fi
 fi
 
 #check if output file already exists. If so, delete it
@@ -83,6 +85,7 @@ fi
 	
 ##Pass command to script and give permissions to run
 echo -e "#!/bin/bash \n$command" > ./$file | chmod +x ./$file
+
 
 
 

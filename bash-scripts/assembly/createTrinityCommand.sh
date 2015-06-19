@@ -77,7 +77,7 @@ if [ -z "$5" ] ; then
     process_paired_end "$FILE"
     COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
 elif [ -z "$6" ] ; then
-    if [ "$5" != "RF" ] || [ "$5" != "FR" ]; then
+    if [[ "$5" != "RF" ]] || [[ "$5" != "FR" ]]; then
         printf "ERROR: Please provide a valid value for the orientation of the reads.\n\n"
         display_usage
         exit 1
@@ -86,7 +86,7 @@ elif [ -z "$6" ] ; then
         COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5"
     fi
 elif [ -z "$7" ]; then
-    if [ "$6" != "true" ] || [ "$6" != "false" ]; then
+    if [[ "$6" !=  "true" || "$6" != "false" ]]; then
         printf "ERROR: Please provide a valid value for the normalization parameter.\n\n"
         display_usage
         exit 1

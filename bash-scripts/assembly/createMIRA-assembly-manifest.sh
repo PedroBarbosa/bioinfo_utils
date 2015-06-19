@@ -32,10 +32,10 @@ PROJECT_NAME="$1"
 OUTPUT_FILE="${PROJECT_NAME}-manifest.txt"
 
 #Path to the genomic 454 sequencing FASTA files - All files of the directory will be used so we can provide a path in Mira
-GENOMIC_454_PATH="/mnt/msa/BIOCANT/genomic-data/SFF_genom/FASTQ_RAW/"
+GENOMIC_454_PATH="/mnt/msa/corkOakProjects/sg-corkQuality-454/"
 
 #Path to the genomic IonTOrrent sequencing FASTQ file
-ION_TORRENT_PATH="/mnt/msa/celia_Leao_INIAV/data/subsample-75/"
+ION_TORRENT_PATH="/mnt/msa/celia_Leao_INIAV/data/celia_MAP_C4A4.fastq"
 
 #Path to the file that lists Illumina files wit the threshold Q20L80/Q20L40
 #LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q20L80-PE_Q20L20-MP.txt"
@@ -252,7 +252,9 @@ fi
 
 
 ##### ION TORRENT ###########
-if [ "$6" = "true" ] && [ -d "$ION_TORRENT_PATH" ]; then
+if [ -n "${6}" ]; then
+
+	if [ "${6}" = "true" ] && [ -f "$ION_TORRENT_PATH" ]; then
 
 cat <<EOF >> $OUTPUT_FILE
 
@@ -261,12 +263,12 @@ readgroup = ion-torrent-data
 data = ${ION_TORRENT_PATH}
 technology = iontor
 EOF
-else
-    printf "ERROR: String regarding the path for the IonTorrent fastq files is not valid. Change the '$ION_TORRENT_PATH' variable in the script to a valid path.\n\n"
-    display_usage
-    exit 1
+	else
+   		printf "ERROR: String regarding the path for the IonTorrent fastq files is not valid. Change the '$ION_TORRENT_PATH' variable in the script to a valid path.\n\n"
+    		display_usage
+    		exit 1
+	fi
 fi
-
 
 
 
