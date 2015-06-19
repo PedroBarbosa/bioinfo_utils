@@ -6,7 +6,7 @@ display_usage(){
     -2st argument must a file with the path for the paired end files. Pairs must come consecutively in file.
     -3nd argument must be the number of CPU threads to use [INT value].
     -4rd argument must be the maximum ammount of memory to use [INT value].
-    -5th argument is optional. It refers to the read orientation. Availabe options: [RF|FR].
+    -5th argument is optional. Is this RNA-seq study stranded specific ? If so, what's the read orientation? Availabe options: [RF|FR|unstranded]. Default:'unstranded'.
     -6rd argument is optional. It refers to the reads normalization step. Available options [true|false].
     -7th argument is optional. Perform genome_guided assembly when reference genome is available. INPUT: [bam file].\n\n"
 }
@@ -58,16 +58,16 @@ do
 		SECOND_PAIR="$SECOND_PAIR$pair2,"
 		let "numb_samples += 1"
 
-	elif [ ! -f "$filename" ]; then
-		echo "ERROR: $filename is not a file.\n\n"
-		display_usage
-		exit 1
-	fi
-
+#elif [ ! -f "$filename" ]; then
+#		echo "ERROR: $filename is not a file.\n\n"
+#		display_usage
+#		exit 1
+#	fi
+fi
 done <$1
 FIRST_PAIR=${FIRST_PAIR::-1}
 SECOND_PAIR=${SECOND_PAIR::-1}
-printf "$numb_samples pairs of reads will be used to feed trinity.\n"
+
 }
 
 
@@ -76,27 +76,41 @@ printf "$numb_samples pairs of reads will be used to feed trinity.\n"
 if [ -z "$5" ] ; then
     process_paired_end "$FILE"
     COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
-elif [ -z "$6" ] ; then
-    if [[ "$5" != "RF" ]] || [[ "$5" != "FR" ]]; then
-        printf "ERROR: Please provide a valid value for the orientation of the reads.\n\n"
-        display_usage
-        exit 1
-    else
-        process_paired_end "$FILE"
-        COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5"
-    fi
-elif [ -z "$7" ]; then
-    if [[ "$6" !=  "true" || "$6" != "false" ]]; then
+
+elif [ "$5" = "RF" ] || [ "$5" = "FR" ]; then
+    process_paired_end "$FILE"
+    COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5"
+elif [ "$5" = "unstranded" ]; then
+    process_paired_end "$FILE"
+    COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
+
+else
+    printf "ERROR: Please provide a valid value for the strand specificity of the libraries.\n\n"
+    display_usage
+    exit 1
+fi
+
+if [ -n "$6" ] ; then
+    if [ "$6" == 'true' ] ; then
+        COMMAND="$COMMAND --normalize_reads"
+
+    elif [ "$6" != "false" ]; then
         printf "ERROR: Please provide a valid value for the normalization parameter.\n\n"
         display_usage
         exit 1
-    elif [ "$6" = "true" ]; then
-        process_paired_end "$FILE"
-        COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5 --normalize_reads"
     fi
-elif [ -n "$8" ]; then
-    process_paired_end "$FILE"
-    COMMAND="$TRINITY --seqType fq $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5 --normalize_reads --genome_guided_bam $8"
+fi
+
+
+if [ -n "$7" ]; then
+    if [ -f "$7" ] ; then
+        COMMAND="$COMMAND --genome_guided_bam $7"
+
+    else
+        printf "ERROR: Please provide a valid file for the genome_guided parameter.\n\n"
+        display_usage
+        exit 1
+    fi
 
 fi
 
@@ -108,4 +122,5 @@ fi
 
 ##Pass command to script and give permissions to run
 printf "Command generated.\n"
+printf "$numb_samples pairs of reads will be used to feed trinity.\n"
 echo -e "#!/bin/bash \n$COMMAND" > "$EXEC_FILE" | chmod +x "$EXEC_FILE"
