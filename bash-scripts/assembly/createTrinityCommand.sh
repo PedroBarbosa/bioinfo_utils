@@ -104,8 +104,8 @@ fi
 
 if [ -n "$7" ]; then
     if [ -f "$7" ] ; then
-        COMMAND="$COMMAND --genome_guided_bam $7 --genome_guided_max_intron 15000"
-
+        COMMAND="$TRINITY --genome_guided_bam $7 --genome_guided_max_intron 15000 $MEMORY $THREADS"
+	printf "As this is a genome guided assembly, the reads files will not be used. The BAM file is the only requirement.\n"
     else
         printf "ERROR: Please provide a valid file for the genome_guided parameter.\n\n"
         display_usage
@@ -122,6 +122,6 @@ fi
 
 ##Pass command to script and give permissions to run
 printf "Command generated.\n"
-printf "$numb_samples pairs of reads will be used to feed trinity.\n"
+printf "If not a genome guided assembly,$numb_samples pairs of reads will be used to feed trinity\n"
 echo -e "#!/bin/bash \n$COMMAND" > "$EXEC_FILE" | chmod +x "$EXEC_FILE"
 
