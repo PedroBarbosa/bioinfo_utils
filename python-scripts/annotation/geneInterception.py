@@ -189,52 +189,57 @@ def intersection(dict_uniq,dict_repeat):
         print("Percentage of %s shared across all annotations:\t%s" % (k.split("/")[-1], percentage))
 
 
-    #Uniques only possible when comparing 2 files
-    if len(dict_uniq) < 3:
-        outputFile = "uniqueIDs"
-        for k,v in dict_uniq.iteritems():
-            outputFile += "_" + k.split("/")[-1]
+    
+    ##Unique analysis
+    newDict={}
+    print("\n")
+    print("#################Single copy genes analysis ################\n######################################################")
+    for k,v in dict_uniq.iteritems():
 
-        outputFile += ".txt"
-        if os.path.exists(outputFile):
-            os.remove(outputFile)
+        for id in v:
 
-        print("Writing output file to %s" % os.path.exists(outputFile))
-        with open(outputFile, "w") as file:
-            for k,v in dict_uniq.iteritems():
-                uniques=[]
-                for id in v:
-                    if id not in interception:
-                        uniques.append(id)
-                print("\nIDs unique to %s annotation (%s):" % (k.split("/")[-1], len(uniques)))
-                file.write("#Unique IDs %s (%s)\n" % (k.split("/")[-1],len(uniques)))
-                for i in uniques:
-                    file.write("%s\n" % i)
-                    print(i)
-        file.close()
+            if id in newDict.keys():
+                newDict[id].add(k.split("/")[-1])
+            else:
+                newDict[id] = set()
+                newDict[id].add(k.split("/")[-1])
+
+    outputFile = "uniqueIDs_output.txt"
+    print("Writing output file to %s directory..\n\n" % os.path.abspath(outputFile))
+    with open(outputFile, "w") as csvfile:
+        writer = csv.writer(csvfile,dialect=csv.excel_tab)
+        writer.writerow(("#List of unique IDs to each annotation",''))
+        for id in sorted(newDict,key=newDict.get, reverse=True):
+            print(id,newDict[id])
+            if len(newDict[id]) == 1: #check if only one annotation has this id
+                writer.writerow((''.join(newDict[id]),id))
+    csvfile.close()
+
+
 
     #Repeated genes analysis
-    newDict = {}
+    newDict_rep = {}
     print("\n")
+    print("####################Repeated genes analysis ################\n################################################################")
     for k,v in dict_repeat.iteritems():
         print("Number of genes with more than one copy in the genome for %s sample:\t%s" % (k.split("/")[-1].split("_")[:-1],len(set(v))))
         for repeated in v:
 
-            if repeated in newDict:
-                if k.split("/")[-1] in newDict[repeated].keys():
-                    newDict[repeated][k.split("/")[-1]] += 1
+            if repeated in newDict_rep:
+                if k.split("/")[-1] in newDict_rep[repeated].keys():
+                    newDict_rep[repeated][k.split("/")[-1]] += 1
                 else:
-                    newDict[repeated][k.split("/")[-1]] = 2
+                    newDict_rep[repeated][k.split("/")[-1]] = 2
 
             else:
-                newDict[repeated] = {}
-                newDict[repeated][k.split("/")[-1]] = 2 #2nd copy because firts was not added to this dict previously (was added to the unique set)
+                newDict_rep[repeated] = {}
+                newDict_rep[repeated][k.split("/")[-1]] = 2 #2nd copy because firts was not added to this dict previously (was added to the unique set)
 
 
 
     print("\nFrequency of the > 1x copy genes across samples:")
-    for id in sorted(newDict, key=newDict.get, reverse=True):
-        print (id,newDict[id])
+    for id in sorted(newDict_rep, key=newDict_rep.get, reverse=True):
+        print (id,newDict_rep[id])
 
 
 
