@@ -24,13 +24,13 @@ def processFromBlastTab(inputFiles,bestHit):
                 for line in file:
                     if not line.startswith('#') and line.rstrip():
 
-                        query = line.split()[1]
+                        query = line.split()[0]
                         if query == previous_query:
                             previous_query = query
 
                         else:
                             annotated_reads += 1
-                            hit = line.split("\t")[2]
+                            hit = line.split("\t")[1]
                             values = mydict_unique[list_name]
                             if hit not in values:
                                 values.append(hit)
@@ -47,11 +47,11 @@ def processFromBlastTab(inputFiles,bestHit):
                 for line in file:
                     if not line.startswith('#'):
 
-                        query = line.split()[1]
+                        query = line.split()[0]
                         if query != previous_query:
                             annotated_reads += 1
 
-                        hit = line.split("\t")[2]
+                        hit = line.split("\t")[1]
                         values = mydict_unique[list_name]
                         if hit not in values:
                             values.append(hit)
@@ -88,7 +88,7 @@ def processFromHmmer(inputFiles,bestHit,eggNOG):
                 for line in file:
                     if not line.startswith('#') and line.rstrip():
 
-                        query = line.split()[2]
+                        query = line.split()[1]
                         if query == previous_query:
                             previous_query = query
 
@@ -193,7 +193,7 @@ def intersection(dict_uniq,dict_repeat):
     ##Unique analysis
     newDict={}
     print("\n")
-    print("#################Single copy genes analysis ################\n######################################################")
+    print("#################Single copy genes analysis ################\n#########################################################")
     for k,v in dict_uniq.iteritems():
 
         for id in v:
@@ -246,8 +246,8 @@ def intersection(dict_uniq,dict_repeat):
 
 parser = argparse.ArgumentParser(description='Script to check the interception of the genes present in different genome annotations (default blastTAB format).')
 parser.add_argument(dest='input_files', metavar='annotated_files', nargs='+', help='Annotation files to be analyzed (minimum 2).')
-parser.add_argument('-g', '--GIlist', action='store_true', help='Process gene identifiers (one per line) rather than a blast tab output file.')
-parser.add_argument('-d', '--hmmerFile', action='store_true', help='Process hmmscan output. The file should be on the parseable table output format (tblout or domtblout or pfamtblout arguments on hmmscan)')
+parser.add_argument('-g', '--GIlist', action='store_true', help='Process gene identifiers (one per line) rather than blast tab output files.')
+parser.add_argument('-d', '--hmmerFile', action='store_true', help='Process hmmscan output. The files should be on the parseable table output format (tblout or domtblout or pfamtblout arguments on hmmscan)')
 parser.add_argument('-e', '--eggNOG', action='store_true', help='Set this argument if annotations were done against new eggNOG 4.1 version (implies -d).')
 parser.add_argument('-b', '--bestHitOnly', action='store_true', help='Set this argument if you only want to process the best hit per gene.')
 args = parser.parse_args()
