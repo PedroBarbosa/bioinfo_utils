@@ -30,7 +30,7 @@ def processFromBlastTab(inputFiles,bestHit):
 
                         else:
                             annotated_reads += 1
-                            hit = line.split("\t")[1]
+                            hit = line.split()[1]
                             values = mydict_unique[list_name]
                             if hit not in values:
                                 values.append(hit)
@@ -51,7 +51,7 @@ def processFromBlastTab(inputFiles,bestHit):
                         if query != previous_query:
                             annotated_reads += 1
 
-                        hit = line.split("\t")[1]
+                        hit = line.split()[1]
                         values = mydict_unique[list_name]
                         if hit not in values:
                             values.append(hit)
@@ -88,7 +88,7 @@ def processFromHmmer(inputFiles,bestHit,eggNOG):
                 for line in file:
                     if not line.startswith('#') and line.rstrip():
 
-                        query = line.split()[1]
+                        query = line.split()[2]
                         if query == previous_query:
                             previous_query = query
 
@@ -122,7 +122,7 @@ def processFromHmmer(inputFiles,bestHit,eggNOG):
                                 annotated_reads += 1
 
                             if eggNOG:
-                                hit = line.split("\t")[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
+                                hit = line.split()[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
                             else:
 
                                 hit = line.split()[0]
@@ -238,8 +238,11 @@ def intersection(dict_uniq,dict_repeat):
 
 
     print("\nFrequency of the > 1x copy genes across samples:")
-    for id in sorted(newDict_rep, key=newDict_rep.get, reverse=True):
-        print (id,newDict_rep[id])
+    if bool(newDict_rep):
+        for id in sorted(newDict_rep, key=newDict_rep.get, reverse=True):
+            print (id,newDict_rep[id])
+    else:
+        print("No genes found on this condition.")
 
 
 
