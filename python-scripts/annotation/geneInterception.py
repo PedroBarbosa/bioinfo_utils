@@ -40,7 +40,7 @@ def processFromBlastTab(inputFiles,bestHit):
                                 values_repeated.append(hit)
                                 mydict_repeated[list_name_repeated] = values_repeated
 
-
+                        previous_query = query
 
 
             else:
