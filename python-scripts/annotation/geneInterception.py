@@ -25,6 +25,9 @@ def processFromBlastTab(inputFiles,bestHit):
                     if not line.startswith('#') and line.rstrip():
 
                         query = line.split()[0]
+                        if "WP_" in query:
+                            query = query.split("|")[-1]
+                            print (query)
                         if query == previous_query:
                             previous_query = query
 
