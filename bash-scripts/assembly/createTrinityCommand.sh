@@ -82,7 +82,7 @@ elif [ "$5" = "RF" ] || [ "$5" = "FR" ]; then
     COMMAND="$TRINITY --seqType fq --min_kmer_cov 2 $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME --SS_lib_type $5"
 elif [ "$5" = "unstranded" ]; then
     process_paired_end "$FILE"
-    COMMAND="$TRINITY --seqType fq --min_kmer_cov2 $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
+    COMMAND="$TRINITY --seqType fq --min_kmer_cov 2 $MEMORY $THREADS $FIRST_PAIR $SECOND_PAIR $PROJECT_NAME"
 
 else
     printf "ERROR: Please provide a valid value for the strand specificity of the libraries.\n\n"
