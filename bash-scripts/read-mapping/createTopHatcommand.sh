@@ -11,7 +11,7 @@ Usage:
 
 
 #--no-discordant	For paired reads, report only concordant mappings. Check this options. Only pairs that rely on the insert size provided.
-exec="/opt/tools/tophat-2.0.14.Linux_x86_64/tophat2"
+exec="/opt/tools/tophat-2.1.0.Linux_x86_64/tophat2"
 
 #check if required arguments are there and display usage message
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
