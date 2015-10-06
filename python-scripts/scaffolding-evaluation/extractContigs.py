@@ -19,6 +19,7 @@ def processFastaFiles(inputFile, n, outputFile):
         contig_id = ""
         keptcontigs,total_contigs = 0,0
         discardedcontigs = -1 ##to account for the first line
+        discarded_fasta=outputFile + "_discarded"
         with open(inputFile[0]) as file:
             for line in file:
                 line=line.rstrip()
@@ -34,13 +35,14 @@ def processFastaFiles(inputFile, n, outputFile):
                     total_contigs +=1
 
                 elif line.startswith('>') and len(list(contig_seq)) < n:
-                    contig_id = line
+                    with open(discarded_fasta, "a") as out:
+                        out.write(contig_id + "\n" + contig_seq + "\n")
+		    contig_id = line
                     contig_seq = ""
                     discardedcontigs+=1
                     total_contigs +=1
 
                 else:
-
                     contig_seq += line
 
 
@@ -51,14 +53,14 @@ def processFastaFiles(inputFile, n, outputFile):
                         out.write(contig_id + "\n" + contig_seq)
                 keptcontigs+=1
             else:
-
+		with open(discarded_fasta, "a") as out:
+                        out.write(contig_id + "\n" + contig_seq + "\n")
                 discardedcontigs+=1
 
         print("\nNumber of contigs in file:\t", total_contigs)
         print("Number of contigs longer than", n , ":\t", keptcontigs)
         print("Number of contigs discarded:\t", discardedcontigs)
         print("Percentage kept:", (float(keptcontigs) / total_contigs) * 100, "%")
-
 
         file.close()
         out.close()
@@ -74,4 +76,3 @@ args = parser.parse_args()
 
 
 processFastaFiles(args.inputFile,args.contiglength,args.outputFile)
-
