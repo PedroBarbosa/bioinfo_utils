@@ -20,7 +20,7 @@ fi
 
 ####################VARIABLES####################
 #Transabyss exec
-TRINITY="/opt/tools/trinity-2.0.6/Trinity"
+TRINITY="/opt/tools/trinity-2.1.1/Trinity"
 
 #Project name
 PROJECT_NAME="--output $PWD/$1-trinity"
@@ -104,8 +104,8 @@ fi
 
 if [ -n "$7" ]; then
     if [ -f "$7" ] ; then
-        COMMAND="$TRINITY --genome_guided_bam $7 --genome_guided_max_intron 15000 $MEMORY $THREADS"
-	printf "As this is a genome guided assembly, the reads files will not be used. The BAM file is the only requirement.\n"
+        COMMAND="$TRINITY --SS_lib_type $5 --genome_guided_bam $7 --genome_guided_max_intron 15000 $MEMORY $THREADS"
+	printf "As this is a genome guided assembly, the reads files will not be used. The BAM file and the orientation of the experiment are the only requirements.\n"
     else
         printf "ERROR: Please provide a valid file for the genome_guided parameter.\n\n"
         display_usage
