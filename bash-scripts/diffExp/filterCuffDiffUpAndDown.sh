@@ -86,7 +86,10 @@ do
 	#sort file by pvalue and write the most significant 50 genes to each file
 	sort -k7 -g $tempFile2 | cut -f1,4,5,6,7,8 -d " " | head -50 >> $outfileUp
 	sort -k7 -g $tempFile3 | cut -f1,4,5,6,7,8 -d " " | head -50 >> $outfileDown
-			
+	
+	#all diffExp genes for intercpetion analysis
+	sort -k7 -g $tempFile2 | cut -f1,4,5,6,7,8 -d " " > all-${outfileUp}		
+	sort -k7 -g $tempFile3 | cut -f1,4,5,6,7,8 -d " " > all-${outfileDown}
 	#remove temp files
 	rm $tempFile
 	rm $tempFile2
