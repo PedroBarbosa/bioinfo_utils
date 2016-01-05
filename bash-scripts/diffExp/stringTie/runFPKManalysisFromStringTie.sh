@@ -46,10 +46,11 @@ do
 	printf "Number of unique reference and stringTie genes expressed in sample:\t$unique_genes_both\n"
 	printf "Number of unique genes expressed in the gene abundances file:\t$unique_genes_abundance_file\n\n"
 	printf "Number of unique reference and StringTie isoforms present in sample:\t$unique_isoforms\n"
-	printf "Number of unique refrence and StringTie isoforms expressed in sample:\t$unique_isoforms\n\n\n\n"
+	printf "Number of unique refrence and StringTie isoforms expressed in sample:\t$expressed_isoforms\n\n\n\n"
 
 #	printf "Duplicated features in file:\t%s\n\n\n" "$(tail -n +2 $line | cut -f1,10 | cut -f1 |sort | uniq -cd)"
 #	total=$(($unique_features + $duplicate_features)) #)cat in.fasta | wc -l) / 4
 
 #	printf "Number to check:\t$total\n\n\n"
+
 done < $1
