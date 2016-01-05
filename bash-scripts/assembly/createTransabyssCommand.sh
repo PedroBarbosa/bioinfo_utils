@@ -60,13 +60,12 @@ function process_paired_end(){
 		    pair1=$3
 		    FIRST_PAIR="false"
 		    SECOND_PAIR="true"
-            SINGLE_END_DATA="$SINGLE_END_DATA $pair1"
+
 
 	    elif [ "$1" = "false" -a "$2" = "true" ]; then
 		    pair2=$3
 		    FIRST_PAIR="true"
 		    SECOND_PAIR="false"
-		    SINGLE_END_DATA="$SINGLE_END_DATA $pair2"
             PAIRED_END_DATA="$PAIRED_END_DATA $pair1 $pair2"
 	    else
 	        printf "Something went wrong with the paired end file processing.\n\n"
@@ -169,13 +168,19 @@ fi
 
 
 #########Generate final command###########
-if [ "$2" = "true" ]; then
+if [ "$2" = "true" ] && [ "$3" = "true" ]; then
     if [ "$BLAT" = "no" ] ; then
         COMMAND="$TRANSABYSS $SINGLE_END_DATA $PAIRED_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME --noblat"
     else
         COMMAND="$TRANSABYSS $SINGLE_END_DATA $PAIRED_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME"
     fi
-else
+elif [ "$2" = "true" ] && [ "$3" = "false" ]; then
+    if [ "$BLAT" = "no" ] ; then
+        COMMAND="$TRANSABYSS $PAIRED_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME --noblat"
+    else
+        COMMAND="$TRANSABYSS $PAIRED_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME"
+    fi
+elif [ "$2" = "false" ] && [ "$3" = "true" ]; then
     if [ "$BLAT" = "no" ]; then
         COMMAND="$TRANSABYSS $SINGLE_END_DATA $THREADS $K_SIZE --name $PROJECT_NAME --outdir $PWD/$PROJECT_NAME --noblat"
     else
