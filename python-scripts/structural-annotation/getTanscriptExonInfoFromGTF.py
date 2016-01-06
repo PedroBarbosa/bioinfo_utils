@@ -3,13 +3,63 @@ __author__ = 'pedro'
 import argparse
 import os
 import gffutils
+from gffutils import helpers
+import logging
 
+global number_of_genes
+global number_of_transcripts
+global number_of_exons
+
+def generalStats(db):
+    number_of_genes = db.count_features_of_type("gene")
+    number_of_transcripts=db.count_features_of_type("transcript")
+    number_of_exons=db.count_features_of_type("exon")
+
+def transcriptExonUsage(db):
+
+    for gene in db.features_of_type("gene"):
+        aux_dic={}
+        exons = db.children(gene.id, level=2, featuretype='exon')
+        merged_exons = db.merge(exons)
+        for merged_exon in merged_exons:
+            print merged_exon
+            print list([transcript.id for transcript.id in db.children(gene.id, featuretype='transcript')])
+        #for transcript in db.children(gene.id, featuretype="transcript"):
+            #print gene.id, transcript.id
+        #    transcript.id : [list_exons.id for list_exons in db.children(transcript.id, featuretype="exon")]
+
+        for k,v in aux_dic.iteritems():
+
+            print k,v
+        print "\n\n\n"
 
 
 
 def createGffUtilsCuffmerge(gtf_file):
     dbname=os.path.basename(gtf_file).split('.')[0]
-    gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name'],'transcript' : ['transcript_id']},)
+    dialect=helpers.infer_dialect(['gene_id "XLOC_000001"; transcript_id "TCONS_00000001"; exon_number "1"; gene_name "Potrx000002g00010"; oId "Potrx000002g00010.1"; '
+                                   'nearest_ref "Potrx000002g00010.1"; class_code "="; tss_id "TSS1"; p_id "P1";'])
+
+    try:
+        db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_id'},merge_strategy="error",
+                              disable_infer_transcripts=False, disable_infer_genes=False, dialect=dialect, checklines=1000 ,verbose=True,force=True)
+    except:
+        logging.warning("Database already exists. No need to create new one.")
+        db=gffutils.FeatureDB(dbname)
+
+
+    generalStats(db)
+    transcriptExonUsage(db)
+
+    #     print gene_id.id
+    #for gene in db.children(gene_id.id,order_by='featuretype'):#="exon"):
+    #         print'{0.featuretype:>12}: {0.id}'.format(gene)
+
+  #  for gene in db.featuretypes():
+ #       print db.children(gene)
+    #       print i.bin
+    #      print i.dialect
+#print "\n\n"
 
 def main():
     parser = argparse.ArgumentParser(description='Script to check the relationship between genes, transcripts and exons in a GTF file.')
