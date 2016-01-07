@@ -35,18 +35,17 @@ def generalStats(db):
     number_of_transcripts=db.count_features_of_type("transcript")
     number_of_exons=db.count_features_of_type("exon")
 
-def executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id, repeated_transcripts):
+    return number_of_genes,number_of_transcripts,number_of_exons
+def executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id, numb_repeated_transcripts,previous_transcript_id, repeated_transcritps):
 
-#    if gene_id not in gene2transcript and len(gene2transcript)!=0: #Process last transcript when new gene appears avoiding also the first line of file
-        #Process the last transcript
-#        if exons_string not in exonsPertranscript: #While set of exons per transcript is new, add to the list of exons set
-#            exonsPertranscript.append(exons_string)
+    if gene_id not in gene2transcript: #Process last transcript when new gene appears
 
-#        else: #If set of exon per transcript is repeated, transcript is repeated
-#            repeated_transcripts += 1
-
-
-
+        if exons_string in exonsPertranscript: #Since is last transcript of gene, no need to add to the set of exons per transcript
+            numb_repeated_transcripts += 1
+            repeated_transcritps.append(previous_transcript_id)
+        gene2transcript[gene_id] = [transcript_id]
+        exons_string = ""
+        exonsPertranscript = []
 
 
     if transcript_id in gene2transcript[gene_id]: #While in the same transcript, populate the exons string
@@ -58,58 +57,51 @@ def executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcrip
             exonsPertranscript.append(exons_string)
 
         else: #If set of exon per transcript is repeated, transcript is repeated
-            repeated_transcripts += 1
+            numb_repeated_transcripts += 1
+            repeated_transcritps.append(previous_transcript_id)
 
-            #Process the actual one
+        #Process the actual one
         gene2transcript[gene_id].append(transcript_id) #update list of transcripts per gene
         exons_string = exon_id + ";"
 
 
-    return exons_string,exonsPertranscript,gene2transcript,repeated_transcripts
+    return exons_string,exonsPertranscript,gene2transcript,numb_repeated_transcripts,repeated_transcritps
 
-def transcriptWithSameExonsCuffmerge(gtffile):
+def repeatedTranscriptsCuffmerge(gtffile):
     gene2transcript= {}
     exonsPertranscript = []
-    repeated_transcripts = 0
+    numb_repeated_transcripts = 0
+    repeated_transcripts = []
     exons_string=""
+    transcript_id = ""
+
     with open(gtffile,"r") as file:
         for line in file:
 
             feature = re.split(r'\t',line)
             attributes = re.split(r';',feature[8])
             gene_id = re.split(r'\"',attributes[0])[1]
+            previous_transcript_id = transcript_id
             transcript_id = re.split(r'\"',attributes[1])[1]
             exon_id = re.split(r'\"',attributes[2])[1]
 
 
             if gene_id in gene2transcript:
-                exons_string,exonsPertranscript,gene2transcript,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,repeated_transcripts)
+                exons_string,exonsPertranscript,gene2transcript,numb_repeated_transcripts,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,numb_repeated_transcripts,previous_transcript_id, repeated_transcripts)
+
+            elif len(gene2transcript) != 0:
+                exons_string,exonsPertranscript,gene2transcript,numb_repeated_transcripts,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,numb_repeated_transcripts,previous_transcript_id, repeated_transcripts)
+
+            else: #First line
+                 gene2transcript[gene_id] = [transcript_id]
+                 exons_string =  exon_id + ";"
+
+        if exons_string in exonsPertranscript: #Last line of file
+            numb_repeated_transcripts += 1
+            repeated_transcripts.append(transcript_id) #not previous because file is read
 
 
-#            elif len(gene2transcript) != 0:
-            else:
-                gene2transcript[gene_id] = [transcript_id] #create new gene transcript instance
-                if exons_string not in exonsPertranscript: #While set of exons per transcript is new, add to the list of exons set
-                    exonsPertranscript.append(exons_string)
-
-                else: #If set of exon per transcript is repeated, transcript is repeated
-                    repeated_transcripts += 1
-                    
-                exons_string,exonsPertranscript,gene2transcript,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,repeated_transcripts)
-
-                #exonsPertranscript = []
-                #exons_string=""
-                #exons_string,exonsPertranscript,gene2transcript,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,repeated_transcripts)
-
-
-
-            # else: #First line
-            #     gene2transcript[gene_id] = [transcript_id]
-            #     exons_string = exon_id + ";"
-
-
-
-
+    return numb_repeated_transcripts, repeated_transcripts
 
 def transcriptExonUsage(db):
 
@@ -158,8 +150,8 @@ def createGffUtilsCuffmerge(gtf_file):
         db=gffutils.FeatureDB(dbname)
 
 
-    generalStats(db)
-    transcriptExonUsage(db)
+    print generalStats(db)
+ #   transcriptExonUsage(db)
 
     #     print gene_id.id
     #for gene in db.children(gene_id.id,order_by='featuretype'):#="exon"):
@@ -180,7 +172,8 @@ def main():
 
 
     if "cuffmerge" in args.software:
-        #createGffUtilsCuffmerge(args.gtf_file[0])
-        transcriptWithSameExonsCuffmerge(args.gtf_file[0])
+        createGffUtilsCuffmerge(args.gtf_file[0])
+        numb_repeated, list_repeated = repeatedTranscriptsCuffmerge(args.gtf_file[0])
+        print numb_repeated
 if __name__ == "__main__":
     main()
