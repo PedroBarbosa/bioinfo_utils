@@ -17,31 +17,42 @@ def generalStats(db):
 
 def transcriptExonUsage(db):
 
+
+    exons= db.features_of_type("exon")
+
     for gene in db.features_of_type("gene"):
-        aux_dic={}
-        exons = db.children(gene.id, level=2, featuretype='exon')
-        merged_exons = db.merge(exons)
-        for merged_exon in merged_exons:
-            print merged_exon
-            print list([transcript.id for transcript.id in db.children(gene.id, featuretype='transcript')])
+
+        transcripts = db.children(gene.id, level=1, featuretype='transcript')
+        for transcript in transcripts:
+            #write bed to file and perform merge within python with subprocess module
+            print db.bed12(transcript)
+
+
+        #generate several stats according the tutorial
+        merged_transcripts=db.merge(transcripts)
+        for merged_transcript in merged_transcripts:
+            print merged_transcript.attributes
+     #   fout = open('/home/pedro/Desktop/new.gtf','w')
+      #  for merged_exon in merged_exons:
+       #     print [transcript for transcript in db.parents(merged_exon,1,featuretype='transcript')]
+
+
+            #[transcript.id for transcript.id in db.children(gene.id, featuretype='transcript')]
         #for transcript in db.children(gene.id, featuretype="transcript"):
             #print gene.id, transcript.id
-        #    transcript.id : [list_exons.id for list_exons in db.children(transcript.id, featuretype="exon")]
+       # [list_exons.id for list_exons in db.children(transcript.id, featuretype="exon")]
 
-        for k,v in aux_dic.iteritems():
-
-            print k,v
         print "\n\n\n"
 
 
 
 def createGffUtilsCuffmerge(gtf_file):
-    dbname=os.path.basename(gtf_file).split('.')[0]
+    dbname=os.path.basename(gtf_file).split('.')[0] + "DB"
     dialect=helpers.infer_dialect(['gene_id "XLOC_000001"; transcript_id "TCONS_00000001"; exon_number "1"; gene_name "Potrx000002g00010"; oId "Potrx000002g00010.1"; '
                                    'nearest_ref "Potrx000002g00010.1"; class_code "="; tss_id "TSS1"; p_id "P1";'])
 
     try:
-        db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_id'},merge_strategy="error",
+        db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_id'},merge_strategy="merge",
                               disable_infer_transcripts=False, disable_infer_genes=False, dialect=dialect, checklines=1000 ,verbose=True,force=True)
     except:
         logging.warning("Database already exists. No need to create new one.")
