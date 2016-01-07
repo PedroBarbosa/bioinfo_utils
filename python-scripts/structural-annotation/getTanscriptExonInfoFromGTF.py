@@ -5,19 +5,115 @@ import os
 import gffutils
 from gffutils import helpers
 import logging
+import re
+import subprocess
+
 
 global number_of_genes
 global number_of_transcripts
 global number_of_exons
+
+def checkBedtoolsInstallation(program):
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = os.path.split(program)
+    if fpath:
+        if is_exe(program):
+            return program
+    else:
+        for path in os.environ["PATH"].split(os.pathsep):
+            path = path.strip('"')
+            exe_file = os.path.join(path, program)
+            if is_exe(exe_file):
+                return exe_file
+    return None
+
 
 def generalStats(db):
     number_of_genes = db.count_features_of_type("gene")
     number_of_transcripts=db.count_features_of_type("transcript")
     number_of_exons=db.count_features_of_type("exon")
 
+def executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id, repeated_transcripts):
+
+#    if gene_id not in gene2transcript and len(gene2transcript)!=0: #Process last transcript when new gene appears avoiding also the first line of file
+        #Process the last transcript
+#        if exons_string not in exonsPertranscript: #While set of exons per transcript is new, add to the list of exons set
+#            exonsPertranscript.append(exons_string)
+
+#        else: #If set of exon per transcript is repeated, transcript is repeated
+#            repeated_transcripts += 1
+
+
+
+
+
+    if transcript_id in gene2transcript[gene_id]: #While in the same transcript, populate the exons string
+        exons_string += exon_id + ";"
+
+    else: #New transcript
+        #Process the last transcript
+        if exons_string not in exonsPertranscript: #While set of exons per transcript is new, add to the list of exons set
+            exonsPertranscript.append(exons_string)
+
+        else: #If set of exon per transcript is repeated, transcript is repeated
+            repeated_transcripts += 1
+
+            #Process the actual one
+        gene2transcript[gene_id].append(transcript_id) #update list of transcripts per gene
+        exons_string = exon_id + ";"
+
+
+    return exons_string,exonsPertranscript,gene2transcript,repeated_transcripts
+
+def transcriptWithSameExonsCuffmerge(gtffile):
+    gene2transcript= {}
+    exonsPertranscript = []
+    repeated_transcripts = 0
+    exons_string=""
+    with open(gtffile,"r") as file:
+        for line in file:
+
+            feature = re.split(r'\t',line)
+            attributes = re.split(r';',feature[8])
+            gene_id = re.split(r'\"',attributes[0])[1]
+            transcript_id = re.split(r'\"',attributes[1])[1]
+            exon_id = re.split(r'\"',attributes[2])[1]
+
+
+            if gene_id in gene2transcript:
+                exons_string,exonsPertranscript,gene2transcript,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,repeated_transcripts)
+
+
+#            elif len(gene2transcript) != 0:
+            else:
+                gene2transcript[gene_id] = [transcript_id] #create new gene transcript instance
+                if exons_string not in exonsPertranscript: #While set of exons per transcript is new, add to the list of exons set
+                    exonsPertranscript.append(exons_string)
+
+                else: #If set of exon per transcript is repeated, transcript is repeated
+                    repeated_transcripts += 1
+                    
+                exons_string,exonsPertranscript,gene2transcript,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,repeated_transcripts)
+
+                #exonsPertranscript = []
+                #exons_string=""
+                #exons_string,exonsPertranscript,gene2transcript,repeated_transcripts = executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id,repeated_transcripts)
+
+
+
+            # else: #First line
+            #     gene2transcript[gene_id] = [transcript_id]
+            #     exons_string = exon_id + ";"
+
+
+
+
+
 def transcriptExonUsage(db):
 
-
+    fout = open('/home/pedro/Desktop/new.bed','w')
     exons= db.features_of_type("exon")
 
     for gene in db.features_of_type("gene"):
@@ -25,13 +121,16 @@ def transcriptExonUsage(db):
         transcripts = db.children(gene.id, level=1, featuretype='transcript')
         for transcript in transcripts:
             #write bed to file and perform merge within python with subprocess module
-            print db.bed12(transcript)
-
+            fout.write(db.bed12(transcript)+"\n")
+   #         ps = subprocess.Popen(['grep', '>', fastaReadsFile], stdout=subprocess.PIPE)
+    #return subprocess.check_output(['wc', '-l'], stdin=ps.stdout)
+    #ps.wait()
+#    print checkBedtoolsInstallation("bedtools")
 
         #generate several stats according the tutorial
-        merged_transcripts=db.merge(transcripts)
-        for merged_transcript in merged_transcripts:
-            print merged_transcript.attributes
+  #      merged_transcripts=db.merge(transcripts)
+  #      for merged_transcript in merged_transcripts:
+  #          print merged_transcript.attributes
      #   fout = open('/home/pedro/Desktop/new.gtf','w')
       #  for merged_exon in merged_exons:
        #     print [transcript for transcript in db.parents(merged_exon,1,featuretype='transcript')]
@@ -42,7 +141,7 @@ def transcriptExonUsage(db):
             #print gene.id, transcript.id
        # [list_exons.id for list_exons in db.children(transcript.id, featuretype="exon")]
 
-        print "\n\n\n"
+    print "\n\n\n"
 
 
 
@@ -53,7 +152,7 @@ def createGffUtilsCuffmerge(gtf_file):
 
     try:
         db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_id'},merge_strategy="merge",
-                              disable_infer_transcripts=False, disable_infer_genes=False, dialect=dialect, checklines=1000 ,verbose=True,force=True)
+                              disable_infer_transcripts=False, disable_infer_genes=False, dialect=dialect, checklines=1000 ,verbose=True,force=False)
     except:
         logging.warning("Database already exists. No need to create new one.")
         db=gffutils.FeatureDB(dbname)
@@ -81,7 +180,7 @@ def main():
 
 
     if "cuffmerge" in args.software:
-        createGffUtilsCuffmerge(args.gtf_file[0])
-
+        #createGffUtilsCuffmerge(args.gtf_file[0])
+        transcriptWithSameExonsCuffmerge(args.gtf_file[0])
 if __name__ == "__main__":
     main()
