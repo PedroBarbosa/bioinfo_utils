@@ -6,20 +6,9 @@ import gffutils
 from gffutils import helpers
 import logging
 import re
-import sys
 import csv
-
-
-global number_of_genes
-global number_of_transcripts
-global number_of_exons
-
-
-
-
-
-
-
+import sys
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
 
 def executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcript,gene_id,transcript_id,exon_id, numb_repeated_transcripts,previous_transcript_id, repeated_transcritps):
 
@@ -54,6 +43,7 @@ def executeGeneTranscripExonUsage(exons_string,exonsPertranscript,gene2transcrip
 
 
 def getRepeatedTranscripts(gtffile):
+    logging.info("Checking for repeated transcripts..[Deprecated function]")
     gene2transcript= {}
     exonsPertranscript = []
     numb_repeated_transcripts = 0
@@ -86,7 +76,7 @@ def getRepeatedTranscripts(gtffile):
                             gene2transcript[gene_id] = [transcript_id]
                             exons_string =  exon_id + ";"
                 except IndexError:
-                    sys.stderr.write("ERROR with input file.Please check your gtf file, might exist some empty lines at the end of the file.\n")
+                    logging.error("ERROR with input file.Please check your gtf file, might exist some empty lines at the end of the file.\n")
                     sys.exit(2)
 
         if exons_string in exonsPertranscript: #Last line of file
@@ -99,8 +89,9 @@ def getRepeatedTranscripts(gtffile):
 
 
 def newGTFmerged(db,outputbasename,software):
-    if os.path.exists(outputbasename + 'merged.gtf'):
-        os.remove(outputbasename + 'merged.gtf')
+    logging.info("Creating new GTF file with the merged exons..")
+    if os.path.exists(outputbasename + '-merged.gtf'):
+        os.remove(outputbasename + '-merged.gtf')
 
     def newattribute(feature,newAttributes):
         newAttributes.pop()
@@ -133,7 +124,7 @@ def newGTFmerged(db,outputbasename,software):
         return exon_feature,exon_attributes
 
 
-    with open(outputbasename + 'merged.gtf', "w") as file:
+    with open(outputbasename + '-merged.gtf', "w") as file:
 
         if software == "cufflinks" or software == "stringtie": #write transcript and exons
             for gene in db.features_of_type("gene"):
@@ -155,65 +146,144 @@ def newGTFmerged(db,outputbasename,software):
                     feature,newAttribute = gene_id_rearrrangement_in_exons(children)
                     file.write(newattribute(feature,newAttribute))
 
-
     file.close()
 
 def generalStats(db):
-    number_of_genes = db.count_features_of_type("gene")
-    number_of_transcripts=db.count_features_of_type("transcript")
-    number_of_exons=db.count_features_of_type("exon")
 
-    return '{}'.format(number_of_genes),'{}'.format(number_of_transcripts),'{}'.format(number_of_exons)
+    logging.info("Calculating general stats:")
+    def exonsAverage(db):
+        logging.info("\tPer feature exon average..")
+        gene_exon_count = 0
+        gene_count = 0
+        transcript_count = 0
+        transcript_exon_count = 0
+        for gene in db.features_of_type('gene'):
+            exonsInGene = 0
+
+            for transcript in db.children(gene,1):
+                exonsInTranscript = 0
+                if transcript.featuretype == 'transcript':
+
+                    for child in db.children(transcript,1):
+                        if child.featuretype == 'exon':
+                            exonsInTranscript += 1
+
+
+            transcript_exon_count += exonsInTranscript
+            transcript_count += 1
+
+
+            # get all grandchildren, only counting the exons
+            for child in db.children(gene.id,2):
+                if child.featuretype == 'exon':
+                    exonsInGene += 1
+
+            gene_exon_count += exonsInGene
+            gene_count += 1
+
+        meanExonGene = round(float(gene_exon_count) / gene_count,2)
+        meanExonTranscript = round(float(transcript_exon_count)/ transcript_count,2)
+
+        return meanExonGene, meanExonTranscript
+
+    def constitutive_exons(db):
+        logging.info("\tConstitutive exons..")
+        constitutive_exons = []
+        exone=0
+        for exon in db.features_of_type('exon'):
+
+             geneID = re.findall(r'\'([^\']*)\'', str(exon['gene_id']))
+
+             n_iso =len(list(db.children(geneID[0], featuretype= 'transcript')))
+             exone += 1
+
+             if len(list(db.parents(exon, featuretype='transcript'))) == n_iso:
+                constitutive_exons.append(str(exon.id))
+
+        # for gene in db.features_of_type('gene'):
+        #     exone +=1
+        #     n_isoforms = len(list(db.children(gene, featuretype='transcript')))
+        #
+        #     for exon in db.children(gene, 2, featuretype='exon'):
+        #         parents = db.parents(exon, featuretype='transcript')
+        #
+        #         if len(list(parents)) == n_isoforms:
+        #             constitutive_exons.append(str(exon.id))
+
+        return constitutive_exons
+
+    number_of_genes = str(db.count_features_of_type("gene"))
+    number_of_exons=str(db.count_features_of_type("exon"))
+    number_of_transcripts= str(db.count_features_of_type("transcript"))
+
+
+
+    logging.info("\tAverage features length..")
+    gene_lengths, max_gene_len, total_transcript_length, total_exons_length = 0,0,0,0
+
+    for gene in db.features_of_type('gene'):
+        if len(gene) > max_gene_len:
+            max_gene_len = len(gene)
+            longest_gene = gene.id
+        gene_lengths += len(gene)
+
+        transcript_lengths = 0
+        exons_lengths = 0
+        for transcript in db.children(gene,featuretype='transcript'):
+            transcript_lengths += len(transcript)
+
+        ## add per transcript average per gene and then divide per the total number of genes. Intuitive average would show greater transcript average than gene average length.
+        total_transcript_length += round(float(transcript_lengths) / int(len(list(db.children(gene, featuretype='transcript')))),2)
+
+
+        for exon in db.children(gene, featuretype='exon'):
+            exons_lengths += len(exon)
+        total_exons_length += round(float(exons_lengths) / int(len(list(db.children(gene, featuretype='exon')))),2)
+
+
+    mean_gene_length = round(float(gene_lengths) / int(number_of_genes),2)
+    mean_transcript_length = round(float(total_transcript_length) / int(number_of_genes),2)
+    mean_exon_length = round(float(total_exons_length) / int(number_of_genes),2)
+
+
+    avg_transcriptPerGene = round(float(number_of_transcripts)/int(number_of_genes),2)
+    meanExonGene, meanExonTranscript = exonsAverage(db)
+    constitutive_exons = constitutive_exons(db)
+
+    return number_of_genes, number_of_transcripts, number_of_exons, mean_gene_length, mean_transcript_length, mean_exon_length, max_gene_len, longest_gene, meanExonGene,avg_transcriptPerGene, meanExonTranscript, constitutive_exons
+    #return number_of_genes, number_of_transcripts, number_of_exons, mean_gene_length, mean_transcript_length, mean_exon_length, max_gene_len, longest_gene, meanExonGene,avg_transcriptPerGene, meanExonTranscript
+    #return number_of_genes, number_of_transcripts, number_of_exons, mean_gene_length, mean_transcript_length, mean_exon_length, max_gene_len, longest_gene,avg_transcriptPerGene
+
 
 def writeOutputStats(outputbasename,db,numb_repeated,original_numb_exon):
-    if os.path.exists(outputbasename + 'stats.txt'):
-        os.remove(outputbasename + 'stats.txt')
-
-    a = generalStats(db)
-    print type(a)
-    #with open(outputbasename + '-info.txt', "w") as csvfile:
-    #     writer = csv.writer(csvfile,dialect=csv.excel_tab)
-    #     writer.writerow(('#Total umber of SNPs in differential expressed genes:', target_snps))
-    #     writer.writerow(('#Number of genes with any SNP found', len(genes_with_snp)))
-    #     writer.writerow('')
-    #     writer.writerow(('#List of genes with SNPs:',''))
-    #     for gene in genes_with_snp:
-    #         writer.writerow((gene, ''))
-    #     csvfile.close()
-
-def transcriptExonUsage(db):
-
-    fout = open('/home/pedro/Desktop/new.bed','w')
-    exons= db.features_of_type("exon")
-
-    for gene in db.features_of_type("gene"):
-
-        print gene
-        transcripts = db.children(gene.id, level=1, featuretype='transcript')
-        for transcript in transcripts:
-            #write bed to file and perform merge within python with subprocess module
-#            fout.write(db.bed12(transcript)+"\n")
-    #        print(transcript)
-     #       for exon in db.children(transcript, featuretype='exon', order_by='start'):
-      #          print(exon)
-        #generate several stats according the tutorial
-  #          merged_transcripts=db.merge(transcripts, ignore_strand=True)
-   #         for exons in merged_transcripts:
-             #  db.children(merged_exons, featuretype='exon', order_by='start'):
-                print exons
-  #      for merged_transcript in merged_transcripts:
-  #          print merged_transcript.attributes
-     #   fout = open('/home/pedro/Desktop/new.gtf','w')
-      #  for merged_exon in merged_exons:
-       #     print [transcript for transcript in db.parents(merged_exon,1,featuretype='transcript')]
 
 
-            #[transcript.id for transcript.id in db.children(gene.id, featuretype='transcript')]
-        #for transcript in db.children(gene.id, featuretype="transcript"):
-            #print gene.id, transcript.id
-       # [list_exons.id for list_exons in db.children(transcript.id, featuretype="exon")]
+    if os.path.exists(outputbasename + '-info.txt'):
+        os.remove(outputbasename + '-info.txt')
 
-        print "\n\n\n"
+    mainStats = generalStats(db)
+
+    logging.info("Writing stats to file..")
+    with open(outputbasename + '-info.txt', "w") as csvfile:
+         writer = csv.writer(csvfile,dialect=csv.excel_tab)
+         writer.writerow(('#Number of genes in GTF:', mainStats[0]))
+         writer.writerow(('#Number of transcripts in GTF:', mainStats[1]))
+         writer.writerow(('#Number of exons in original GTF:', original_numb_exon))
+         writer.writerow(('#Number of exons after merging the one with the same coordinates:', mainStats[2]))
+         writer.writerow('')
+         writer.writerow(('#Longest gene [length]', mainStats[7] + '[' + str(mainStats[6]) + ']'))
+         writer.writerow(('#Average gene length', mainStats[3]))
+         writer.writerow(('#Average transcript length [with introns spanning corresponding exons included]', mainStats[4]))
+         writer.writerow(('#Average exon length', mainStats[5]))
+         writer.writerow('')
+         writer.writerow(('#Average number of exons per gene', mainStats[8]))
+         writer.writerow(('#Average number of transcripts per gene', mainStats[9]))
+         writer.writerow(('#Average number of exons per expressed transcript', mainStats[10]))
+         writer.writerow(('#Number of constitutive exons [present in all isoforms of a gene]', round(len(mainStats[11]),4)))
+         writer.writerow('')
+         writer.writerow(('#Number of repeated transcripts in GTF with the same string of exons [does not mean they are the same][Deprecated]:',numb_repeated))
+
+         csvfile.close()
 
 
 
@@ -222,17 +292,20 @@ def createGffUtilsCuffmerge(gtf_file,forceNewDB, isVerbose):
     dialect=helpers.infer_dialect(['Potrx000002	Cufflinks	exon	8052	8625	.	-	.	gene_id "XLOC_000003"; transcript_id "TCONS_00000005"; exon_number "2"; '
                                    'gene_name "Potrx000002g00030"; oId "Potrx000002g00030.1"; nearest_ref "Potrx000002g00030.1"; class_code "="; tss_id "TSS3"; p_id "P3";'])
 
-
     try:
 
         db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_number'},
                               merge_strategy="merge",keep_order=True, sort_attribute_values=True, disable_infer_transcripts=False, disable_infer_genes=False,
                               dialect=dialect, checklines=500 ,verbose=isVerbose,force=forceNewDB)
+        logging.info("Database " + dbname + "successfuly generated.")
     except:
-        logging.warning("Database already exists. Will use the current one.")
-        db=gffutils.FeatureDB(dbname, keep_order=True)
-
-#    transcriptExonUsage(db)
+        logging.info("Database already exists. Will use the current one.")
+        try:
+            db=gffutils.FeatureDB(dbname, keep_order=True)
+        except TypeError:
+            logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
+                          " database creation.")
+            exit(2)
     return db
 
 
@@ -242,12 +315,20 @@ def createGffUtilsCufflinks(gtf_file,forceNewDB, isVerbose):
                                    'FPKM "0.0000000000"; frac "0.000000"; conf_lo "0.000000"; conf_hi "0.000000"; cov "0.000000";'])
 
     try:
-        db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_number'},
+        db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id'],'transcript' : ['transcript_id'], 'exon': 'exon_number'},
                               merge_strategy="merge",keep_order=True, sort_attribute_values=True ,disable_infer_transcripts=True, disable_infer_genes=False,
                               dialect=dialect, checklines=500 ,verbose=isVerbose,force=forceNewDB)
+
+        logging.info("Database " + dbname + "successfuly generated.")
     except:
-        logging.warning("Database already exists. Will use the current one.")
-        db=gffutils.FeatureDB(dbname, keep_order=True)
+        logging.info("Database already exists. Will use the current one.")
+        try:
+            db=gffutils.FeatureDB(dbname, keep_order=True)
+        except TypeError:
+            logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
+                          " database creation.")
+            exit(2)
+
 
     return db
 
@@ -261,16 +342,24 @@ def createGffUtilsStringtie(gtf_file,forceNewDB, isVerbose):
         db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'ref_gene_id', 'ref_gene_name'],'transcript' : ['transcript_id', 'reference_id'], 'exon': 'exon_number'},
                               merge_strategy="merge", keep_order=True, sort_attribute_values=True, disable_infer_transcripts=True, disable_infer_genes=False, dialect=dialect,
                               checklines=500 ,verbose=isVerbose,force=forceNewDB)
+        logging.info("Database " + dbname + "successfuly generated.")
+
     except:
-        logging.warning("Database already exists. Will use the current one.")
-        db=gffutils.FeatureDB(dbname, keep_order=True)
+        logging.info("Database already exists. Will use the current one.")
+        try:
+            db=gffutils.FeatureDB(dbname, keep_order=True)
+        except TypeError:
+            logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
+                          " database creation.")
+            exit(2)
+
     return db
 
 
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Script to check the relationship between genes, transcripts and exons in a GTF file. Requires the gffutils module to be installed. ')
+    parser = argparse.ArgumentParser(description='Script to check and generate stats about the relationship between genes, transcripts and exons in a GTF file. Requires the gffutils module to be installed. ')
     parser.add_argument(dest='gtf_file', metavar='gtf_file', nargs=1, help='GTF file to be processed.')
     parser.add_argument(dest='software', metavar='software', nargs=1, type=str, choices=['cuffmerge','cufflinks','stringtie'],help='Tool that produced the input gtf file.')
     parser.add_argument(dest='output_prefix', metavar='output_prefix', nargs=1, help='Basename for the ouptut files.')
