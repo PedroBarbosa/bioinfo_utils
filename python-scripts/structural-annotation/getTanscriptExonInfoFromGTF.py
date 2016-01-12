@@ -370,7 +370,7 @@ def main():
     args = parser.parse_args()
 
 
-    logging.INFO("Process started.")
+    logging.info("Process started.")
     if "cuffmerge" in args.software:
 
         db = createGffUtilsCuffmerge(args.gtf_file[0], args.force, args.verbose)
