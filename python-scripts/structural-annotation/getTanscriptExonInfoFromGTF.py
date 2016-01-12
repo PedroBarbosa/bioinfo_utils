@@ -77,7 +77,7 @@ def getRepeatedTranscripts(gtffile):
                             exons_string =  exon_id + ";"
                 except IndexError:
                     logging.error("ERROR with input file.Please check your gtf file, might exist some empty lines at the end of the file.\n")
-                    sys.exit(2)
+                    sys.exit(1)
 
         if exons_string in exonsPertranscript: #Last line of file
             numb_repeated_transcripts += 1
@@ -305,7 +305,7 @@ def createGffUtilsCuffmerge(gtf_file,forceNewDB, isVerbose):
         except TypeError:
             logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
                           " database creation.")
-            exit(2)
+            exit(1)
     return db
 
 
@@ -327,7 +327,7 @@ def createGffUtilsCufflinks(gtf_file,forceNewDB, isVerbose):
         except TypeError:
             logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
                           " database creation.")
-            exit(2)
+            exit(1)
 
 
     return db
@@ -351,7 +351,7 @@ def createGffUtilsStringtie(gtf_file,forceNewDB, isVerbose):
         except TypeError:
             logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
                           " database creation.")
-            exit(2)
+            exit(1)
 
     return db
 
