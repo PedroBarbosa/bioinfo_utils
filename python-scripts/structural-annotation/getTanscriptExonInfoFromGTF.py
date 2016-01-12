@@ -288,7 +288,7 @@ def writeOutputStats(outputbasename,db,numb_repeated,original_numb_exon):
 
 
 def createGffUtilsCuffmerge(gtf_file,forceNewDB, isVerbose):
-    dbname=os.path.abspath(gtf_file).split('.')[0] + "DB"
+    dbname=os.path.abspath(gtf_file).split('.')[0] + "DB.sql"
     dialect=helpers.infer_dialect(['Potrx000002	Cufflinks	exon	8052	8625	.	-	.	gene_id "XLOC_000003"; transcript_id "TCONS_00000005"; exon_number "2"; '
                                    'gene_name "Potrx000002g00030"; oId "Potrx000002g00030.1"; nearest_ref "Potrx000002g00030.1"; class_code "="; tss_id "TSS3"; p_id "P3";'])
 
@@ -310,7 +310,7 @@ def createGffUtilsCuffmerge(gtf_file,forceNewDB, isVerbose):
 
 
 def createGffUtilsCufflinks(gtf_file,forceNewDB, isVerbose):
-    dbname=os.path.abspath(gtf_file).split('.')[0] + "DB"
+    dbname=os.path.abspath(gtf_file).split('.')[0] + "DB.sql"
     dialect=helpers.infer_dialect(['Potrx000002	Cufflinks	exon	2615	2977	1	+	.	gene_id "Potrx000002g00010"; transcript_id "Potrx000002g00010.1"; exon_number "1"; '
                                    'FPKM "0.0000000000"; frac "0.000000"; conf_lo "0.000000"; conf_hi "0.000000"; cov "0.000000";'])
 
@@ -334,7 +334,7 @@ def createGffUtilsCufflinks(gtf_file,forceNewDB, isVerbose):
 
 
 def createGffUtilsStringtie(gtf_file,forceNewDB, isVerbose):
-    dbname=os.path.abspath(gtf_file).split('.')[0] + "DB"
+    dbname=os.path.abspath(gtf_file).split('.')[0] + "DB.sql"
     dialect=helpers.infer_dialect(['Potrx000002 StringTie	exon	8052	8625	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1";'
                                    ' exon_number "2"; reference_id "TCONS_00000004"; ref_gene_id "XLOC_000003"; ref_gene_name "Potrx000002g00030"; cov "2.764808";'])
 
@@ -370,7 +370,7 @@ def main():
     args = parser.parse_args()
 
 
-
+    logging.INFO("Process started.")
     if "cuffmerge" in args.software:
 
         db = createGffUtilsCuffmerge(args.gtf_file[0], args.force, args.verbose)
