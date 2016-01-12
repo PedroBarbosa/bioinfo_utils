@@ -298,11 +298,11 @@ def createGffUtilsCuffmerge(gtf_file,forceNewDB, isVerbose):
         db=gffutils.create_db(gtf_file, dbfn=dbname_final, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_number'},
                               merge_strategy="merge",keep_order=True, sort_attribute_values=True, disable_infer_transcripts=False, disable_infer_genes=False,
                               dialect=dialect, checklines=500 ,verbose=isVerbose,force=forceNewDB)
-        logging.info("Database " + dbname + "successfuly generated.")
+        logging.info("Database " + dbname_final + "successfuly generated.")
     except:
         logging.info("Database already exists. Will use the current one.")
         try:
-            db=gffutils.FeatureDB(dbname, keep_order=True)
+            db=gffutils.FeatureDB(dbname_final, keep_order=True)
         except TypeError:
             logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
                           " database creation.")
@@ -321,11 +321,11 @@ def createGffUtilsCufflinks(gtf_file,forceNewDB, isVerbose):
                               merge_strategy="merge",keep_order=True, sort_attribute_values=True ,disable_infer_transcripts=True, disable_infer_genes=False,
                               dialect=dialect, checklines=500 ,verbose=isVerbose,force=forceNewDB)
 
-        logging.info("Database " + dbname + "successfuly generated.")
+        logging.info("Database " + dbname_final + "successfuly generated.")
     except:
         logging.info("Database already exists. Will use the current one.")
         try:
-            db=gffutils.FeatureDB(dbname, keep_order=True)
+            db=gffutils.FeatureDB(dbname_final, keep_order=True)
         except TypeError:
             logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
                           " database creation.")
@@ -345,12 +345,12 @@ def createGffUtilsStringtie(gtf_file,forceNewDB, isVerbose):
         db=gffutils.create_db(gtf_file, dbfn=dbname_final, id_spec={'gene': ['gene_id', 'ref_gene_id', 'ref_gene_name'],'transcript' : ['transcript_id', 'reference_id'], 'exon': 'exon_number'},
                               merge_strategy="merge", keep_order=True, sort_attribute_values=True, disable_infer_transcripts=True, disable_infer_genes=False, dialect=dialect,
                               checklines=500 ,verbose=isVerbose,force=forceNewDB)
-        logging.info("Database " + dbname + "successfuly generated.")
+        logging.info("Database " + dbname_final + "successfuly generated.")
 
     except:
         logging.info("Database already exists. Will use the current one.")
         try:
-            db=gffutils.FeatureDB(dbname, keep_order=True)
+            db=gffutils.FeatureDB(dbname_final, keep_order=True)
         except TypeError:
             logging.error("Previous generated database might be corrupted. Please set --force to overwrite the database and --verbose if you want to follow the steps of gffutils"
                           " database creation.")
