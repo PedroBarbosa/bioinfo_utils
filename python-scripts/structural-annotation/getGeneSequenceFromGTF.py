@@ -55,7 +55,7 @@ def createDicGenesPerScaffold(db):
 def createGffUtilsCuffmerge(gtf_file):
 
     logging.info("Creating gffutils database...")
-    dbname=os.path.abspath(gtf_file).split('.')[0] + "DB.sql"
+    dbname=os.path.basename(gtf_file).split('.')[0] + "DB.sql"
 
     dialect=helpers.infer_dialect(['Potrx000002	Cufflinks	exon	8052	8625	.	-	.	gene_id "XLOC_000003"; transcript_id "TCONS_00000005"; exon_number "2"; '
                                    'gene_name "Potrx000002g00030"; oId "Potrx000002g00030.1"; nearest_ref "Potrx000002g00030.1"; class_code "="; tss_id "TSS3"; p_id "P3";'])
