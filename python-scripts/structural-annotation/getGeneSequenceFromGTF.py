@@ -69,7 +69,7 @@ def createGffUtilsCuffmerge(gtf_file):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Script to extract the gene sequences from a genome reference file and its corresponding GTF. Requires gffutils module to be installed.')
+    parser = argparse.ArgumentParser(description='Script to extract the gene sequences from a genome reference file and its corresponding GTF. Requires gffutils and Biopython modules to be installed.')
     parser.add_argument(dest='gtf_file', metavar='gtf_file', nargs=1, help='GTF file to be processed.')
     parser.add_argument(dest='reference_fasta', metavar='reference_fasta', nargs=1, type=str,help='FASTA file representing the genome sequence.')
     parser.add_argument(dest='output_file', metavar='output_file', nargs=1, help='File to write the output.')
