@@ -199,7 +199,7 @@ def generalStats(db, constitutive):
 
              if len(list(db.parents(exon, featuretype='transcript'))) == n_iso:
                 constitutive_exons.append(str(exon.id))
-             print exone
+        #     print exone
 
         # for gene in db.features_of_type('gene'):
         #     exone +=1
