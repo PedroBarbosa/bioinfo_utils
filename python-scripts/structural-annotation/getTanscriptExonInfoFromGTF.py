@@ -148,7 +148,7 @@ def newGTFmerged(db,outputbasename,software):
 
     file.close()
 
-def generalStats(db):
+def generalStats(db, constitutive):
 
     logging.info("Calculating general stats:")
     def exonsAverage(db):
@@ -199,6 +199,7 @@ def generalStats(db):
 
              if len(list(db.parents(exon, featuretype='transcript'))) == n_iso:
                 constitutive_exons.append(str(exon.id))
+             print exone
 
         # for gene in db.features_of_type('gene'):
         #     exone +=1
@@ -215,7 +216,6 @@ def generalStats(db):
     number_of_genes = str(db.count_features_of_type("gene"))
     number_of_exons=str(db.count_features_of_type("exon"))
     number_of_transcripts= str(db.count_features_of_type("transcript"))
-
 
 
     logging.info("\tAverage features length..")
@@ -248,20 +248,21 @@ def generalStats(db):
 
     avg_transcriptPerGene = round(float(number_of_transcripts)/int(number_of_genes),2)
     meanExonGene, meanExonTranscript = exonsAverage(db)
-    constitutive_exons = constitutive_exons(db)
+    if constitutive:
+        constitutive_exons = constitutive_exons(db)
 
     return number_of_genes, number_of_transcripts, number_of_exons, mean_gene_length, mean_transcript_length, mean_exon_length, max_gene_len, longest_gene, meanExonGene,avg_transcriptPerGene, meanExonTranscript, constitutive_exons
     #return number_of_genes, number_of_transcripts, number_of_exons, mean_gene_length, mean_transcript_length, mean_exon_length, max_gene_len, longest_gene, meanExonGene,avg_transcriptPerGene, meanExonTranscript
     #return number_of_genes, number_of_transcripts, number_of_exons, mean_gene_length, mean_transcript_length, mean_exon_length, max_gene_len, longest_gene,avg_transcriptPerGene
 
 
-def writeOutputStats(outputbasename,db,numb_repeated,original_numb_exon):
+def writeOutputStats(outputbasename,db,numb_repeated,original_numb_exon, constitutive):
 
 
     if os.path.exists(outputbasename + '-info.txt'):
         os.remove(outputbasename + '-info.txt')
 
-    mainStats = generalStats(db)
+    mainStats = generalStats(db, constitutive)
 
     logging.info("Writing stats to file..")
     with open(outputbasename + '-info.txt', "w") as csvfile:
@@ -279,7 +280,8 @@ def writeOutputStats(outputbasename,db,numb_repeated,original_numb_exon):
          writer.writerow(('#Average number of exons per gene', mainStats[8]))
          writer.writerow(('#Average number of transcripts per gene', mainStats[9]))
          writer.writerow(('#Average number of exons per expressed transcript', mainStats[10]))
-         writer.writerow(('#Number of constitutive exons [present in all isoforms of a gene]', round(len(mainStats[11]),4)))
+         if constitutive:
+            writer.writerow(('#Number of constitutive exons [present in all isoforms of a gene]', len(mainStats[11])))
          writer.writerow('')
          writer.writerow(('#Number of repeated transcripts in GTF with the same string of exons [does not mean they are the same][Deprecated]:',numb_repeated))
 
@@ -369,6 +371,7 @@ def main():
     parser.add_argument('--writeNewGTF', action='store_true', help='Write a new GTF file where the same exons are merged into the same feature.')
     parser.add_argument('--force', action='store_true', help='Overewrite existing gffutils database.')
     parser.add_argument('--verbose', action='store_true', help='Print more infomation while creating gffutils database.')
+    parser.add_argument('--constitutive', action='store_true', help='Count number of constitutive exons, this might slow down the process.')
 
     args = parser.parse_args()
 
