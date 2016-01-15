@@ -381,21 +381,21 @@ def main():
 
         db = createGffUtilsCuffmerge(args.gtf_file[0], args.force, args.verbose)
         numb_repeated, list_repeated,original_numb_exon = getRepeatedTranscripts(args.gtf_file[0])
-        writeOutputStats(args.output_prefix[0],db,numb_repeated,original_numb_exon)
+        writeOutputStats(args.output_prefix[0],db,numb_repeated,original_numb_exon,args.constitutive)
         if args.writeNewGTF:
             newGTFmerged(db,args.output_prefix[0],args.software[0])
 
     elif "cufflinks" in args.software:
         db = createGffUtilsCufflinks(args.gtf_file[0], args.force, args.verbose)
         numb_repeated, list_repeated,original_numb_exon = getRepeatedTranscripts(args.gtf_file[0])
-        writeOutputStats(args.output_prefix[0],db,numb_repeated,original_numb_exon)
+        writeOutputStats(args.output_prefix[0],db,numb_repeated,original_numb_exon,args.constitutive)
         if args.writeNewGTF:
             newGTFmerged(db,args.output_prefix[0],args.software[0])
 
     elif "stringtie" in args.software:
         db = createGffUtilsStringtie(args.gtf_file[0],args.force, args.verbose)
         numb_repeated, list_repeated,original_numb_exon = getRepeatedTranscripts(args.gtf_file[0])
-        writeOutputStats(args.output_prefix[0],db,numb_repeated,original_numb_exon)
+        writeOutputStats(args.output_prefix[0],db,numb_repeated,original_numb_exon, args.constitutive)
         if args.writeNewGTF:
             newGTFmerged(db,args.output_prefix[0],args.software[0])
 
