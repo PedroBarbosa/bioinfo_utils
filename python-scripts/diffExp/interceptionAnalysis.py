@@ -73,54 +73,54 @@ def processFromIDs(inputFiles):
 
 
 
-def writeOutput(mydict,features_per_comparison,outputFile):
+def writeOutput(mydict,features_per_comparison):#,outputFile):
     final_dict =  collections.OrderedDict()
     ocurrences_dict = collections.OrderedDict()
 
-    if os.path.exists(outputFile):
-        os.remove(outputFile)
+#    if os.path.exists(outputFile):
+#        os.remove(outputFile)
 
-    logging.info("Processing intersections and writing to output file..")
-    with open(outputFile, "w") as file:
+    logging.info("Processing intersections and printing output ..")
+#    with open(outputFile, "w") as file:
 
-        file.write('#Comparison' + '\t' + '#Number of differential features' + '\n')
-        for comparison,number_features in features_per_comparison.iteritems():
-            file.write(comparison + '\t' + str(number_features) + '\n')
-        file.write('\n\n')
-        file.write('#Total number of unique features with differential expression in any comparison' + '\t' + str(len(mydict)))
-        file.write('\n\n\n')
-
-
-        #Create dict relating number of times the comparison have differential expression per feature
-        for i in range(1,len(features_per_comparison.keys()) + 1,1):
-            ocurrences_dict[i] = 0
+    print('#Comparison' + '\t' + '#Number of differential features' + '\n')
+    for comparison,number_features in features_per_comparison.iteritems():
+        print(comparison + '\t' + str(number_features) + '\n')
+    print('\n\n')
+    print('#Total number of unique features with differential expression in any comparison' + '\t' + str(len(mydict)))
+    print('\n\n\n')
 
 
-        string_binary =""
-        final_dict['#FeatureID'] = ['Comparisons with diffExp', '\t'.join(features_per_comparison.keys())]
-        for featureID, comparisons in mydict.iteritems():
-            for comparison in features_per_comparison.keys():
-                if comparison in comparisons:
-                    string_binary = string_binary + 'yes' + '\t'
-                else:
-                    string_binary = string_binary + 'no' + '\t'
+    #Create dict relating number of times the comparison have differential expression per feature
+    for i in range(1,len(features_per_comparison.keys()) + 1,1):
+        ocurrences_dict[i] = 0
 
 
-            ocurrences_dict[len(mydict[featureID])] += 1
-            final_dict[featureID] = [str(len(mydict[featureID])), string_binary ]
-            string_binary = ""
+    string_binary =""
+    final_dict['#FeatureID'] = ['Comparisons with diffExp', '\t'.join(features_per_comparison.keys())]
+    for featureID, comparisons in mydict.iteritems():
+        for comparison in features_per_comparison.keys():
+            if comparison in comparisons:
+                string_binary = string_binary + 'yes' + '\t'
+            else:
+                string_binary = string_binary + 'no' + '\t'
 
 
-        file.write('#Table displaying number of times each feature has N number of comparisons with differential expression.\n')
-        for k,v in ocurrences_dict.iteritems():
-            file.write(str(k) + ' comparisons' + '\t' + str(v) + '\n')
+        ocurrences_dict[len(mydict[featureID])] += 1
+        final_dict[featureID] = [str(len(mydict[featureID])), string_binary ]
+        string_binary = ""
 
 
-        file.write('\n\n\n#Table displaying the comparisons in which the features have differential expression.\n')
-        for k,v in final_dict.iteritems():
-            file.write(k + '\t' + v[0] + '\t' + v[1].rstrip() + '\n')
+    print('#Table displaying number of times each feature has N number of comparisons with differential expression.\n')
+    for k,v in ocurrences_dict.iteritems():
+        print(str(k) + ' comparisons' + '\t' + str(v) + '\n')
 
-    file.close()
+
+    file.write('\n\n\n#Table displaying the comparisons in which the features have differential expression.\n')
+    for k,v in final_dict.iteritems():
+        print(k + '\t' + v[0] + '\t' + v[1].rstrip() + '\n')
+
+#    file.close()
     return final_dict, ocurrences_dict
 
 
@@ -130,7 +130,7 @@ def main():
     parser = argparse.ArgumentParser(description='Script to check the interception of the differential expressed features present in different pairwise tests.')
     parser.add_argument(dest='input_files', metavar='diffExp_files', nargs='+', help='List of files where each line represents the significant features to process. Feature ID must be in the 1st column.'
                                                     ' All non-feature lines must start with a "#" (minimum 2 files).')
-    parser.add_argument('-o', "--output", required =True, help='File to write the output.')
+#    parser.add_argument('-o', "--output", required =True, help='File to write the output.')
     parser.add_argument('-l', '--list', action='store_true', help='Process feature identifiers (one per line) rather than txt tab separated output files.')
     args = parser.parse_args()
 
@@ -144,12 +144,12 @@ def main():
 
     elif args.list:
         mydict,diffexpressed_features_per_comparison=processFromIDs(args.input_files)
-        writeOutput(mydict,diffexpressed_features_per_comparison, args.output)
+        writeOutput(mydict,diffexpressed_features_per_comparison)#, args.output)
         #intersection(dict_unique,dict_repeated)
 
     else:
         mydict,diffexpressed_features_per_comparison = processTxtTab(args.input_files)
-        writeOutput(mydict,diffexpressed_features_per_comparison, args.output)
+        writeOutput(mydict,diffexpressed_features_per_comparison)#, args.output)
         #intersection(dict_unique,dict_repeated)
 
 
