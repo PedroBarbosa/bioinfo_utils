@@ -19,7 +19,7 @@ def processTxtTab(inputFiles):
             numb_features = 0
             for line in file:
                 if not line.startswith('#'):
-                    line.rstrip()
+                    line = line.rstrip()
                     numb_features += 1
                     featureID = line.split('\t')[0]
 
@@ -50,7 +50,7 @@ def processFromIDs(inputFiles):
             comparison = os.path.splitext(os.path.basename(filename))[0]
             numb_features = 0
             for featureID in file:
-                featureID.rstrip()
+                featureID = featureID.rstrip()
                 numb_features += 1
                 if featureID not in mydict:
                     overlapping_comparisons_perFeature = []
@@ -83,12 +83,12 @@ def writeOutput(mydict,features_per_comparison):#,outputFile):
     logging.info("Processing intersections and printing output ..")
 #    with open(outputFile, "w") as file:
 
-    print('#Comparison' + '\t' + '#Number of differential features' + '\n')
+    print('#Comparison' + '\t' + '#Number of differential features')
     for comparison,number_features in features_per_comparison.iteritems():
-        print(comparison + '\t' + str(number_features) + '\n')
-    print('\n\n')
+        print(comparison + '\t' + str(number_features))
+    print('\n')
     print('#Total number of unique features with differential expression in any comparison' + '\t' + str(len(mydict)))
-    print('\n\n\n')
+    print('\n\n')
 
 
     #Create dict relating number of times the comparison have differential expression per feature
@@ -111,14 +111,14 @@ def writeOutput(mydict,features_per_comparison):#,outputFile):
         string_binary = ""
 
 
-    print('#Table displaying number of times each feature has N number of comparisons with differential expression.\n')
+    print('#Table displaying number of times each feature has N number of comparisons with differential expression.')
     for k,v in ocurrences_dict.iteritems():
-        print(str(k) + ' comparisons' + '\t' + str(v) + '\n')
+        print(str(k) + ' comparisons' + '\t' + str(v))
 
 
-    print('\n\n\n#Table displaying the comparisons in which the features have differential expression.\n')
+    print('\n\n#Table displaying the comparisons in which the features have differential expression.')
     for k,v in final_dict.iteritems():
-        print(k + '\t' + v[0] + '\t' + v[1].rstrip() + '\n')
+        print(k + '\t' + v[0] + '\t' + v[1].rstrip())
 
 #    file.close()
     return final_dict, ocurrences_dict
