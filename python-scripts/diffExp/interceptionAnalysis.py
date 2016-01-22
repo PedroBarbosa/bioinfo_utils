@@ -3,7 +3,6 @@ __author__ = 'pedro'
 import argparse
 import sys
 import os
-import csv
 import logging
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
 import collections
@@ -129,8 +128,8 @@ def writeOutput(mydict,features_per_comparison,outputFile):
 def main():
 
     parser = argparse.ArgumentParser(description='Script to check the interception of the differential expressed features present in different pairwise tests.')
-    parser.add_argument(dest='input_files', metavar='diffExp_files', nargs='+', help='File where each line represents the significant features to process. Feature ID must be in the 1st column.'
-                                                    ' All non-feature lines must start with a "#".')
+    parser.add_argument(dest='input_files', metavar='diffExp_files', nargs='+', help='List of files where each line represents the significant features to process. Feature ID must be in the 1st column.'
+                                                    ' All non-feature lines must start with a "#" (minimum 2 files).')
     parser.add_argument('-o', "--output", required =True, help='File to write the output.')
     parser.add_argument('-l', '--list', action='store_true', help='Process feature identifiers (one per line) rather than txt tab separated output files.')
     args = parser.parse_args()
@@ -139,7 +138,6 @@ def main():
 ###############################################################################
 ########################## COMMAND LINE PARSING ###############################
 ##############################################################################
-    print args.output
 
     if len(args.input_files) < 2 :
         logging.fatal('Error: %s\n' % 'You should specify at least two files to compare.')
