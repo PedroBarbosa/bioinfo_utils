@@ -116,7 +116,7 @@ def writeOutput(mydict,features_per_comparison):#,outputFile):
         print(str(k) + ' comparisons' + '\t' + str(v) + '\n')
 
 
-    file.write('\n\n\n#Table displaying the comparisons in which the features have differential expression.\n')
+    print('\n\n\n#Table displaying the comparisons in which the features have differential expression.\n')
     for k,v in final_dict.iteritems():
         print(k + '\t' + v[0] + '\t' + v[1].rstrip() + '\n')
 
