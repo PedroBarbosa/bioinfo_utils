@@ -17,7 +17,6 @@ while read line
 do	
 	split_sample_path=(${line//\// }) #split by "/"
 	sample_name=${split_sample_path[-2]}
-	
 
 #	unique_features=$(tail -n +2 $line | cut -f1 | sort | uniq | wc -l)
 #	all_features=$(tail -n +2 $line | cut -f1,8,9 | sort | uniq |  wc -l)

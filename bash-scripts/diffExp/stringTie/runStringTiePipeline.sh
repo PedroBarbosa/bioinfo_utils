@@ -6,6 +6,7 @@ fi
 
 REFERENCE_ANNOTATION="/mnt/msa/otherProjects/populus-af/diffEpression/cufflinks-suite/Potrx01-genome.gtf"
 REFERENCE_GENOME="/mnt/msa/otherProjects/populus-af/diffEpression/cufflinks-suite/filtered-plus500.fasta"
+#STRINGTIE="/opt/tools/stringtie-1.2.1/stringtie"
 STRINGTIE="/opt/tools/stringtie-1.1.2/stringtie"
 printf "####STEP 1####\n"
 printf "Running individual StringTie assemblies for all the samples with the aid of the reference annotation...\n"
@@ -16,10 +17,15 @@ do
 	printf "Started sample $BASENAME...\n"
 	LOG_FILE="logStringTie_${BASENAME}.txt"
 #	mkdir assembly-${BASENAME}
-	mkdir assembly2ndRound-${BASENAME}
+#	mkdir assembly2ndRound-${BASENAME}
+	mkdir merged2-${BASENAME}
 #	$STRINGTIE $FILENAME -G $REFERENCE_ANNOTATION -o assembly-${BASENAME}/transcripts.gtf -A $PWD/assembly-${BASENAME}/gene-abundances.txt -C $PWD/assembly-${BASENAME}/cov-refs.gtf -p 10  &> $LOG_FILE
 	#2nd round of stringtie [with -B and -e]
-	$STRINGTIE $FILENAME -G mergedAssembly/merged.gtf -o $PWD/assembly2ndRound-${BASENAME}/transcripts.gtf -A $PWD/assembly2ndRound-${BASENAME}/gene-abundances.txt -C $PWD/assembly2ndRound-${BASENAME}/cov-refs.gtf -p 10 -B -e  &>> $LOG_FILE
+#	$STRINGTIE $FILENAME -G mergedAssembly/merged.gtf -o $PWD/assembly2ndRound-${BASENAME}/transcripts.gtf -A $PWD/assembly2ndRound-${BASENAME}/gene-abundances.txt -C $PWD/assembly2ndRound-${BASENAME}/cov-refs.gtf -p 10 -B -e  &>> $LOG_FILE
+	
+	#merged samples assemblies [2nd round automatically]
+	$STRINGTIE $FILENAME -G mergedAssembly/merged.gtf -o $PWD/merged2-${BASENAME}/transcripts.gtf -A $PWD/merged2-${BASENAME}/gene-abundances.txt -C $PWD/merged2-${BASENAME}/cov-refs.gtf -p 10 -e  &>> $LOG_FILE
+
 	printf "Stringtie assembly for $BASENAME sample finished!!\n"
 done < $1 
 
