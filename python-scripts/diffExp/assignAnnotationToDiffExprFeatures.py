@@ -13,7 +13,7 @@ def processFromBlastTab(listDiffExpressed, annotationFile, database_searched):
     commented_lines = []
     total_feature = 0
     annotated_features = 0
-
+    logging.info("Processing " + listDiffExpressed + " file..")
     logging.info("Creating dictionary of differential expressed features..")
     with open(listDiffExpressed) as file:
             for line in file:
@@ -69,7 +69,7 @@ def processFromBlastTab(listDiffExpressed, annotationFile, database_searched):
     percentage = round(float(annotated_features) / float(total_feature) * 100,2 )
     logging.info("Total number of differential expressed features in file\t" + str(total_feature))
     logging.info("Number of annotated features\t" + str(annotated_features))
-    logging.info("Percentage annotated\t" + str(percentage))
+    logging.info("Percentage annotated\t" + str(percentage) + '\n')
     return dict, commented_lines
 
 
