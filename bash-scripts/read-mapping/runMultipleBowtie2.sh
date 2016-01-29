@@ -11,7 +11,7 @@ Seventh argument is optional. It refers to the number mismatches allowed in the 
 } 
 
 
-exec="/opt/tools/bowtie2-2.2.4/bowtie2"
+exec="bowtie2"
 
 #check if required arguments are there and display usage message
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
