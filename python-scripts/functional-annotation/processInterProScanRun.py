@@ -407,14 +407,14 @@ class InterproDomains:
                         writer_kegg.writerow((gene,description,pathway_id,ec_number))
 
 
-parser = argparse.ArgumentParser(description='Script to process and produce some stats about an interproscan run.')
+parser = argparse.ArgumentParser(description='Script to process and produce some stats about an interproscan run. If desirable, some additional analysis can be executed, particularly the KEGG and Gene Ontology mapping.')
 parser.add_argument(dest='interpro_file', metavar='interproFile', nargs=1,help='Interproscan output file in tsv format to be processed.')
-parser.add_argument(dest='output_basename', metavar='outputBasename', nargs=1, help='Output basename where the files will be written.')
+parser.add_argument(dest='output_basename', metavar='outputBasename', nargs=1, help='Basename for the output files.')
 parser.add_argument('-G', '--goMapping', action='store_true', help='Flag to output additional file mapping GO terms found by interpro to categories.')
 parser.add_argument('-P', '--pathwayMapping', action='store_true', help='Flag to output additional file mapping genes to KEGG pathways.')
 parser.add_argument('-b', '--biologicalProcess', type=file, nargs=1, help='Required if -G, file mapping GOs to the Biological Process category.')
 parser.add_argument('-m', '--molecularFunction', type=file, nargs=1, help='Required if -G, file mapping GOs to the Molecular Function category.')
-parser.add_argument('-c', '--celularCompoment', type=file, nargs=1, help='Required if -G, file mapping GOs to the Celular Component category.')
+parser.add_argument('-c', '--cellularCompoment', type=file, nargs=1, help='Required if -G, file mapping GOs to the Cellular Component category.')
 parser.add_argument('-n', '--nameKeggPathway', type=file, nargs=1, help='Required, if -P is set, file mapping KEGG pathways IDs to their names separated by space.')
 args = parser.parse_args()
 
