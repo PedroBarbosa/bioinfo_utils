@@ -152,7 +152,7 @@ class InterproDomains:
                             gos = hit[6].split("|")
                             for go in gos:
                                 self.gene_go_terms[gene].add(go)
-                                self.unique_go_terms.add(hit[6]) #go id
+                                self.unique_go_terms.add(go) #go id
                         else:
                             self.unique_go_terms.add(hit[6])
                             self.gene_go_terms[gene].add(hit[6])
