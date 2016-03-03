@@ -134,11 +134,12 @@ class InterproDomains:
                         gos = hit[6].split("|")
                         for go in gos:
                             self.gene_go_terms[gene].add(go)
+                            self.unique_go_terms.add(hit[6]) #go id
                     else:
                         self.gene_go_terms[gene].add(hit[6])
-
+                        self.unique_go_terms.add(hit[6]) #go id
                     self.go_terms += 1
-                    self.unique_go_terms.add(hit[6]) #go id
+
 
                 elif len(hit) > 7 : #with pathway annotation
                     self.interpro_hits +=1
