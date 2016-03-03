@@ -369,7 +369,7 @@ def main():
     parser.add_argument(dest='software', metavar='software', nargs=1, type=str, choices=['cuffmerge','cufflinks','stringtie'],help='Tool that produced the input gtf file.')
     parser.add_argument(dest='output_prefix', metavar='output_prefix', nargs=1, help='Basename for the ouptut files.')
     parser.add_argument('--writeNewGTF', action='store_true', help='Write a new GTF file where the same exons are merged into the same feature.')
-    parser.add_argument('--force', action='store_true', help='Overewrite existing gffutils database.')
+    parser.add_argument('--force', action='store_true', help='Overwrite existing gffutils database.')
     parser.add_argument('--verbose', action='store_true', help='Print more infomation while creating gffutils database.')
     parser.add_argument('--constitutive', action='store_true', help='Count number of constitutive exons, this might slow down the process.')
 

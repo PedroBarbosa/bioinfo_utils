@@ -431,14 +431,14 @@ if __name__ == "__main__":
 
     if args.goMapping:
 
-        if args.biologicalProcess and args.molecularFunction and args.celularCompoment:
+        if args.biologicalProcess and args.molecularFunction and args.cellularCompoment:
             logging.info("Processing GO terms files..")
-            interpro_object.goMapping(args.output_basename[0],args.biologicalProcess[0],args.molecularFunction[0],args.celularCompoment[0])
+            interpro_object.goMapping(args.output_basename[0],args.biologicalProcess[0],args.molecularFunction[0],args.cellularCompoment[0])
         else:
             logging.error("Error: If '-g', please set arguments -b, -m and -c!\n")
             sys.exit(2)
 
-    elif args.biologicalProcess or args.molecularFunction or args.celularCompoment:
+    elif args.biologicalProcess or args.molecularFunction or args.cellularCompoment:
         logging.warning("You provided at least one of the GO auxiliar files, but '-G' flag was not set. The processing of GOs will not be perfomed.")
 
     if args.pathwayMapping:

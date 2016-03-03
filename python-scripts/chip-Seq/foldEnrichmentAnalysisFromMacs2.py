@@ -113,11 +113,11 @@ def main():
     parser.add_argument(dest='peak_files', metavar='peakFiles', nargs='+', help='List of files where each line represents a peak file')
     parser.add_argument('--threshold', metavar= 'FLOAT', type=float, required = True, help='Fold enrichment threshold to filter peak files.')
     parser.add_argument('-s', '--sort', action='store_true', help = "Output new filtered files sorted by fold enrichment values above the threshold '-f'. Default: No output files will be written.")
-    parser.add_argument('-g', '--gtf', type=file,help = "Add genome GTF file to further analyse the regions of the genome with peaks above the threshold.")
+    parser.add_argument('-gff', metavar='--gffFile',nargs=1,help = "Add genome GFF3 file to further analyse the regions of the genome with peaks above the threshold.")
     args = parser.parse_args()
 
 
-    processFiles(args.peak_files,args.threshold, args.sort, args.gtf)
+    processFiles(args.peak_files,args.threshold, args.sort, args.gff)
 
 
 if __name__ == "__main__":
