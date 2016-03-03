@@ -9,12 +9,77 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %
 from collections import defaultdict
 import operator
 from operator import itemgetter
+import subprocess
+from collections import OrderedDict
+
+def processGFFfile(annotation_dict,gff):
+
+    gff_dict = defaultdict(list)
+    peaks_within_plus = 0
+    peaks_within_minus = 0
+    peaks2gene_within_plus = {}
+    peaks2gene_within_minus = {}
+    final_dict = defaultdict(tuple)
+
+    p1 = subprocess.Popen(['cat', gff[0]],stdout=subprocess.PIPE)
+    p2 = subprocess.Popen(['grep', '-v', '#'], stdin=p1.stdout, stdout=subprocess.PIPE)
+    p1.stdout.close()
+    p3 = subprocess.Popen(['grep','-w','gene'], stdin=p2.stdout, stdout=subprocess.PIPE)
+    p2.stdout.close()
+    genes = p3.communicate()[0].splitlines()
+    p3.stdout.close()
+
+    #add genes to dict
+    for gene in genes:
+        gene_features = gene.split()
+        gff_dict[gene_features[0]].append((gene_features[3], gene_features[4], gene_features[6], gene_features[8]))#scaffold id as key | start, stop, strand and gene_id as list elements as value
+
+    for peak,info in annotation_dict.iteritems():
+        scaffold_id = info[0]
+        start_peak = info[1]
+        length_peak = info[3]
+        genes_per_peak_scaffold = gff_dict[scaffold_id]
 
 
+        plus_check = True #Flag to avoid searching for genes when the closest by each strand was already found
+        minus_check = True
+        closer_genes = {}
 
-#def processGTFfile(annotation_dict):
+        for gene in genes_per_peak_scaffold:
+            if gene[2] == "+" and plus_check:
+                if start_peak >= gene[0] and start_peak <= gene[1]: #if peak is within a gene in the forward strand
+                    peaks_within_plus += 1
+                    peaks2gene_within_plus[peak] = gene[3] #dict with the genes that the peaks are within
+                    plus_check = False
+                    closer_genes['+'] = [gene[3], 'total_within']
 
-def processFiles(peak_files,threshold, sort,gtf):
+                elif start_peak <= gene[0]: #if peak is upstream a gene in the forward strand, assuming the order of the coordinates in the gff is correct
+                    distance_upstream_plus = gene[0] - start_peak
+                    if length_peak > distance_upstream_plus:
+                        closer_genes['+'] = [gene[3],'partial within '+ [length_peak - distance_upstream_plus]]
+                    else:
+                        closer_genes['+'] = [gene[3],str(distance_upstream_plus)]
+                    plus_check = False
+
+        for gene in reversed(genes_per_peak_scaffold): #run reversed list to search for minus genes
+            if gene[2] == "-" and minus_check:
+                if start_peak >= gene[0] and start_peak <= gene[1]: #if peak is within a gene in the reverse strand
+                    peaks_within_minus += 1
+                    peaks2gene_within_minus[peak] = gene[3] #dict with the genes that the peaks are within
+                    minus_check = False
+                    closer_genes['-'] = [gene[3], 'total_within']
+
+                elif start_peak >= gene[1]:
+                    distance_upstream_minus = start_peak - gene[1]
+                    if length_peak > distance_upstream_minus:
+                        closer_genes['-'] = [gene[3],'partial within '+ [length_peak - distance_upstream_plus]]
+                    else:
+                        closer_genes['-'] = [gene[3],str(distance_upstream_minus)]
+                    minus_check = False
+
+        if '+' closer_genes
+
+def processFiles(peak_files,threshold, sort,gff):
     #create file object for the general output file
     if os.path.exists("peaks-general-stats.txt"):
             os.remove("peaks-general-stats.txt")
@@ -73,20 +138,23 @@ def processFiles(peak_files,threshold, sort,gtf):
 
 
 
- #                   if gtf:
-                        #process peaks based on GTF file. Only need the following dict which contains only the peaks above the threshold
-#                        processGTFfile(structural_annotation)
+
 
 
                     #append dict for each sample to further process peak annotation
                     #list_ofDicts_annotation.append(structural_annotation)
 
                     if sort:
+                        logging.info("Sorting and writing new peaks file..")
                         #sort peaks above threshold by foldEnrichment value and write to the opened file
                         sorted_list = sorted(list_of_tuples,key=itemgetter(7), reverse=True)
                         for processed_peak in sorted_list:
                             writer.writerow((processed_peak))
 
+                    if gff:
+                        logging.info("Processing gff file..")
+                        #process peaks based on GTF file. Only need the following dict which contains only the peaks above the threshold
+                        processGFFfile(structural_annotation,gff)
 
                     ##############################
                     #Write stats to file##########
