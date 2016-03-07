@@ -1,4 +1,5 @@
 import argparse
+import operator
 
 def processFastaFiles(inputFile):
 
@@ -32,9 +33,9 @@ def processFastaFiles(inputFile):
 
 
 def writeOutput(final_dict, outputFile):
-
+    sorted_dict = sorted(final_dict.items(), key=operator.itemgetter(1), reverse=True)
     with open(outputFile, "w") as out:
-        for k,v in final_dict.iteritems():
+        for k,v in sorted_dict.iteritems():
             out.write(k + " " + v + "\n")
 
 
