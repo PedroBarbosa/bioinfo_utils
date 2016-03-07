@@ -177,6 +177,8 @@ def processFiles(peak_files,threshold, sort,gff):
                         peaks2gene_within_plus,peaks2gene_within_minus,final_dict = processGFFfile(structural_annotation,gff)
 
 
+                    for k,v in scaffolds_peaks.iteritems():
+                        print k,v
                     ##############################
                     #Write stats to file##########
                     logging.info("Generating stats..")
