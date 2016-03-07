@@ -169,7 +169,8 @@ def processFiles(peak_files,threshold, sort,gff):
                         sorted_list = sorted(list_of_tuples,key=itemgetter(7), reverse=True)
                         for processed_peak in sorted_list:
                             writer.writerow((processed_peak))
-
+                    else:
+                        os.remove(os.path.splitext(os.path.basename(filename))[0] + "-sortedFoldEnrichment.tsv")
                     if gff:
                         logging.info("Processing gff file..")
                         #process peaks based on GTF file. Only need the following dict which contains only the peaks above the threshold
@@ -181,10 +182,12 @@ def processFiles(peak_files,threshold, sort,gff):
                     #Write stats to file##########
 
                     logging.info("Generating stats..")
+                    outputFile.write("########### %s ###########\n" % os.path.basename(filename))
+
                     if total_peaks == 0:
-                        outputFile.write("No peaks in file %s!!\n" % os.path.basename(filename))
+                        outputFile.write("No peaks in file!!\n\n\n\n\n\n")
+
                     else:
-                        outputFile.write("########### %s ###########\n" % os.path.basename(filename))
                         outputFile.write("Total number of peaks\t%i\n" % total_peaks)
                         outputFile.write("Number of peaks above the threshold %s\t%i\n\n" % (threshold, peaks_threshold))
                         outputFile.write("Number of different scaffolds/contigs/chromossomes with peaks\t%i\n" % len(scaffolds_peaks))
@@ -219,7 +222,7 @@ def processFiles(peak_files,threshold, sort,gff):
                                 outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the reverse strand\t%s\n" % str(round(float(sum(peaks_distance_minus))/len(peaks_distance_minus),4)))
                                 outputFile.write("\tMax distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % max(peaks_distance_minus))
                                 outputFile.write("\tMin distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % min(peaks_distance_minus))
-                                outputFile.write("Number of peaks with no annotation available for the scaffold where they belong\t%i\n\n\n\n" % no_annotation)
+                                outputFile.write("Number of peaks with no annotation available for the scaffold where they belong\t%i\n\n\n\n\n\n" % no_annotation)
 
                                 logging.info("Writing new file with annotation information..")
                                 if os.path.exists(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv"):
@@ -230,13 +233,12 @@ def processFiles(peak_files,threshold, sort,gff):
                                     writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment",\
                                                          "#-log10(qvalue)", "#closest_gene_forward", "#upstream_dist_forward","#closest_gene_reverse","#upstream_dist_reverse"])
                                     for peak, all_info in final_dict.iteritems():
-                                        info = "\t".join(all_info).replace("\"","")
-                                        print info
+                                        #info = "\t".join(all_info).replace("\"","")
                                         writer_ann.writerow((peak,'\t'.join(all_info)))
                                 ann_file.close()
 
                         else:
-                            outputFile.write("No peaks detected above the threshold!\n\n")
+                            outputFile.write("No peaks detected above the threshold!\n\n\n\n\n\n")
 
 
         sorted_file.close()
