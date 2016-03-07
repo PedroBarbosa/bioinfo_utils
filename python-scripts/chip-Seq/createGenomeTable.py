@@ -6,7 +6,7 @@ def processFastaFiles(inputFile):
     contig_seq = ""
     contig_id = ""
     final_dict = {}
-    with open(inputFile[0]) as file:
+    with open(inputFile) as file:
         for line in file:
             line=line.rstrip()
             if line.startswith('>'):
