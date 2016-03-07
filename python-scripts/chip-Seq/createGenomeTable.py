@@ -15,7 +15,7 @@ def processFastaFiles(inputFile):
                 if contig_id:
 
                     previous_id = contig_id
-                    final_dict[previous_id] = len(contig_seq)
+                    final_dict[previous_id[:1]] = len(contig_seq)
 
                 contig_id = line
                 contig_seq = ""
@@ -27,7 +27,7 @@ def processFastaFiles(inputFile):
 
 
         ###process last contig (after last >) ###
-        final_dict[contig_id] = len(contig_seq)
+        final_dict[contig_id[:1]] = len(contig_seq)
 
     file.close()
     return  final_dict
