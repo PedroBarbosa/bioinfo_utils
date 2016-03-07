@@ -46,5 +46,5 @@ parser.add_argument('-o', '--outputFile', metavar='', required = True, help='Out
 args = parser.parse_args()
 
 
-dict = processFastaFiles(args.input_files[0])
+dict = processFastaFiles(args.inputFile[0])
 writeOutput(dict,args.outputFile)
