@@ -193,7 +193,7 @@ def processFiles(peak_files,threshold, sort,gff):
                         keys_1 = [k for k,v in scaffolds_peaks.items() if v==maxval_1]
                         outputFile.write("Max number of peaks in a scaffold\t%i%s\n\n" % (maxval_1, keys_1))
 
-                        if len(scaffolds_peaks_threshold > 0):
+                        if len(scaffolds_peaks_threshold) > 0:
                             outputFile.write("Number of different scaffolds/contigs/chromossomes with valid peaks above the threshold\t%i\n" % len(scaffolds_peaks_threshold))
                             outputFile.write("Average number of peaks per scaffold considering the peaks above threshold\t%s\n" % str(round(float(peaks_threshold)/len(scaffolds_peaks_threshold),4)))
                             maxval_2 = max(scaffolds_peaks_threshold.iteritems(), key=operator.itemgetter(1))[1]
