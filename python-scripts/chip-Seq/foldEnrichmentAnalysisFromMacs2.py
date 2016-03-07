@@ -231,8 +231,8 @@ def processFiles(peak_files,threshold, sort,gff):
                                     info = "\t".join(all_info).replace("\"","")
                                     print info
                                     writer_ann.writerow((peak,'\t'.join(all_info)))
-            sorted_file.close()
-            ann_file.close()
+                            ann_file.close()
+        sorted_file.close()
         outputFile.close()
 
 
