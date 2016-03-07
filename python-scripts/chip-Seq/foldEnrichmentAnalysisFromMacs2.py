@@ -193,45 +193,52 @@ def processFiles(peak_files,threshold, sort,gff):
                         keys_1 = [k for k,v in scaffolds_peaks.items() if v==maxval_1]
                         outputFile.write("Max number of peaks in a scaffold\t%i%s\n\n" % (maxval_1, keys_1))
 
-                        outputFile.write("Number of different scaffolds/contigs/chromossomes with valid peaks above the threshold\t%i\n" % len(scaffolds_peaks_threshold))
-                        outputFile.write("Average number of peaks per scaffold considering the peaks above threshold\t%s\n" % str(round(float(peaks_threshold)/len(scaffolds_peaks_threshold),4)))
-                        maxval_2 = max(scaffolds_peaks_threshold.iteritems(), key=operator.itemgetter(1))[1]
-                        keys_2 = [k for k,v in scaffolds_peaks_threshold.items() if v==maxval_2]
-                        outputFile.write("Max number of peaks above the threshold in a scaffold\t%i%s\n\n" % (maxval_2, keys_2))
+                        if len(scaffolds_peaks_threshold > 0):
+                            outputFile.write("Number of different scaffolds/contigs/chromossomes with valid peaks above the threshold\t%i\n" % len(scaffolds_peaks_threshold))
+                            outputFile.write("Average number of peaks per scaffold considering the peaks above threshold\t%s\n" % str(round(float(peaks_threshold)/len(scaffolds_peaks_threshold),4)))
+                            maxval_2 = max(scaffolds_peaks_threshold.iteritems(), key=operator.itemgetter(1))[1]
+                            keys_2 = [k for k,v in scaffolds_peaks_threshold.items() if v==maxval_2]
+                            outputFile.write("Max number of peaks above the threshold in a scaffold\t%i%s\n\n" % (maxval_2, keys_2))
 
-                        if gff:
-                            outputFile.write("##Annotation analysis of the peaks above the thresholdc##\n")
-                            outputFile.write("Forward strand:\n")
-                            outputFile.write("\tNumber of peaks totally within the range of genes predicted in the forward strand\t%i\n" % peaks_within_plus)
-                            outputFile.write("\tNumber of peaks partially within the range of genes predicted in the forward strand\t%i\n" % partial_peaks_plus)
-                            outputFile.write("\tNumber of peaks located upstream of genes predicted in the forward strand\t%i\n" % len(peaks_distance_plus))
-                            outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_plus,partial_peaks_plus,len(peaks_distance_plus)]) - no_annotation))
-                            outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the forward strand\t%s\n" % str(round(float(sum(peaks_distance_plus))/len(peaks_distance_plus),4)))
-                            outputFile.write("\tMax distance of an upstream peak to the start of the closest gene predicted in the forward strand\t%i\n" % max(peaks_distance_plus))
-                            outputFile.write("\tMin distance of an upstream peak to the start of the closest gene predicted in the forward strand\t%i\n" % min(peaks_distance_plus))
-                            outputFile.write("Reverse strand:\n")
-                            outputFile.write("\tNumber of peaks totally within the range of genes predicted in the reverse strand\t%i\n" % peaks_within_minus)
-                            outputFile.write("\tNumber of peaks partially within the range of genes predicted in the reverse strand\t%i\n" % partial_peaks_minus)
-                            outputFile.write("\tNumber of peaks located upstream of genes predicted in the reverse strand\t%i\n" % len(peaks_distance_minus))
-                            outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_minus,partial_peaks_minus,len(peaks_distance_minus)]) - no_annotation))
-                            outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the reverse strand\t%s\n" % str(round(float(sum(peaks_distance_minus))/len(peaks_distance_minus),4)))
-                            outputFile.write("\tMax distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % max(peaks_distance_minus))
-                            outputFile.write("\tMin distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % min(peaks_distance_minus))
-                            outputFile.write("Number of peaks with no annotation available for the scaffold where they belong\t%i\n\n\n\n" % no_annotation)
 
-                            logging.info("Writing new file with annotation information..")
-                            if os.path.exists(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv"):
-                                os.remove(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv")
-                            with open(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv", "w") as ann_file:
-                                writer_ann = csv.writer(ann_file,dialect=csv.excel_tab)
-                                #sorted_dict = sorted(final_dict.iteritems(),key=lambda (k,v): v(8),reverse=True)
-                                writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment",\
-                                                     "#-log10(qvalue)", "#closest_gene_forward", "#upstream_dist_forward","#closest_gene_reverse","#upstream_dist_reverse"])
-                                for peak, all_info in final_dict.iteritems():
-                                    info = "\t".join(all_info).replace("\"","")
-                                    print info
-                                    writer_ann.writerow((peak,'\t'.join(all_info)))
-                            ann_file.close()
+                            if gff:
+                                outputFile.write("##Annotation analysis of the peaks above the thresholdc##\n")
+                                outputFile.write("Forward strand:\n")
+                                outputFile.write("\tNumber of peaks totally within the range of genes predicted in the forward strand\t%i\n" % peaks_within_plus)
+                                outputFile.write("\tNumber of peaks partially within the range of genes predicted in the forward strand\t%i\n" % partial_peaks_plus)
+                                outputFile.write("\tNumber of peaks located upstream of genes predicted in the forward strand\t%i\n" % len(peaks_distance_plus))
+                                outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_plus,partial_peaks_plus,len(peaks_distance_plus)]) - no_annotation))
+                                outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the forward strand\t%s\n" % str(round(float(sum(peaks_distance_plus))/len(peaks_distance_plus),4)))
+                                outputFile.write("\tMax distance of an upstream peak to the start of the closest gene predicted in the forward strand\t%i\n" % max(peaks_distance_plus))
+                                outputFile.write("\tMin distance of an upstream peak to the start of the closest gene predicted in the forward strand\t%i\n" % min(peaks_distance_plus))
+                                outputFile.write("Reverse strand:\n")
+                                outputFile.write("\tNumber of peaks totally within the range of genes predicted in the reverse strand\t%i\n" % peaks_within_minus)
+                                outputFile.write("\tNumber of peaks partially within the range of genes predicted in the reverse strand\t%i\n" % partial_peaks_minus)
+                                outputFile.write("\tNumber of peaks located upstream of genes predicted in the reverse strand\t%i\n" % len(peaks_distance_minus))
+                                outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_minus,partial_peaks_minus,len(peaks_distance_minus)]) - no_annotation))
+                                outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the reverse strand\t%s\n" % str(round(float(sum(peaks_distance_minus))/len(peaks_distance_minus),4)))
+                                outputFile.write("\tMax distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % max(peaks_distance_minus))
+                                outputFile.write("\tMin distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % min(peaks_distance_minus))
+                                outputFile.write("Number of peaks with no annotation available for the scaffold where they belong\t%i\n\n\n\n" % no_annotation)
+
+                                logging.info("Writing new file with annotation information..")
+                                if os.path.exists(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv"):
+                                    os.remove(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv")
+                                with open(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv", "w") as ann_file:
+                                    writer_ann = csv.writer(ann_file,dialect=csv.excel_tab)
+                                    #sorted_dict = sorted(final_dict.iteritems(),key=lambda (k,v): v(8),reverse=True)
+                                    writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment",\
+                                                         "#-log10(qvalue)", "#closest_gene_forward", "#upstream_dist_forward","#closest_gene_reverse","#upstream_dist_reverse"])
+                                    for peak, all_info in final_dict.iteritems():
+                                        info = "\t".join(all_info).replace("\"","")
+                                        print info
+                                        writer_ann.writerow((peak,'\t'.join(all_info)))
+                                ann_file.close()
+
+                        else:
+                            outputFile.write("No peaks detected above the threshold!\n\n")
+
+
         sorted_file.close()
         outputFile.close()
 
