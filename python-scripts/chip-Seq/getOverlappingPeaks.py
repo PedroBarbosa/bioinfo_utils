@@ -22,8 +22,8 @@ def getOverlap(list_dict,list_files, list_number_peaks):
         print "Number of peaks in file %s:\t%i" % (os.path.basename(list_files[i]),list_number_peaks[i][0])
         print "Number of different scaffolds with peaks in file %s:\t%i\n" % (os.path.basename(list_files[i]),list_number_peaks[i][1])
 
-    print "\nMaximum number of peak overlaps:\t%s" % min(list_number_peaks, key = lambda m: m[0])[0]
-    print "Number of possible peaks with overlaps (peaks in scaffolds shared across all samples):\t%i\n" % len(interception)
+    print "\nMaximum number of possible peak overlaps:\t%s" % min(list_number_peaks, key = lambda m: m[0])[0]
+    print "Potential peaks with overlaps (peaks in which reference scaffold is present across all samples):\t%i\n" % len(interception)
     overlaps = 0
     #coordinates analysis
     for scaffold_id in interception:
