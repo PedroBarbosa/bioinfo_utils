@@ -249,7 +249,7 @@ def processFiles(peak_files,threshold, sort,gff):
                                 ann_file.close()
 
                         else:
-                            logging.write("No peaks detected above the threshold.")
+                            logging.info("No peaks detected above the threshold.")
                             outputFile.write("No peaks detected above the threshold!\n\n\n\n\n\n")
 
 
