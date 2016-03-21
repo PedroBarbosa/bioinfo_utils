@@ -20,7 +20,7 @@ def processEvalue(blastFile, eval_threshold):
             if not line.startswith('#'):
                 vector = line.split("\t") #read itself
                 eValue = round(10 ** (Decimal(vector[10])),8) #new eValue
-                if eValue < float(eval_threshold):
+                if eValue <= float(eval_threshold):
                     vector[10] = str(eValue)
                     fileoutput.write('\t'.join(vector))
             else:
