@@ -45,8 +45,7 @@ def processGFFfile(annotation_dict,gff):
         gff_dict[gene_features[0]].append((gene_features[3], gene_features[4], gene_features[6], gene_features[8]))#scaffold id as key | start, stop, strand and gene_id as list elements as value
 
     for peak,info in annotation_dict.iteritems():
-        if peak == "chip1_L1_pooledMock1-noModelkeepDup30_peak_59283":
-            a = 1
+
         scaffold_id = info[0]
         start_peak = int(info[1])
         end_peak = int(info[2])
@@ -95,11 +94,13 @@ def processGFFfile(annotation_dict,gff):
 
 
             if plus_check == True and stop_downstream_plus == True: #checked all genes for upstream location in the forward strand but didn't found any, despite the fact it found downstream
-
+                #print temp_plus
                 if any("partial" in element for element in temp_plus):
                     peaks_partially_downstream_plus += 1
+
                 elif any("totally" in element for element in temp_plus):
                     peaks_downstream_plus += 1
+
                 closer_genes['+'] = temp_plus
 
 
@@ -155,6 +156,7 @@ def processGFFfile(annotation_dict,gff):
 
     return no_annotation,peaks_within_plus,peaks_within_minus,partial_peaks_plus,partial_peaks_minus,peaks_distance_plus,peaks_distance_minus,peaks2gene_within_plus,\
            peaks2gene_within_minus,peaks_downstream_plus, peaks_partially_downstream_plus, peaks_downstream_minus, peaks_partially_downstream_minus, final_dict
+
 
 
 
@@ -231,6 +233,7 @@ def processFiles(peak_files,threshold, sort,gff):
                         peaks_partially_downstream_minus,final_dict = processGFFfile(structural_annotation,gff)
 
 
+
                     ##############################
                     #Write stats to file##########
 
@@ -259,14 +262,16 @@ def processFiles(peak_files,threshold, sort,gff):
 
 
                             if gff:
-                                outputFile.write("##Annotation analysis of the peaks above the threshold##\n")
+
+                                outputFile.write("##Annotation analysis of the peaks above the threshold:##\n")
                                 outputFile.write("Forward strand:\n")
                                 outputFile.write("\tNumber of peaks totally within the range of genes predicted in the forward strand\t%i\n" % peaks_within_plus)
                                 outputFile.write("\tNumber of peaks partially within the range of genes predicted in the forward strand\t%i\n" % partial_peaks_plus)
                                 outputFile.write("\tNumber of peaks located upstream of genes predicted in the forward strand\t%i\n" % len(peaks_distance_plus))
                                 outputFile.write("\tNumber of peaks where all the genes predicted in the forward strand are totally upstream of the peak itself (peaks located downstream of all genes of the scaffold)\t%i\n" % peaks_downstream_plus)
                                 outputFile.write("\tNumber of peaks where one of the genes predicted in the forward strand is partially upstream of the peak itself (peaks located partially downstream of at least one gene)\t%i\n" % peaks_partially_downstream_plus)
-                                outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_plus,partial_peaks_plus,len(peaks_distance_plus),peaks_downstream_plus,peaks_partially_downstream_plus]) - no_annotation))
+
+                                outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_plus,partial_peaks_plus,len(peaks_distance_plus),peaks_downstream_plus,peaks_partially_downstream_plus,no_annotation])))
 
                                 if len(peaks_distance_plus) > 0:
                                     outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the forward strand\t%s\n" % str(round(float(sum(peaks_distance_plus))/len(peaks_distance_plus),4)))
@@ -283,7 +288,7 @@ def processFiles(peak_files,threshold, sort,gff):
                                 outputFile.write("\tNumber of peaks located upstream of genes predicted in the reverse strand\t%i\n" % len(peaks_distance_minus))
                                 outputFile.write("\tNumber of peaks where all the genes predicted in the reverse strand are totally upstream of the peak itself (peaks located downstream of all genes of the scaffold)\t%i\n" % peaks_downstream_minus)
                                 outputFile.write("\tNumber of peaks where one of the genes predicted in the reverse strand is partially upstream of the peak itself (peaks located partially downstream of at least one gene)\t%i\n" % peaks_partially_downstream_minus)
-                                outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_minus,partial_peaks_minus,len(peaks_distance_minus),peaks_downstream_plus,peaks_partially_downstream_minus]) - no_annotation))
+                                outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_minus,partial_peaks_minus,len(peaks_distance_minus),peaks_downstream_minus,peaks_partially_downstream_minus, no_annotation])))
                                 if len(peaks_distance_minus) > 0:
                                     outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the reverse strand\t%s\n" % str(round(float(sum(peaks_distance_minus))/len(peaks_distance_minus),4)))
                                     outputFile.write("\tMax distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % max(peaks_distance_minus))
