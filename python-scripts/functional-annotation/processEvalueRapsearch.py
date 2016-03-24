@@ -12,6 +12,8 @@ args = parser.parse_args()
 
 def processEvalue(blastFile, eval_threshold):
     print("Reading and processing file ...")
+    print eval_threshold
+    print float(eval_threshold)
     filename = args.outputed_file
     open(filename, 'w').close() ## empty output file, just in case
     fileoutput = open (filename, 'w')
@@ -19,7 +21,9 @@ def processEvalue(blastFile, eval_threshold):
         for line in file:
             if not line.startswith('#'):
                 vector = line.split("\t") #read itself
-                eValue = round(10 ** (Decimal(vector[10])),8) #new eValue
+                #eValue = round(10 ** (Decimal(vector[10])),8) #new eValue
+                log=vector[10]
+                eValue = pow(10,float(log)) #new eValue
                 if eValue <= float(eval_threshold):
                     vector[10] = str(eValue)
                     fileoutput.write('\t'.join(vector))
