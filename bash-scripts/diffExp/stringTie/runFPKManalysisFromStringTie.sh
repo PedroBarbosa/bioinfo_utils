@@ -17,7 +17,6 @@ while read line
 do	
 	split_sample_path=(${line//\// }) #split by "/"
 	sample_name=${split_sample_path[-2]}
-	
 
 #	unique_features=$(tail -n +2 $line | cut -f1 | sort | uniq | wc -l)
 #	all_features=$(tail -n +2 $line | cut -f1,8,9 | sort | uniq |  wc -l)
@@ -28,7 +27,7 @@ do
 	unique_genes_stringtie=$(cat $line | grep -w "transcript" | cut -f9 | cut -f1 -d ";" | sort | uniq | wc -l)
 	unique_genes_reference=$(cat $line | grep -w "transcript" | cut -f9 | cut -f4 -d ";" | sort | uniq | wc -l)
 	unique_genes_both=$(cat $line | grep -w "transcript" | cut -f9 | cut -f1,4 -d ";" | sort | uniq | wc -l)
-
+	unique_genes_fromReference=$(cat $line | grep -w "transcript" | cut -f9 | cut -f5 -d ";" | grep "ref_gene_name" | sort | uniq | wc -l)
 	gene_abundance_file=$(sed -n "${lines}p" < $3)
 	unique_genes_abundance_file=$(tail -n +2 $gene_abundance_file | cut -f1 | sort | uniq | wc -l)
         let "lines +=1"
@@ -42,8 +41,9 @@ do
 	printf "Number of genes tracked:\t$total_genes\n"
 	printf "Number of isoforms tracked:\t$total_isoforms\n\n"
 	printf "Number of unique stringTie genes expressed in sample:\t$unique_genes_stringtie\n"
-	printf "Number of unique reference genes expressed in sample:\t$unique_genes_reference\n"
+	printf "Number of unique reference [cuffmerge IDs] genes expressed in sample:\t$unique_genes_reference\n"
 	printf "Number of unique reference and stringTie genes expressed in sample:\t$unique_genes_both\n"
+	printf "Number of genes expressed mapping reference genes from original GTF:\t$unique_genes_fromReference\n"
 	printf "Number of unique genes expressed in the gene abundances file:\t$unique_genes_abundance_file\n\n"
 	printf "Number of unique reference and StringTie isoforms present in sample:\t$unique_isoforms\n"
 	printf "Number of unique refrence and StringTie isoforms expressed in sample:\t$expressed_isoforms\n\n\n\n"

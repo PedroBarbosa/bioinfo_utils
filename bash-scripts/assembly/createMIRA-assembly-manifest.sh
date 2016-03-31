@@ -40,6 +40,7 @@ ION_TORRENT_PATH="/mnt/msa/celia_Leao_INIAV/data/celia_MAP_C4A4.fastq"
 #Path to the file that lists Illumina files wit the threshold Q20L80/Q20L40
 #LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q20L80-PE_Q20L20-MP.txt"
 LIST_ILLUM_PE_MP_PATH="/mnt/msa/workflow_scripts/LIST_FILES/listFiles_Q35L90-PE_Q35L40-MP.txt"
+#LIST_ILLUM_PE_MP_PATH="listFastqProcessed.txt"
 
 ##Fragment sizes estimations for each type of library
 PE170_INSZ_MIN_MAX="100 450 exclusion_criterion autorefine"
