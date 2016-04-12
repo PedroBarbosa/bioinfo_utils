@@ -82,23 +82,27 @@ def processOriginalNarrowPeakFromMACS2(originalNarrowPeak, listIDRpeaks, basenam
         os.remove(output_originalNarrow)
 
 
-    with open(originalNarrowPeak, 'r') as file_narrowPeak_in:
-        for line in file_narrowPeak_in:
-            line_attributes = line.strip().split()
-            peak_name =line_attributes.pop(3)
-            dict[peak_name] = line_attributes
+    with open(output_originalNarrow, 'w') as file_narrowPeak_out:
+        with open(originalNarrowPeak, 'r') as file_narrowPeak_in:
+            for line in file_narrowPeak_in:
+                if line.startswith("track type"):
+                    file_narrowPeak_out.write(line.rstrip())
+                else:
+                    line_attributes = line.strip().split()
+                    peak_name =line_attributes.pop(3)
+                    dict[peak_name] = line_attributes
 
     file_narrowPeak_in.close()
 
     logging.info("Writing new narrowPeak file with the peaks that passed the IDR threshold.")
-    with open(output_originalNarrow, 'w') as file_narrowPeak_out:
-        for peak in listIDRpeaks:
-            if peak in dict:
-                attr = dict[peak]
-                attr.insert(3,peak)
-                file_narrowPeak_out.write('\t'.join(attr) + '\n')
-            else:
-                logging.warning("IDR Peak %s not present in original MACS2 narrowPeak file." % peak)
+    for peak in listIDRpeaks:
+        if peak in dict:
+            attr = dict[peak]
+            attr.insert(3,peak)
+            file_narrowPeak_out.write('\t'.join(attr) + '\n')
+        else:
+            logging.warning("IDR Peak %s not present in original MACS2 narrowPeak file." % peak)
+    file_narrowPeak_out.close()
 
 
 
@@ -121,5 +125,8 @@ def main():
     listIDRpeaks = processIDRnarrowPeak(args.IDR_peakFile[0], dict_xls,outputFile_xls, args.o)
     if args.originalNarrowPeak:
         processOriginalNarrowPeakFromMACS2(args.originalNarrowPeak, listIDRpeaks, args.o)
+
+
+
 if __name__ == "__main__":
     main()
