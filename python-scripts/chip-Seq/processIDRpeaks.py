@@ -86,7 +86,7 @@ def processOriginalNarrowPeakFromMACS2(originalNarrowPeak, listIDRpeaks, basenam
         with open(originalNarrowPeak, 'r') as file_narrowPeak_in:
             for line in file_narrowPeak_in:
                 if line.startswith("track type"):
-                    file_narrowPeak_out.write(line.rstrip())
+                    file_narrowPeak_out.write(line.rstrip() + '\n')
                 else:
                     line_attributes = line.strip().split()
                     peak_name =line_attributes.pop(3)
