@@ -10,7 +10,7 @@ from collections import defaultdict
 import operator
 from operator import itemgetter
 import subprocess
-import itertools
+
 
 def processGFFfile(annotation_dict,gff):
 
@@ -44,7 +44,7 @@ def processGFFfile(annotation_dict,gff):
         gene_features = gene.split()
         gff_dict[gene_features[0]].append((gene_features[3], gene_features[4], gene_features[6], gene_features[8]))#scaffold id as key | start, stop, strand and gene_id as list elements as value
 
-    for peak,info in annotation_dict.iteritems():
+    for peak,info in annotation_dict.items():
 
         scaffold_id = info[0]
         start_peak = int(info[1])
@@ -249,14 +249,14 @@ def processFiles(peak_files,threshold, sort,gff):
                         outputFile.write("Number of peaks above the threshold %s\t%i\n\n" % (threshold, peaks_threshold))
                         outputFile.write("Number of different scaffolds/contigs/chromossomes with peaks\t%i\n" % len(scaffolds_peaks))
                         outputFile.write("Average number of peaks per scaffold\t%s\n" % str(round(float(total_peaks)/len(scaffolds_peaks),4)))
-                        maxval_1 = max(scaffolds_peaks.iteritems(), key=operator.itemgetter(1))[1]
+                        maxval_1 = max(scaffolds_peaks.items(), key=operator.itemgetter(1))[1]
                         keys_1 = [k for k,v in scaffolds_peaks.items() if v==maxval_1]
                         outputFile.write("Max number of peaks in a scaffold\t%i%s\n\n" % (maxval_1, keys_1))
 
                         if len(scaffolds_peaks_threshold) > 0:
                             outputFile.write("Number of different scaffolds/contigs/chromossomes with valid peaks above the threshold\t%i\n" % len(scaffolds_peaks_threshold))
                             outputFile.write("Average number of peaks per scaffold considering the peaks above threshold\t%s\n" % str(round(float(peaks_threshold)/len(scaffolds_peaks_threshold),4)))
-                            maxval_2 = max(scaffolds_peaks_threshold.iteritems(), key=operator.itemgetter(1))[1]
+                            maxval_2 = max(scaffolds_peaks_threshold.items(), key=operator.itemgetter(1))[1]
                             keys_2 = [k for k,v in scaffolds_peaks_threshold.items() if v==maxval_2]
                             outputFile.write("Max number of peaks above the threshold in a scaffold\t%i%s\n\n" % (maxval_2, keys_2))
 
@@ -307,7 +307,7 @@ def processFiles(peak_files,threshold, sort,gff):
                                     #sorted_dict = sorted(final_dict.iteritems(),key=lambda (k,v): v(8),reverse=True)
                                     writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment",\
                                                          "#-log10(qvalue)", "#closest_gene_forward", "#upstream_dist_forward","#closest_gene_reverse","#upstream_dist_reverse"])
-                                    for peak, all_info in final_dict.iteritems():
+                                    for peak, all_info in final_dict.items():
                                         #info = "\t".join(all_info).replace("\"","")
                                         writer_ann.writerow((peak,'\t'.join(all_info)))
                                 ann_file.close()
