@@ -92,16 +92,17 @@ def processOriginalNarrowPeakFromMACS2(originalNarrowPeak, listIDRpeaks, basenam
                     peak_name =line_attributes.pop(3)
                     dict[peak_name] = line_attributes
 
-    file_narrowPeak_in.close()
+        file_narrowPeak_in.close()
 
-    logging.info("Writing new narrowPeak file with the peaks that passed the IDR threshold.")
-    for peak in listIDRpeaks:
-        if peak in dict:
-            attr = dict[peak]
-            attr.insert(3,peak)
-            file_narrowPeak_out.write('\t'.join(attr) + '\n')
-        else:
-            logging.warning("IDR Peak %s not present in original MACS2 narrowPeak file." % peak)
+        logging.info("Writing new narrowPeak file with the peaks that passed the IDR threshold.")
+        for peak in listIDRpeaks:
+            if peak in dict:
+                attr = dict[peak]
+                attr.insert(3,peak)
+                file_narrowPeak_out.write('\t'.join(attr) + '\n')
+            else:
+                logging.warning("IDR Peak %s not present in original MACS2 narrowPeak file." % peak)
+
     file_narrowPeak_out.close()
 
 
