@@ -106,13 +106,15 @@ def processOriginalNarrowPeakFromMACS2(originalNarrowPeak, listIDRpeaks, basenam
 def main():
 
     parser = argparse.ArgumentParser(description='Script to process peaks that passed the IDR threshold (version2) based on the xls outputted by macs2. Starts from the\
-     assumption that fold enrichment values and peak names in the IDR edited narrowPeak format are missing.')
+     assumption that fold enrichment values and peak names in the IDR edited narrowPeak format are missing. It outputs the IDR narroPeak format with peak names in 4th columns and adds\
+                                                 fold enrichment values to the last column. Furthermore, a filtered xls and optionally, a narrowPeak file will be written\
+                                                 displaying only the peaks that passed the IDR threshold.')
     parser.add_argument(dest='IDR_peakFile', metavar='idrPeakFile', nargs=1, help='Extended narrowPeak file outputted by IDR v2.0.')
     parser.add_argument(dest='macs2_xls_file', metavar='xlsPeaksFile', nargs=1, help='XLS file produced by macs2, should be analogous to the narrowPeak file that served\
     as the oracle file when IDR was ran.')
-    parser.add_argument('--originalNarrowPeak', metavar= 'narrowPeak', help='Original narrowPeak file (from the same run of "macs2_xls_file"). If one wants to ouput \
+    parser.add_argument('--originalNarrowPeak', metavar= 'narrowPeak', help='Original narrowPeak file (from the same run of "xlsPeaksFile"). Use this if you wants to ouput \
     the original narrowPeak file with the peaks that passed the IDR threshold.')
-    parser.add_argument('-o', metavar='--outputBasename', required=True, help = "Basename to write the output files. Default: [based on 'macs2_xls_file']")
+    parser.add_argument('-o', metavar='--outputBasename', required=True, help = "[Required] Basename to write the output files.")
     args = parser.parse_args()
 
     dict_xls, outputFile_xls = processMAC2xls(args.macs2_xls_file[0], args.o)
