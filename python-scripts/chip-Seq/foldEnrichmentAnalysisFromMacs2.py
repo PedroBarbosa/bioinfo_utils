@@ -166,9 +166,8 @@ def processGFFfile(annotation_dict,gff):
 
 
 
-def processFiles(peak_files,threshold, sort,gff):
+def processFiles(peak_files,threshold, sort,gff, addAnnotation):
     #create file object for the general output file
-    global peaks_partially_downstream_plus
     if os.path.exists("peaks-general-stats.txt"):
             os.remove("peaks-general-stats.txt")
 
@@ -310,14 +309,24 @@ def processFiles(peak_files,threshold, sort,gff):
                                     os.remove(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv")
                                 with open(os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv", "w") as ann_file:
                                     writer_ann = csv.writer(ann_file,dialect=csv.excel_tab)
-                                    #sorted_dict = sorted(final_dict..items(),key=lambda (k,v): v(8),reverse=True)
-                                    writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment",\
-                                                         "#-log10(qvalue)", "#closest_gene_forward", "#upstream_dist_forward","#closest_gene_reverse","#upstream_dist_reverse"])
-                                    for peak, all_info in iter(final_dict.items()):
-                                        #info = "\t".join(all_info).replace("\"","")
-                                        writer_ann.writerow((peak,'\t'.join(all_info)))
-                                ann_file.close()
+                                    if addAnnotation:
+                                        writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment", \
+                                    "#-log10(qvalue)", "#closest_gene_forward", "functional_description_forward","#upstream_dist_forward","#closest_gene_reverse","functional_description_reverse"\
+                                    ,"#upstream_dist_reverse"])
 
+                                        final_dict_updated = processFromBlastTab(final_dict,addAnnotation)
+                                        for peak, all_info in iter(final_dict_updated.items()):
+                                            #info = "\t".join(all_info).replace("\"","")
+                                            writer_ann.writerow((peak,'\t'.join(all_info)))
+                                    else:
+                                        #sorted_dict = sorted(final_dict..items(),key=lambda (k,v): v(8),reverse=True)
+                                        writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment", \
+                                                             "#-log10(qvalue)", "#closest_gene_forward", "#upstream_dist_forward","#closest_gene_reverse","#upstream_dist_reverse"])
+                                        for peak, all_info in iter(final_dict.items()):
+                                            #info = "\t".join(all_info).replace("\"","")
+                                            writer_ann.writerow((peak,'\t'.join(all_info)))
+                                ann_file.close()
+                                removeChar(filename)
                         else:
                             logging.info("No peaks detected above the threshold.")
                             outputFile.write("No peaks detected above the threshold!\n\n\n\n\n\n")
@@ -327,6 +336,96 @@ def processFiles(peak_files,threshold, sort,gff):
         outputFile.close()
 
 
+def processFromBlastTab(final_dict, functionalAnnotation):
+    dict_funct={}
+    annotated_features = 0
+    logging.info("Processing annotation file ..")
+    with open(functionalAnnotation) as file:
+        previous_query = ""
+
+        for line in file:
+            line.rstrip()
+            if not line.startswith('#') :
+                query = line.split()[0]
+                if '.' in query:
+                    query = query.split('.')[0]
+
+                if not query in dict_funct:
+
+                    if query == previous_query:
+                        previous_query = query
+                    else:
+                        annotated_features += 1
+                        hit = line.split('\t')[1]
+                        dict_funct[query] = hit
+
+
+    for peak,all_info in iter(final_dict.items()):
+        list_info = list(all_info)
+        gene_forward = list_info[9]
+        gene_reverse = list_info[11]
+
+        #no structural annotation, thus no functional annotation
+        if gene_forward == "No annotation available":
+                list_info.insert(10,'-')
+                list_info.insert(13,'-')
+                final_dict[peak] = tuple(list_info)
+
+
+        #peaks where genes in both strands were identified
+        elif gene_forward != "no_gene_plus" and gene_reverse != "no_gene_minus":
+            #there is functional annotation for the genes predicted in plus and minus strand
+            if gene_forward in dict_funct and gene_reverse in dict_funct:
+                list_info.insert(10,dict_funct[gene_forward])
+                list_info.insert(13,dict_funct[gene_reverse])
+                final_dict[peak] = tuple(list_info)
+
+            elif gene_forward in dict_funct:
+                list_info.insert(10,dict_funct[gene_forward])
+                list_info.insert(13,'No function detected')
+                final_dict[peak] = tuple(list_info)
+            elif gene_reverse in dict_funct:
+                list_info.insert(10,'No function detected')
+                list_info.insert(13,dict_funct[gene_reverse])
+                final_dict[peak] = tuple(list_info)
+            else:
+                list_info.insert(10,'No function detected')
+                list_info.insert(13,'No function detected')
+                final_dict[peak] = tuple(list_info)
+
+        #peaks with only genes in reverse strand
+        elif gene_forward == "no_gene_plus" and gene_reverse != "no_gene_minus":
+            #peaks where the reverse gene has functional annotation
+            if gene_reverse in dict_funct:
+                list_info.insert(10,'-')
+                list_info.insert(13,dict_funct[gene_reverse])
+                final_dict[peak] = tuple(list_info)
+            else:
+                list_info.insert(10,'-')
+                list_info.insert(13,'No function detected')
+                final_dict[peak] = tuple(list_info)
+
+        #peaks with only genes in forward strand
+        elif gene_forward != "no_gene_plus" and gene_reverse == "no_gene_minus":
+            #peaks where the forward gene doesn't have predicted function
+            if gene_forward in dict_funct:
+                list_info.insert(10,dict_funct[gene_forward])
+                list_info.insert(13,'-')
+                final_dict[peak] = tuple(list_info)
+            else:
+                list_info.insert(10,'No function detected')
+                list_info.insert(13,'-')
+                final_dict[peak] = tuple(list_info)
+
+
+
+    return  final_dict
+
+
+def removeChar(filename):
+    file=os.path.splitext(os.path.basename(filename))[0] + "-annotationInfo.tsv"
+    subprocess.call(['sed', '-i', 's/\"//g', file])
+
 def main():
 
     parser = argparse.ArgumentParser(description='Script to analyse fold enrichment in ChipSeq peak files from macs2.')
@@ -334,11 +433,13 @@ def main():
     parser.add_argument('--threshold', metavar= 'FLOAT', type=float, required = True, help='Fold enrichment threshold to filter peak files.')
     parser.add_argument('-s', '--sort', action='store_true', help = "Output new filtered files sorted by fold enrichment values above the threshold '-f'. Default: No output files will be written.")
     parser.add_argument('-gff', metavar='--gffFile',nargs=1,help = "Add genome GFF3 file to further analyse the regions of the genome with peaks above the threshold.")
+    parser.add_argument('-funct', metavar='--functionalAnnotation', nargs=1, help= "Add blast like tab file with functional annotation of the genes predicted in the -gff file. [Support for m8 file from rapsearch2]")
     args = parser.parse_args()
 
-
-    processFiles(args.peak_files,args.threshold, args.sort, args.gff)
-
+    if args.funct and not args.gff:
+        logging.error("Error. -funct argument only available when -gff is set.")
+        exit(1)
+    processFiles(args.peak_files,args.threshold, args.sort, args.gff,args.funct[0])
 
 if __name__ == "__main__":
     main()
