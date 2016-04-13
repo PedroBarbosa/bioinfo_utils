@@ -225,7 +225,8 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation):
                     if sort:
                         logging.info("Sorting and writing new peaks file..")
                         #sort peaks above threshold by foldEnrichment value and write to the opened file
-                        sorted_list = sorted(list_of_tuples,key=itemgetter(7), reverse=True)
+                        sorted_list = sorted(list_of_tuples, key=lambda x: float(x[7]), reverse=True)
+                        #sorted_list = sorted(list_of_tuples,key=itemgetter(7), reverse=True) doesnt work for doubles bigger than 10
                         for processed_peak in sorted_list:
                             writer.writerow((processed_peak))
                     else:
