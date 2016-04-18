@@ -3,7 +3,7 @@ usage="$(basename "$0") input_file mapper [-h] [-b] [-s]. Script to generate dif
 
 where:
     input_file	Text file where each line represents the path for the SAM/BAM files to be processed.
-    mapper	Aligner used to generate the alignments. Available options: Tophat2, Hisat2, STAR.
+    mapper	Aligner used to generate the alignments. Available options: Tophat2, Hisat2, STAR, bowtie2.
    
     Optional arguments:
     -h  show this help text
