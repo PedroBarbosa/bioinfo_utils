@@ -43,7 +43,7 @@ containsElement () {
   return 1
 }
 
-MAPPERS_AVAILABLE=("Tophat2" "Hisat2" "STAR","bowtie2")
+MAPPERS_AVAILABLE=("Tophat2" "Hisat2" "STAR" "bowtie2")
 containsElement "$2" "${MAPPERS_AVAILABLE[@]}"
 if [ $(echo $?) = 1 ]; then
     printf "ERROR: Unrecognized mapper. Please set a valid aligner name.\n\n"
