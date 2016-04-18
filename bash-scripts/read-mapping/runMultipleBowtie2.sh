@@ -1,4 +1,5 @@
 #!/bin/bash
+
 #Script to run bowtie multiple times for each library. One sam per library will be produced. 
 display_usage() { 
 printf "First argument must be the file. In this file the Paired end libraries need to be first
@@ -70,7 +71,7 @@ do
 		printf "Running bowtie2 aligner for library $sam_basename ..\n"
 
                 bam_file="${sam_basename}.bam"
-                command="$base_command --un-conc ${sam_basename}_unmapped.fq --rg-id mp${numb_samples} --rg $sam_basename -1 $pair1 -2 $pair2" # -S $sam_file"
+                command="$base_command --un-conc-gz ${sam_basename}_unmapped.fq.gz --rg-id mp${numb_samples} --rg $sam_basename -1 $pair1 -2 $pair2" # -S $sam_file"
                 command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 
@@ -100,7 +101,7 @@ do
  
 	
                 bam_file="${sam_basename}.bam"
-                command="$base_command --un-conc ${sam_basename}_unmapped.fq --rg-id mp${numb_samples} --rg $sam_basename -1 $pair1 -2 $pair2" # -S $sam_file"
+                command="$base_command --un-conc-gz ${sam_basename}_unmapped.fq.gz --rg-id mp${numb_samples} --rg $sam_basename -1 $pair1 -2 $pair2" # -S $sam_file"
                 command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 

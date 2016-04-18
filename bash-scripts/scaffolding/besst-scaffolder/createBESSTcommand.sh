@@ -1,8 +1,9 @@
 #!/bin/bash
 
+
 display_usage(){
 	printf "First argument must be the file of contigs to scaffold.
-Second argument must be the path to the directory where all the sorted and indexed bam files are located. Within this script a sorting of the files based on their insert size will be done. Insert size increases accordingly as the number present in the name of the bam file. This is needed because it is a besst requirement.
+Second argument must a file that lists the path where all the sorted and indexed bam files are located. Files must be sorted by increasing insert size value, it is a besst requirement.
 Third argument must be the orientation of the libraries aligned in the bam file. Available option: [fr|rf].
 Fourth argument must be the path to the output.
 Fifth argument is optional. It refers to the option of providing the insert size and stdv for the mate pair libraries. Available options: [true|false]. Default: false.\n"
@@ -16,8 +17,15 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
 fi
 
 CONTIG_FILE="-c $1"
-#sort list of sorted and indexed files (increasing insert size)
-list_sorted=( $(find $2 -name '*sorted*.bam' | sort -n -t _ -k 2) )
+
+#declare -A list_sorted
+#while read line; do
+#  list_sorted+=('$line')
+#done < $2
+declare -a list_sorted
+readarray -t list_sorted < $2 # Include newline.
+
+
 BAM_FILES="-f ${list_sorted[@]}"
 ORIENTATION=""
 OUTPUT="-o $4"
@@ -26,7 +34,8 @@ INSERT_STDV_MP="-s 250 250 250 250 250 250 250 250 250 250 250 250 600 600 600 6
 #for loop to givee orientation for each library
 for i in "${list_sorted[@]}"
 do
-	ORIENTATION="$ORIENTATION $3"
+#	BAM_FILES="$BAM_FILES $i"
+	ORIENTATION="$ORIENTATION$3 "
 done
 
 ORIENTATION="--orientation $ORIENTATION"
@@ -43,4 +52,4 @@ fi
 
 ##Pass command to script and give permissions to run
 file="runBESST.sh"
-echo -e "#!/bin/bash \n$command 2> error.log" > ./$file | chmod 755 $file
+echo -e "#!/bin/bash\n$command 2> error.log" > ./$file | chmod 755 $file
