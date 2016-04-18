@@ -43,7 +43,7 @@ containsElement () {
   return 1
 }
 
-MAPPERS_AVAILABLE=("Tophat2" "Hisat2" "STAR")
+MAPPERS_AVAILABLE=("Tophat2" "Hisat2" "STAR","bowtie2")
 containsElement "$2" "${MAPPERS_AVAILABLE[@]}"
 if [ $(echo $?) = 1 ]; then
     printf "ERROR: Unrecognized mapper. Please set a valid aligner name.\n\n"
@@ -59,6 +59,7 @@ fi
 
 if [ -f $PWD/mappingStats.txt ]; then
 	rm $PWD/mappingStats.txt
+
 fi
 
 command -v samtools >/dev/null 2>&1 || { echo >&2 "Samtools is required to be on the system path, but it seem that it's not installed.Aborting."; exit 1; }
@@ -73,10 +74,16 @@ do
     printf '%s\t%s\n' 'Number of primary and linear aligments with mapping quality > 10:' $(samtools view -cF2308q10 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of secondary alignments:' $(samtools view -cf256 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of chimeric alignments:' $(samtools view -cf2048 $filename) >> $PWD/mappingStats.txt
+    printf '%s\t%s\n' 'Number of reads mapped as proper pair:' $(samtools view -cf2 $filename) >> $PWD/mappingStats.txt
+    printf '\t%s\t%s\n' 'Number of proper pairs mapped as FR:' $(samtools view -cf99 $filename) >> $PWD/mappingStats.txt
+    printf '\t%s\t%s\n' 'Number of proper pairs mapped as RF:' $(samtools view -cf83 $filename) >> $PWD/mappingStats.txt
     if [ $MAPPER = "STAR" ];then
 	printf '%s\t%s\n' 'Number of alignments in STAR with the NH:i:1 tag (supposely represent unique mappers):' $(samtools view $filename | grep -wc "NH:i:1") >> $PWD/mappingStats.txt
         printf '%s\t%s\n' 'Number of alignments in STAR with the mapping quality of 255 (supposely represent unique mappers, if you did not change this parameter when running star):' $(samtools view -cq255 $filename) >> $PWD/mappingStats.txt
 	printf '%s\t%s\n' 'Number of unique pairs using bitflag, tags and sort/uniq filtering :' $(samtools view -q255 -F 2308 $filename | grep -w "NH:i:1" | cut -f 1 | sort | uniq -c | sed -e 's/^[ \t]*//' | grep "^2" | cut -d ' ' -f 2 | wc -l) >> $PWD/mappingStats.txt
+    elif [ $MAPPER = "bowtie2" ];then
+        printf '%s\t%s\n' 'Number of alignments in bowtie2 with the mapping quality of 255 (supposely represent unique mappers):' $(samtools view -cq255 $filename) >> $PWD/mappingStats.txt
+
     fi
     printf "DONE!!\n\n\n" 2>&1 | tee -a $PWD/mappingStats.txt
 done <$1
