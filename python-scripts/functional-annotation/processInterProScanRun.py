@@ -116,8 +116,8 @@ class InterproDomains:
 
             #each hit has the following fields: analysis[0],signature_id[1], signature description[2], score[3], interpro_id[4], interpro_description[5], go_terms[6]
             #pathway_analysis[7]
+
             for hit in hits:
-                #print (hit)
                 self.total_number_domains +=1
 
 
@@ -126,8 +126,9 @@ class InterproDomains:
                     self.unique_interpro_id.add(hit[4]) #interpro id
 
                 elif len(hit) == 7: #with go annotation
-                    self.interpro_hits +=1
-                    self.unique_interpro_id.add(hit[4]) #interpro id
+                    if hit[4]:
+                        self.interpro_hits +=1
+                        self.unique_interpro_id.add(hit[4]) #interpro id
 
 
                     if "|" in hit[6]: #gene_go dict
@@ -135,18 +136,20 @@ class InterproDomains:
                         for go in gos:
                             self.gene_go_terms[gene].add(go)
                             self.unique_go_terms.add(go) #go id
-                    else:
+                    elif hit[6]:
                         self.gene_go_terms[gene].add(hit[6])
                         self.unique_go_terms.add(hit[6]) #go id
                     self.go_terms += 1
 
 
                 elif len(hit) > 7 : #with pathway annotation
-                    self.interpro_hits +=1
-                    self.unique_interpro_id.add(hit[4]) #interpro id
+                    if hit[4]:
+                        self.interpro_hits +=1
+                        self.unique_interpro_id.add(hit[4]) #interpro id
 
 
                     if hit[6]:
+
                         self.go_terms += 1
                         if "|" in hit[6]: #gene_go_dict
                             gos = hit[6].split("|")
@@ -156,8 +159,6 @@ class InterproDomains:
                         else:
                             self.unique_go_terms.add(hit[6])
                             self.gene_go_terms[gene].add(hit[6])
-
-
 
 
                     self.pathway_annotation +=1
@@ -329,35 +330,42 @@ class InterproDomains:
         mol_function_hash = {}
         cell_component_hash = {}
         all_gos = []
-        for line in bio_process:
-            line.rstrip()
-            go_term = line[:10]
-            go_description = line[11:]
-            bio_process_hash[go_term] = go_description
-            if go_term not in all_gos:
-                all_gos.append(go_term)
-            else:
-                logging.info("WARNING: GO %s found more than once." % go_term)
+        with open(bio_process, 'r') as bioFile:
 
-        for line in mol_function:
-            line.rstrip()
-            go_term = line[:10]
-            go_description = line[11:]
-            mol_function_hash[go_term] = go_description
-            if go_term not in all_gos:
-                all_gos.append(go_term)
-            else:
-                logging.info("WARNING: GO %s found more than once." % go_term)
+            for line in bioFile:
+                line.rstrip()
+                go_term = line[:10]
+                go_description = line[11:]
+                bio_process_hash[go_term] = go_description
+                if go_term not in all_gos:
+                    all_gos.append(go_term)
+                else:
+                    logging.info("WARNING: GO %s found more than once." % go_term)
+        bioFile.close()
 
-        for line in cell_component:
-            line.rstrip()
-            go_term = line[:10]
-            go_description = line[11:]
-            cell_component_hash[go_term] = go_description
-            if go_term not in all_gos:
-                all_gos.append(go_term)
-            else:
-                logging.warning("WARNING: GO %s found more than once." % go_term)
+        with open(mol_function, 'r') as molFile:
+            for line in molFile:
+                line.rstrip()
+                go_term = line[:10]
+                go_description = line[11:]
+                mol_function_hash[go_term] = go_description
+                if go_term not in all_gos:
+                    all_gos.append(go_term)
+                else:
+                    logging.info("WARNING: GO %s found more than once." % go_term)
+        molFile.close()
+
+        with open(cell_component,'r') as cellFile:
+            for line in cellFile:
+                line.rstrip()
+                go_term = line[:10]
+                go_description = line[11:]
+                cell_component_hash[go_term] = go_description
+                if go_term not in all_gos:
+                    all_gos.append(go_term)
+                else:
+                    logging.warning("WARNING: GO %s found more than once." % go_term)
+            cellFile.close()
 
         with open(outputBase + "-GO-BiologicalProcess.txt", "w") as bp_file:
             with open(outputBase + "-GO-MolecularFunction.txt", "w") as mf_file:
@@ -370,7 +378,7 @@ class InterproDomains:
                     writer_mf.writerow(("#gene_id","#GO_term", "#Description"))
                     writer_cc.writerow(("#gene_id","#GO_term", "#Description"))
 
-                    for gene,gos in iter(self.gene_go_terms.iter.items()):
+                    for gene,gos in iter(self.gene_go_terms.items()):
                         for go in gos:
                             if go in bio_process_hash:
                                 writer_bp.writerow((gene, go, bio_process_hash[go].rstrip()))
@@ -384,12 +392,13 @@ class InterproDomains:
     def keggMapping(self,outputBase,keggPathNames):
         kegg_mapping_hash = {}
 
-        for line in keggPathNames:
-            line.rstrip()
-            kegg_ids = line[:5]
-            kegg_path_names = line[7:]
-            kegg_mapping_hash[kegg_ids] = kegg_path_names.rstrip()
-
+        with open(keggPathNames, 'r') as keggFile:
+            for line in keggFile:
+                line.rstrip()
+                kegg_ids = line[:5]
+                kegg_path_names = line[7:]
+                kegg_mapping_hash[kegg_ids] = kegg_path_names.rstrip()
+        keggFile.close()
 
         with open(outputBase + "-KEGG-gene2pathway.txt", "w") as kegg_file:
             writer_kegg = csv.writer(kegg_file,dialect=csv.excel_tab)
@@ -425,32 +434,49 @@ args = parser.parse_args()
 
 if __name__ == "__main__":
 
+    if args.goMapping:
+        if not args.biologicalProcess or not args.molecularFunction or not args.cellularCompoment:
+            logging.error("ERROR: If '-G', please set arguments -b, -m and -c!")
+            sys.exit(2)
+        elif not os.path.exists(args.biologicalProcess[0]):
+            logging.error("ERROR: File %s does not exist.", args.biologicalProcess[0])
+            exit(2)
+        elif not os.path.exists(args.molecularFunction[0]):
+            logging.error("ERROR: File %s does not exist.", args.molecularFunction[0])
+            exit(2)
+        elif not os.path.exists(args.cellularCompoment[0]):
+            logging.error("ERROR: File %s does not exist.", args.cellularCompoment[0])
+            exit(2)
+
+    elif args.biologicalProcess or args.molecularFunction or args.cellularCompoment:
+        logging.warning("ERROR:You provided at least one of the GO auxiliar files, but '-G' flag was not set. Please set '-G' flag.")
+        sys.exit(2)
+
+    if args.pathwayMapping:
+        if not args.nameKeggPathway:
+            logging.error("ERROR: If '-P', please set argument -n!")
+            sys.exit(2)
+        elif not os.path.exists(args.nameKeggPathway[0]):
+            logging.error("ERROR: File %s does not exist.", args.nameKeggPathway[0])
+            sys.exit(2)
+
+    elif args.nameKeggPathway:
+        logging.error("ERROR:You provided KEGG file mapping pathay IDs to their name, but '-P' flag was not set. Please set '-P' flag.")
+        sys.exit(2)
+
+
+    logging.info("Processing interpro output file..")
     hashMap = processInterproRun(args.interpro_file[0])
     interpro_object = InterproDomains()
     interpro_object.analyseHash(hashMap)
 
     if args.goMapping:
-
-        if args.biologicalProcess and args.molecularFunction and args.cellularCompoment:
-            logging.info("Processing GO terms files..")
-            interpro_object.goMapping(args.output_basename[0],args.biologicalProcess[0],args.molecularFunction[0],args.cellularCompoment[0])
-        else:
-            logging.error("Error: If '-g', please set arguments -b, -m and -c!\n")
-            sys.exit(2)
-
-    elif args.biologicalProcess or args.molecularFunction or args.cellularCompoment:
-        logging.warning("You provided at least one of the GO auxiliar files, but '-G' flag was not set. The processing of GOs will not be perfomed.")
+        logging.info("Processing GO mapping files..")
+        interpro_object.goMapping(args.output_basename[0],args.biologicalProcess[0],args.molecularFunction[0],args.cellularCompoment[0])
 
     if args.pathwayMapping:
-        if args.nameKeggPathway:
-            logging.info("Processing KEGG mapping files..")
-            interpro_object.keggMapping(args.output_basename[0],args.nameKeggPathway[0])
-        else:
-            logging.error("Error: If '-p', please set argument -n!\n")
-            sys.exit(2)
-
-    elif args.nameKeggPathway:
-        logging.warning("You provided KEGG file mapping pathay IDs to their name, but '-P' flag was not set. The processing of KEGG data will not be performed.")
+          logging.info("Processing KEGG mapping files..")
+          interpro_object.keggMapping(args.output_basename[0],args.nameKeggPathway[0])
 
     logging.info("Writing final report.")
     interpro_object.writeReport(args.output_basename[0])
