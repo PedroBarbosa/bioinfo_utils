@@ -110,7 +110,7 @@ class InterproDomains:
 
 
         self.genes_with_domains = len(inputDict)
-        for gene,hits in inputDict.iteritems():
+        for gene,hits in iter(inputDict.items):
             self.average_domains_gene.append(len(hits)) #number of hits for this gene
 
 
@@ -370,7 +370,7 @@ class InterproDomains:
                     writer_mf.writerow(("#gene_id","#GO_term", "#Description"))
                     writer_cc.writerow(("#gene_id","#GO_term", "#Description"))
 
-                    for gene,gos in self.gene_go_terms.iteritems():
+                    for gene,gos in iter(self.gene_go_terms.iter.items):
                         for go in gos:
                             if go in bio_process_hash:
                                 writer_bp.writerow((gene, go, bio_process_hash[go].rstrip()))
@@ -395,7 +395,7 @@ class InterproDomains:
             writer_kegg = csv.writer(kegg_file,dialect=csv.excel_tab)
 
             writer_kegg.writerow(("#gene_id","#pathway_name","#pathway_id","#ec_number"))
-            for gene, keggData in self.gene_kegg_data.iteritems():
+            for gene, keggData in iter(self.gene_kegg_data.items):
                 for kegg in keggData:
                     data = kegg.split("+")
                     pathway_id = data[0]
