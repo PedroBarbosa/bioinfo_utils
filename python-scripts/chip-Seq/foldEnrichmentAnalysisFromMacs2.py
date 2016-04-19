@@ -166,7 +166,7 @@ def processGFFfile(annotation_dict,gff):
 
 
 
-def processFiles(peak_files,threshold, sort,gff, addAnnotation):
+def processFiles(peak_files,threshold, sort,gff, addAnnotation, col):
     #create file object for the general output file
     if os.path.exists("peaks-general-stats.txt"):
             os.remove("peaks-general-stats.txt")
@@ -312,10 +312,10 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation):
                                     writer_ann = csv.writer(ann_file,dialect=csv.excel_tab)
                                     if addAnnotation:
                                         writer_ann.writerow(["#peak_name","#scaffold_id","#start","#end","#length","#abs_summit","#pileup","#-log10(pvalue)","#fold_enrichment", \
-                                    "#-log10(qvalue)", "#closest_gene_forward", "functional_description_forward","#upstream_dist_forward","#closest_gene_reverse","functional_description_reverse"\
+                                    "#-log10(qvalue)", "#closest_gene_forward", "#functional_description_forward","#upstream_dist_forward","#closest_gene_reverse","#functional_description_reverse"\
                                     ,"#upstream_dist_reverse"])
 
-                                        final_dict_updated = processFromBlastTab(final_dict,addAnnotation)
+                                        final_dict_updated = processFromBlastTab(final_dict,addAnnotation,col)
                                         for peak, all_info in iter(final_dict_updated.items()):
                                             #info = "\t".join(all_info).replace("\"","")
                                             writer_ann.writerow((peak,'\t'.join(all_info)))
@@ -337,7 +337,7 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation):
         outputFile.close()
 
 
-def processFromBlastTab(final_dict, functionalAnnotation):
+def processFromBlastTab(final_dict, functionalAnnotation,col):
     dict_funct={}
     annotated_features = 0
     logging.info("Processing annotation file ..")
@@ -348,6 +348,7 @@ def processFromBlastTab(final_dict, functionalAnnotation):
             line.rstrip()
             if not line.startswith('#') :
                 query = line.split()[0]
+                hit = ""
                 if '.' in query:
                     query = query.split('.')[0]
 
@@ -357,7 +358,8 @@ def processFromBlastTab(final_dict, functionalAnnotation):
                         previous_query = query
                     else:
                         annotated_features += 1
-                        hit = line.split('\t')[1]
+                        for c in col:
+                            hit += line.split('\t')[c-1] + " "
                         dict_funct[query] = hit
 
 
@@ -435,12 +437,19 @@ def main():
     parser.add_argument('-s', '--sort', action='store_true', help = "Output new filtered files sorted by fold enrichment values above the threshold '-f'. Default: No output files will be written.")
     parser.add_argument('-gff', metavar='--gffFile',nargs=1,help = "Add genome GFF3 file to further analyse the regions of the genome with peaks above the threshold.")
     parser.add_argument('-funct', metavar='--functionalAnnotation', nargs=1, help= "Add blast like tab file with functional annotation of the genes predicted in the -gff file. [Support for m8 file from rapsearch2]")
+    parser.add_argument('-col', metavar='--collumnToParse', nargs='+', type = int, help='Column/s number/s of the blastTAB file with functional annotation to parse. E.g. Rapsearch: Only column 2 [subject ID and description are in the same column]. \
+     If more than one columns is desired, please set the numbers separated by space [e.g. "-col 2 3"].')
     args = parser.parse_args()
 
-    if args.funct and not args.gff:
-        logging.error("Error. -funct argument only available when -gff is set.")
+    if args.funct and not args.gff or args.funct and not args.col:
+        logging.error("Error. '-funct' argument only available when '-gff' and '-col' is set.")
         exit(1)
-    processFiles(args.peak_files,args.threshold, args.sort, args.gff,args.funct[0])
+
+    if args.col and not args.funct:
+        logging.error("Error. '-col' argument only available when '-funct' is set.")
+        exit(1)
+
+    processFiles(args.peak_files,args.threshold, args.sort, args.gff,args.funct[0], args.col)
 
 if __name__ == "__main__":
     main()
