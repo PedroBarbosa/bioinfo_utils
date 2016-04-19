@@ -15,21 +15,21 @@ parser.add_argument('-g', dest='blastFile_format', required=True, default= 'blas
 args = parser.parse_args()
 
 def countReadsFromFasta(fastaReadsFile):
-    print "Counting number of reads ..."
+    print("Counting number of reads ...")
     ps = subprocess.Popen(['grep', '>', fastaReadsFile], stdout=subprocess.PIPE)
-    return subprocess.check_output(['wc', '-l'], stdin=ps.stdout)
+    return subprocess.check_output(['wc', '-l'], stdin=ps.stdout,universal_newlines=True)
     ps.wait()
     #return subprocess.Popen(["head", readsFile], stdout=subprocess.PIPE).communicate()[0]
 
 def countReadsFromFastq(fastqReadsFile):
-    print "Counting number of reads ..."
+    print("Counting number of reads ...")
     ps = subprocess.Popen(['cat', fastqReadsFile],stdout=subprocess.PIPE)
-    reads = subprocess.check_output(['wc', '-l'], stdin=ps.stdout)
+    reads = subprocess.check_output(['wc', '-l'], stdin=ps.stdout,universal_newlines=True)
     ps.wait()
     return int(reads) / 4
 
 def countAnnotatedReadsBlastTab(blastFile):
-    print "Counting number of annotated reads ..."
+    print("Counting number of annotated reads ...")
     annotated_reads = 0
     previous_line = ""
     with open(blastFile) as file:
@@ -46,7 +46,7 @@ def countAnnotatedReadsBlastTab(blastFile):
     return annotated_reads
 
 def countAnnotatedReadsBlastX(blastFile):
-    print "Counting number of annotated reads ..."
+    print("Counting number of annotated reads ...")
     annotated_reads = 0
     previous_line = ""
     with open(blastFile) as file:
@@ -58,7 +58,7 @@ def countAnnotatedReadsBlastX(blastFile):
     return annotated_reads
 
 def countAnnotatedReadsBlastP(blastFile):
-    print "Counting number of annotated reads ..."
+    print("Counting number of annotated reads ...")
     annotated_reads = 0
     hasHit = True
     firstgene = True
@@ -90,7 +90,7 @@ def countAnnotatedReadsBlastP(blastFile):
     return annotated_reads
 
 def countAnnotatedReadsRPSBlast(blastfile):
-    print "Counting number of annotated reads ..."
+    print("Counting number of annotated reads ...")
     annotated_reads = 0
     firstLine = True
     hasHit = False
@@ -124,7 +124,7 @@ def countAnnotatedReadsRPSBlast(blastfile):
 
 
 def countAnnotatedReadsMaf(blastFile):
-    print "Counting number of annotated reads ..."
+    print("Counting number of annotated reads ...")
     annotated_reads = 0
     isFirst_s = True
     dict = defaultdict(int)
@@ -148,11 +148,10 @@ def countAnnotatedReadsMaf(blastFile):
 
 def calculatePercentage(totalReads,annotatedReads):
     percentage = round(float(annotatedReads) / float(totalReads) * 100,4)
-    print "Number of reads: ", totalReads.strip()
-    print "Reads with blast hits: ", annotatedReads
-    print "Percentage of the reads annotated in the sample: ", percentage, "%"
+    print("Number of reads: ", totalReads.strip())
+    print("Reads with blast hits: ", annotatedReads)
+    print("Percentage of the reads annotated in the sample: ", percentage, "%")
     filename = args.blast_results_file + "_stats.txt"
-    print filename
     fileoutput = open (filename, 'w')
     fileoutput.write("Number of reads:\t" + totalReads.strip() + "\n")
     fileoutput.write("Reads with blast hits:\t" +  str(annotatedReads) +"\n")
