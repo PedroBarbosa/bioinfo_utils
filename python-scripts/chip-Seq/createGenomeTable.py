@@ -38,7 +38,7 @@ def writeOutput(final_dict, outputFile):
     sorted_dict = OrderedDict(sorted(iter(final_dict.items()), key=operator.itemgetter(1), reverse=True))
     with open(outputFile, "w") as out:
         for k,v in iter(sorted_dict.iteritems()):
-            out.write(k + " " + str(v) + "\n")
+            out.write(k + "\t" + str(v) + "\n")
 
 
 parser = argparse.ArgumentParser(description='Script to create genome table from fasta file. [chromossome_id length_bp].')
