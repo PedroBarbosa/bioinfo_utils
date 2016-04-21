@@ -37,7 +37,7 @@ def writeOutput(final_dict, outputFile):
 
     sorted_dict = OrderedDict(sorted(iter(final_dict.items()), key=operator.itemgetter(1), reverse=True))
     with open(outputFile, "w") as out:
-        for k,v in iter(sorted_dict.iteritems()):
+        for k,v in iter(sorted_dict.items()):
             out.write(k + "\t" + str(v) + "\n")
 
 
