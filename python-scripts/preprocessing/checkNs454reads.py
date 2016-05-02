@@ -64,9 +64,8 @@ def write2file(dict, numb_reads, outputfile):
         writer.writerow('')
         writer.writerow(('Number N\'s in reads', 'Number of reads with given number of N\'s', 'Percentage (%)'))
 
-
         od = collections.OrderedDict(sorted(dict.items()))
-        for k, v in od.iteritems():
+        for k, v in iter(od.items()):
             percentage = round((v / float(numb_reads) * 100), 3)
             writer.writerow((k,v,percentage))
 

@@ -41,7 +41,7 @@ def write2file(dict, numb_nuc, numb_reads, outputfile):
 
         od = collections.OrderedDict(sorted(dict.items()))
 
-        for k, v in od.iteritems():
+        for k, v in iter(od.items()):
             percentage = round((v / float(numb_nuc) * 100), 3)
             writer.writerow((k,v,percentage))
 

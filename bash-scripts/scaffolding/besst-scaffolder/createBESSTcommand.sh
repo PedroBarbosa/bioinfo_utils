@@ -41,9 +41,9 @@ done
 ORIENTATION="--orientation $ORIENTATION"
 
 if [ -z "$5" ] || [ "$5" = "false" ]; then
-	command="runBESST $CONTIG_FILE $BAM_FILES $OUTPUT $ORIENTATION"
+	command="runBESST -plots $CONTIG_FILE $BAM_FILES $OUTPUT $ORIENTATION"
 elif [ "$5" = "yes" ]; then
-	command="runBESST $CONTIG_FILE $BAM_FILES $OUTPUT $ORIENTATION $INSERT_SIZES_MP $INSERT_STDV_MP"
+	command="runBESST -plots $CONTIG_FILE $BAM_FILES $OUTPUT $ORIENTATION $INSERT_SIZES_MP $INSERT_STDV_MP"
 else
 	printf "Not a valid option for the mate pair manual insert size flag [5th argument]"
 	display_usage
