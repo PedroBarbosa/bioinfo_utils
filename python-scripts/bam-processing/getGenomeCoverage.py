@@ -2,6 +2,7 @@ __author__ = 'pedro'
 
 import argparse
 import subprocess
+from subprocess import Popen, PIPE, STDOUT
 import logging
 import sys
 import os
@@ -9,7 +10,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %
 
 
 
-def filterBamAlignments(bamfile,mapper):
+def filterBamAlignments(bamfile,outDir,mapper):
     logging.info("Filtering %s file using the specific %s flags for unique mapped reads." % (os.path.basename(bamfile),mapper))
 
     if mapper == 'bwa_aln':
@@ -35,32 +36,22 @@ def filterBamAlignments(bamfile,mapper):
     elif mapper == 'bowtie2':
 
         q10 = subprocess.Popen(["samtools", "view", "-h", "-F260", "-q10", bamfile],stdout=subprocess.PIPE)
-        q10.wait()
- #       nq10XS = subprocess.Popen(["grep", "-vc", "XS:"], stdin=q10.stdout, stdout=subprocess.PIPE)
- #       logging.info("%i alignments kept for further analysis." % int(nq10XS.stdout.read()))
- #       nq10XS.stdout.close()
-        logging.info("Debugging")
         q10XS = subprocess.Popen(["grep", "-v", "XS:"], stdin=q10.stdout, stdout=subprocess.PIPE)
-        q10XS.wait()
-        logging.info("Converting to BAM")
-    #    q10XSbam = subprocess.Popen(["samtools", "view", "-Shb", "-"], stdin=q10XS.stdout, stdout=subprocess.PIPE)
-    #    q10XSbam.wait()
-        q10.stdout.close()
-        q10XS.stdout.close()
+        q10XSbam = subprocess.Popen(["samtools", "view", "-Shb", "-"], stdin=q10XS.stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
-       # samtools view file.bam | grep "XT:A:U" | cat header.sam - | samtools view -Sb - > file.unique.bam
-#        print(os.getcwd() + "/header.sam")
-#        with open(os.getcwd() + "/header.sam", 'w+') as temp_file:
-            #header = subprocess.Popen(["samtools", "view", "-H",bamfile ], stdout=subprocess.PIPE)
-            #print(header.stdout.read())
 
- #           header = subprocess.Popen(["samtools", "view", "-H", bamfile ], stdout=temp_file)
- #           cmd = ["grep -v XS: %s | cat %s" % (q10.stdout.read()),header.stdout.read()]
- #           subprocess.check_output(cmd,shell=True)
-  #          final = subprocess.Popen(("grep -v XS: | cat %s" % header.stdout.read()) ,stdin=q10.stdout,stdout=subprocess.PIPE, shell=True)
-                                      # cat %s" % header.stdout.read()| samtools view -Sb -")
-           # print(final.stdout.read())
-        return q10XS
+        with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
+            bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=q10XSbam.stdout, stdout=out_file)
+
+        #count elements in bed
+        #return subprocess.check_output(['wc', '-l'], stdin=ps.stdout,universal_newlines=True)
+        bam2bed.communicate()
+
+  #      out_file.close()
+  #      q10.stdout.close()
+  #      q10XS.stdout.close()
+  #      q10XSbam.stdout.close()
+
 
     elif mapper == 'star':
         nq255 = subprocess.Popen(["samtools","view", "-c", "-q255", bamfile], stdout=subprocess.PIPE)
@@ -101,7 +92,7 @@ def bamToBedFromBuffer(buffer,bamfile,outputDir, mapper):
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-split", "-i", "stdin"], stdin=buffer.stdout, stdout=out_file)
             bam2bed.wait()
         else:
-            bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=buffer.stdout,stdout=out_file)
+            bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=buffer,stdout=out_file)
             bam2bed.wait()
 
 def main():
@@ -131,9 +122,9 @@ def main():
 
                 popen_obj = filterSingleEndBamAlignments(file,args.m)
             else:
-                popen_obj = filterBamAlignments(file,args.m)
+                popen_obj = filterBamAlignments(file,args.o,args.m)
 
-            bamToBedFromBuffer(popen_obj,file,args.o,args.m)
+            #bamToBedFromBuffer(popen_obj,file,args.o,args.m)
 
 
         else:
