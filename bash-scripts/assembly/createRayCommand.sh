@@ -26,11 +26,11 @@ fi
 if [ -z "$6" ]; then	
 	command="mpiexec $n $exec $k"
 else
-	min_coverage='-use-minimum-seed-coverage $6'
+	min_coverage="-use-minimum-seed-coverage $6"
 	command="mpiexec $n $exec $k $min_coverage"
 fi
 
-
+command="$command -disable-scaffolder -write-marker-summary -show-memory-usage"
 numb_samples=0
 first_pair=true
 second_pair=false
