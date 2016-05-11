@@ -6,7 +6,7 @@ Second argument must be a flag true/false to use paired end reads to generate th
 Third argument must be a flag true/false to use mate pair reads to generate the command
 Fourth argument must be the prefix for the reference indexed database
 Fifth argument must be the number of threads to use
-Sixth argument must be string to add to the read group parameter.Add the LB, PL and PU fields. Ex: LB:lib\tPL:instrument\tPU:plataformUnit. The SM and ID fields will be automatically added based onthe sample basename.'
+Sixth argument must be string to add to the read group parameter.Add the LB, PL and PU fields, respectively,comma separated. Ex: LB:lib,PL:instrument,PU:plataformUnit. The SM and ID fields will be automatically added based onthe sample basename.'
 } 
 
 
@@ -21,6 +21,7 @@ fi
 
 index_database="$4"
 threads="-t $5"
+read_group_general=$(echo "${6//,/\t}")
 numb_samples=0
 first_pair=true
 second_pair=false
@@ -32,6 +33,7 @@ base_command="$exec $threads $index_database "
 #Create command for paired files
 while read line
 do	
+	
 	#remove leading and trailing spaces
 	#filename=$(echo $line | sed -e 's/^ *//' -e 's/ *$//')
 	#path=/mnt/msa/workflow_scripts/
@@ -55,22 +57,22 @@ do
 		second_pair=true
 	elif [ -f "$filename" -a  "$second_pair" = "true" -a "$2" = "true" -a "$matepairFlag" = "false" ]; then
 		pair2="$filename"
-
+				
 		bam_basename=$(basename $pair2 | cut -d "_" -f1)
 		first_pair=true
 		second_pair=false     
 		let "numb_samples += 1"
 		printf "Running bwa mem aligner for library ${bam_basename} [sample ${numb_samples}] ..\n" 
 		bam_file="${bam_basename}.bam"
-		command="$base_command $pair1 $pair2 -H '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$6 "
+		command="$base_command $pair1 $pair2 -H '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
 		command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 
-                printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt\n"
-                #$command | $command_view > ${bam_file} 2>> ./stderr.txt
-                printf "Done!! Sorting bam file..\n\n##CMD##$command_sort > ${bam_file/.bam/_sorted.bam}"
-                #$command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt\n\n
-		#OLD $command 1> $sam_file 2>"log.txt"
+                printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
+                $command | $command_view > ${bam_file} 2>> ./stderr.txt
+                printf "\nDone!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
+                $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
+		
 
 	elif [ ! -f "$filename" -a "$matepairFlag" = "false"  ]; then
 		echo "$filename" is not a file
@@ -90,17 +92,17 @@ do
 		second_pair=false      
 		let "numb_samples += 1"	 
 		printf "Running bwa mem aligner for library ${bam_basename} [sample ${numb_samples}] ..\n"
-		bam_file="${sam_basename}.bam"
-                command="$base_command $pair1 $pair2 -H '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$6 "
+		
+	        bam_file="${bam_basename}.bam"
+                command="$base_command $pair1 $pair2 -H '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
                 command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 
-                printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt\n"
-                #$command | $command_view > ${bam_file} 2>> ./stderr.txt
-                printf "Done!! Sorting bam file..\n\n##CMD##$command_sort > ${bam_file/.bam/_sorted.bam}"
-                #$command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt\n\n
-                #OLD $command 1> $sam_file 2>"log.txt"
-	
+                printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
+                $command | $command_view > ${bam_file} 2>> ./stderr.txt
+                printf "\nDone!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
+		$command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
+
 	elif [ ! -f "$filename" -a "$matepairFlag" = "true" ]; then
 		echo "$filename" is not a file
 		continue
