@@ -118,12 +118,14 @@ def processGFFfile(annotation_dict,gff):
                         minus_check = False
                         closer_genes['-'] = [gene[3], 'total_within']
 
-                    elif start_peak >= start:
-                        distance_upstream_minus = end_peak - start
-                        if length_peak > distance_upstream_minus:
-                            closer_genes['-'] = [gene[3],'partial within '+ str(length_peak - distance_upstream_minus)]
+                    elif end_peak > start:
+
+                        if start_peak <= start:
+                            distance_upstream_minus = start - start_peak
+                            closer_genes['-'] = [gene[3],'partial within '+ str(distance_upstream_minus)]
                             partial_peaks_minus += 1
                         else:
+                            distance_upstream_minus = start_peak - start
                             closer_genes['-'] = [gene[3],str(distance_upstream_minus)]
                             peaks_distance_minus.append(distance_upstream_minus)
                         minus_check = False
