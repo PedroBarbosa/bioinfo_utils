@@ -1,15 +1,16 @@
 #!/bin/bash
 
 display_usage() { 
-printf "First argument must be the file. In this file the Paired end libraries need to be first. If one concatenated reads file is provided in the '.fq' or '.fastq' format the command will be generated too. In this case no matter if you put true/false in the second and third aguments.
-Second argument must be a flag true/false to use paired end reads to generate the command.
-Third argument must be a flag true/false to use mate pair reads to generate the command.
-Fourth argument must be the number of threads to use.
-Fifth argument must be the maximum amount of memory allowed.
-Sixth argument is optional. If set to yes, only performs the assemble [default: assembly and scaffolding together].
-Seventh argument is optional. If set to yes, only performs scaffolding. The prefix needs to be same as the contigs file, normally 'output' [default: assembly and scaffolding together].
-Eighth argument is optional. It refers to the orientation of the mate pair libraries. Available options: [rf|fr]. Default:[rf]
-Ninth argument is optional. If set to yes, platanus will use the given mp/pe insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"
+printf "	-1st argument must be a file listing all the pairs to process. In this file the Paired end libraries need to be first. If one concatenated reads file is provided in the '.fq' or '.fastq' format the command will be generated too. In this case no matter if you put true/false in the second and third aguments, only assembly command will be generated.
+	-2nd argument must be a flag true/false to use paired end reads to generate the command.
+	-3rd argument must be a flag true/false to use mate pair reads to generate the command.
+	-4th argument must be the number of threads to use.
+	-5th argument must be the maximum amount of memory allowed.
+	-6th argument must be the size of the k-mer size to start with the assembly. [Even if only the scaffolding is desired, set this argument as you want for this script to work].
+	-7th argument is optional. If set to yes, only performs the assemble Available options: [yes|no] Default: [Empty argument, which implies assembly and scaffolding together].
+	-8th argument is optional. If set to yes, only performs scaffolding. The prefix needs to be same as the contigs file, normally 'output'. Available options: [yes|no]. Default: [Empty argument, assembly and scaffolding together,if 6th argument not supplied. If 6th supplied as yes, an error will be thrown].
+	-9th argument is optional. It refers to the orientation of the mate pair libraries. Available options: [rf|fr]. Default:[rf]
+	-10th argument is optional. If set to yes, platanus will use the given mp/pe insert sizes for scaffolding. Available options: [no|yes]. Default: [no]\n\n"
 }
 
 
@@ -227,7 +228,7 @@ elif [ "$3" = "true" -a "$orientation" = "outward" ]; then
 	fi
 	
 elif [ "$3" = "false" ]; then	
-	printf "\nAre you trying to scaffolding without mate pair reads ? Please set true for the use of this reads files.\n\n"
+	printf "\nAre you trying to scaffolding without mate pair reads ? Please set true for the use of this reads files or set the seventh argument to yes, in order to generate the assembly command only. \n\n"
 	display_usage
 	exit 1
 
@@ -269,22 +270,24 @@ function generate_final_file_scaffolds(){
 #########################################################
 #################General variables#######################
 #########################################################
-exec="/mnt/msa/assembly/platanus-assembly/platanus"
+exec="/opt/tools/platanus-v1.2.4/platanus"
 #check if required arguments are there and display usage message
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
 	printf "\nPlease provide the arguments required for the script.\n\n"
 	display_usage
 	exit 1	
 else
 	threads="-t $4"
 	memory="-m $5"
+	k_size="-k $6"
+	kmer_coverage="-c 5"
 	output="-o output"
 	string_samples="-f"
 fi
 
 
 #generate general command
-command_contigs="$exec assemble $output $threads $memory"
+command_contigs="$exec assemble $output $threads $memory $k_size $kmer_coverage"
 command_scaffolds="$exec scaffold $output $threads"
 matepairFlag=false
 
@@ -293,56 +296,57 @@ matepairFlag=false
 ##################################################################
 ###################Create command#################################
 ##################################################################
-if [ -z "$6" ] && [ -z "$7" ] ; then
+if [ -z "$7" ] && [ -z "$8" ] ; then
 
-	if [[ "$1" =~ *".f[aq]"* || "$1" =~ *".fast[aq]"* ]] ; then
+	if [[ "$1" != *".f[aq]"* || "$1" != *".fast[aq]"* ]] ; then
  		#contigs 
 		assembly_contigs $1 $2 $3
 		generate_final_file_contigs 
 		#scaffolds
-		if [ -z "$8" ]  ; then
-		    scaffolding $1 $2 $3
-            generate_final_file_scaffolds $7
-        else
-            scaffolding $1 $2 $3 $8
-        	generate_final_file_scaffolds $7
-        fi
+		if [ -z "$9" ]  ; then
+		   	scaffolding $1 $2 $3
+	            	generate_final_file_scaffolds $8
+        	else
+			scaffolding $1 $2 $3 $9
+            		generate_final_file_scaffolds $8
+        	fi
 
 	else	
 		#contigs only
 		assembly_concatenated_file $1
-		printf "\nDone. Note that as only one concatenated fastq file was provided, no scaffolding command was created because it needs the paired end and/or matepair information.\n\n"					
-    fi
+		printf "\nDone. Note that as only one concatenated fastq file was provided, no scaffolding command was created because it needs the paired end and/or matepair information.\n\n"
+        fi
 
-elif [ $6 = "yes" ] && [ -z $7 ] || [ $6 = "yes" ] && [ $7 = "no" ] ; then
-
-	if [[ "$1" =~ *".f[aq]"* || "$1" =~ *".fast[aq]"* ]] ; then
+elif [[ -z "$8"  &&  "$7" = "yes" ]] || [[ "$7" = "yes"  &&  "$8" = "no" ]]; then
+	if [[ "$1" != *".f[aq]"* || "$1" != *".fast[aq]"* ]] ; then
 		assembly_contigs $1 $2 $3
-		generate_final_file_contigs
+                generate_final_file_contigs
 	else 
 		assembly_concatenated_file $1
 	fi
-elif [ $6 = "yes" ] && [ $7 = "yes" ] ; then
-	printf "\nPlease verify whether you want to perform either only assemble or only scaffolding. If you want to perform only scaffolding please set the option for only assemble to 'no' If you want to perform only assemble don't set the 7th argument at all.\n\n"
+
+elif [ "$7" = "yes" ] && [ "$8" = "yes" ] ; then
+	printf "\nPlease verify whether you want to perform either only assemble or only scaffolding. If you want to perform only scaffolding please set the option for only assemble to 'no' If you want to perform only assemble don't set the 8th argument at all.\n\n"
 	display_usage
 	exit 1
 
-elif [ $7 = "yes" ]; then
+elif [ "$8" = "yes" ]; then
 	
-	if [ -z "$8" ] ; then
+	if [ -z "$9" ] ; then
 		scaffolding $1 $2 $3
-		generate_final_file_scaffolds $7
+		generate_final_file_scaffolds $8
 	else 
-		if [ -z "$9" ] || [ "$9" = "no" ]; then
-			scaffolding $1 $2 $3 $8
-			generate_final_file_scaffolds $7
-		elif [ "$9" = "yes" ]; then
-			scaffolding $1 $2 $3 $8 $9
-			generate_final_file_scaffolds $7
+		if [ -z "${10}" ] || [ "${10}" = "no" ]; then
+			scaffolding $1 $2 $3 $9
+			generate_final_file_scaffolds $8
+		elif [ "${10}" = "yes" ]; then
+			scaffolding $1 $2 $3 $8 ${10}
+			generate_final_file_scaffolds $8
 		else
-			printf "\nPlease set a valid value for the ninth argument: [yes|no].\n\n"
+			printf "\nPlease set a valid value for the tenth argument: [yes|no].\n\n"
 		fi
 	fi
+
 else 
 	printf "\nPlease check if you provided the right parameters [script is not case sensitive].\n\n"
 	display_usage
