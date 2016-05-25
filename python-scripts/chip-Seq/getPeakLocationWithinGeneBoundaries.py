@@ -46,7 +46,8 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                     outside=False
                     outside_comment=""
                     max_coord=0
-                    min_coord = min(list_features, key=operator.itemgetter(1))[1]
+
+                    min_coord = min(list_features, key = lambda t: int(t[1]))[1]
                     for feature in list_features:
                         if int(feature[2]) > max_coord:
                             max_coord = int(feature[2])
