@@ -19,11 +19,11 @@ def getOverlap(list_dict,list_files, list_number_peaks):
     interception = set.intersection(*set_list)
 
     for i in range(0,len(list_files), 1):
-        print "Number of peaks in file %s:\t%i" % (os.path.basename(list_files[i]),list_number_peaks[i][0])
-        print "Number of different scaffolds with peaks in file %s:\t%i\n" % (os.path.basename(list_files[i]),list_number_peaks[i][1])
+        print("Number of peaks in file %s:\t%i" % (os.path.basename(list_files[i]),list_number_peaks[i][0]))
+        print("Number of different scaffolds with peaks in file %s:\t%i\n" % (os.path.basename(list_files[i]),list_number_peaks[i][1]))
 
-    print "\nMaximum number of possible peak overlaps:\t%s" % min(list_number_peaks, key = lambda m: m[0])[0]
-    print "Potential peaks with overlaps (peaks in which reference scaffold is present across all samples):\t%i\n" % len(interception)
+    print("\nMaximum number of possible peak overlaps:\t%s" % min(list_number_peaks, key = lambda m: m[0])[0])
+    print("Potential peaks with overlaps (peaks in which reference scaffold is present across all samples):\t%i\n" % len(interception))
     overlaps = 0
     #coordinates analysis
     for scaffold_id in interception:
@@ -57,7 +57,7 @@ def getOverlap(list_dict,list_files, list_number_peaks):
                         file_com = os.path.basename(list_files[i])
                         logging.info("'%s' and '%s' peaks in '%s' and '%s' files do overlap somehow." % (peak[0], peak2[0], file_ref, file_com))
 
-    print "Number of overlapped peaks found:\t%i" % overlaps
+    print("Number of overlapped peaks found:\t%i" % overlaps)
 
 
 
@@ -97,7 +97,7 @@ def processFiles(peak_files):
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Script to analyse common peaks  enrichment in ChipSeq peak files from macs2.')
+    parser = argparse.ArgumentParser(description='Script to analyse common peaks enrichment in ChipSeq peak files from macs2.')
     parser.add_argument(dest='peak_files', metavar='peakFiles', nargs='+', help='List of files where each line represents a peak. Must come in a tab separated 4 columns format: peak_id, scaffold_id, start_reference, stop_reference.')
     args = parser.parse_args()
 

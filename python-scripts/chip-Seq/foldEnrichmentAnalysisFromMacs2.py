@@ -69,7 +69,7 @@ def processGFFfile(annotation_dict,gff):
                 start = int(gene[0])
                 end = int(gene[1])
                 if gene[2] == "+" and plus_check:
-                    if start_peak >= start and start_peak <= end: #if peak is within a gene in the forward strand
+                    if start_peak >= start and start_peak <= end and end_peak <= end: #if peak is within a gene in the forward strand
                         peaks_within_plus += 1
                         peaks2gene_within_plus[peak] = gene[3] #dict with the genes that the peaks are within
                         plus_check = False
@@ -109,17 +109,17 @@ def processGFFfile(annotation_dict,gff):
 
 
             for gene in reversed(genes_per_peak_scaffold): #run reversed list to search for minus genes
-                start = int(gene[0])
-                end = int(gene[1])
+                end = int(gene[0])
+                start = int(gene[1])
                 if gene[2] == "-" and minus_check:
-                    if start_peak >= start and start_peak <= end: #if peak is within a gene in the reverse strand
+                    if start_peak >= end and end_peak <= start: #if peak is within a gene in the reverse strand
                         peaks_within_minus += 1
                         peaks2gene_within_minus[peak] = gene[3] #dict with the genes that the peaks are within
                         minus_check = False
                         closer_genes['-'] = [gene[3], 'total_within']
 
-                    elif start_peak >= end:
-                        distance_upstream_minus = start_peak - end
+                    elif start_peak >= start:
+                        distance_upstream_minus = end_peak - start
                         if length_peak > distance_upstream_minus:
                             closer_genes['-'] = [gene[3],'partial within '+ str(length_peak - distance_upstream_minus)]
                             partial_peaks_minus += 1
@@ -128,12 +128,12 @@ def processGFFfile(annotation_dict,gff):
                             peaks_distance_minus.append(distance_upstream_minus)
                         minus_check = False
 
-                    elif start_peak < start and end_peak >=  start and stop_downstream_minus == False:
-                        temp_minus = [gene[3], 'partial downstream ' +str(end_peak - start)]
+                    elif start_peak < end and end_peak >= end and stop_downstream_minus == False:
+                        temp_minus = [gene[3], 'partial downstream ' +str(end_peak - end)]
                         stop_downstream_minus = True
 
                     elif start_peak < start and end_peak < start and stop_downstream_minus == False:
-                        temp_minus = [gene[3], 'totally downstream ' +str(start - end_peak)]
+                        temp_minus = [gene[3], 'totally downstream ' +str(end - end_peak)]
                         stop_downstream_minus = True
 
 
