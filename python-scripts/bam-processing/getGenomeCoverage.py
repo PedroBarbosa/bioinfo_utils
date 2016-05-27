@@ -13,24 +13,39 @@ def filterBamAlignments(bamfile,outDir,mapper):
     logging.info("Filtering %s file using the specific %s flags and converting to BED format.." % (os.path.basename(bamfile),mapper))
 
     if mapper == 'bwa_aln':
-        nUMR0 = subprocess.Popen(["samtools","view","-h","-F260",bamfile], stdout=subprocess.PIPE)
-        #nUMR0.wait()
-        nUMR1 = subprocess.Popen(["grep","-w","X0:i:1"], stdin=nUMR0.stdout, stdout=subprocess.PIPE)
-        nUMR0.stdout.close()
-        nUMR2 = subprocess.Popen(["grep","-wc","X1:i:0"], stdin=nUMR1.stdout, stdout=subprocess.PIPE)
-        logging.info("%i alignments kept for further analysis." % int(nUMR2.stdout.read()))
-        UMR = subprocess.Popen(["grep","-w","X1:i:0"], stdin=nUMR1.stdout, stdout=subprocess.PIPE)
-        nUMR1.stdout.close()
-        return UMR.stdout.read()
+        UMR0 = subprocess.Popen(["samtools","view","-h","-F260",bamfile], stdout=subprocess.PIPE)
+        UMR1 = subprocess.Popen(["grep","-w","X0:i:1"], stdin=UMR0.stdout, stdout=subprocess.PIPE)
+        UMR = subprocess.Popen(["grep","-w","X1:i:0"], stdin=UMR1.stdout, stdout=subprocess.PIPE)
+
+        with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
+            bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=UMR.stdout, stdout=out_file)
+
+            bam2bed.wait()
+            out_file.seek(0)
+            logging.info("DONE!!! %i alignments kept for further analysis." % len(out_file.readlines()))
+
+            out_file.close()
+            UMR0.stdout.close()
+            UMR1.stdout.close()
+            UMR.stdout.close()
 
     elif mapper == 'bwa_mem':
         q10 = subprocess.Popen(["samtools","view", "-h", "-F260", "-q10", bamfile], stdout=subprocess.PIPE)
-        #q10.wait()
-        nq10XA = subprocess.Popen(["grep", "-vc", "XA:"], stdin=q10.stdout, stdout=subprocess.PIPE)
-        logging.info("%i alignments kept for further analysis." % int(nq10XA.stdout.read()))
         q10XA = subprocess.Popen(["grep", "-v", "XA:"], stdin=q10.stdout, stdout=subprocess.PIPE)
-        q10.stdout.close()
-        return q10XA.stdout.read()
+        q10XAbam = subprocess.Popen(["samtools", "view", "-Shb", "-"], stdin=q10XA.stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+        with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
+            bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=q10XAbam.stdout, stdout=out_file)
+
+            bam2bed.wait()
+            out_file.seek(0)
+            logging.info("DONE!!! %i alignments kept for further analysis." % len(out_file.readlines()))
+
+            out_file.close()
+            q10.stdout.close()
+            q10XA.stdout.close()
+            q10XAbam.stdout.close()
+
 
     elif mapper == 'bowtie2':
 
@@ -39,30 +54,32 @@ def filterBamAlignments(bamfile,outDir,mapper):
         q10XSbam = subprocess.Popen(["samtools", "view", "-Shb", "-"], stdin=q10XS.stdout, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
 
-        with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
+        with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'r+') as out_file:
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=q10XSbam.stdout, stdout=out_file)
 
-        bam2bed.communicate()
-        aln_kept = subprocess.check_output(['wc', '-l', out_file], universal_newlines=True)
-        logging.info("DONE!!! %i alignments kept for further analysis." % aln_kept)
+            bam2bed.wait()
+            out_file.seek(0)
+            logging.info("DONE!!! %i alignments used for further analysis." % len(out_file.readlines()))
 
-        out_file.close()
-        q10.stdout.close()
-        q10XS.stdout.close()
-        q10XSbam.stdout.close()
+
+            out_file.close()
+            q10.stdout.close()
+            q10XS.stdout.close()
+            q10XSbam.stdout.close()
 
     elif mapper == 'star':
 
         q255 = subprocess.Popen(["samtools","view","-h", "-q255", bamfile], stdout=subprocess.PIPE)
 
-        with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
+        with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'r+') as out_file:
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-split","-cigar", "-i", "stdin"], stdin=q255.stdout, stdout=out_file)
 
-        bam2bed.communicate()
-        aln_kept = subprocess.check_output(['wc', '-l', out_file], universal_newlines=True)
-        logging.info("DONE!!! %i alignments kept for further analysis." % aln_kept)
+            bam2bed.wait()
+            out_file.seek(0)
+            logging.info("DONE!!! %i alignments kept for further analysis." % len(out_file.readlines()))
 
-
+        q255.stdout.close()
+        out_file.close()
 
 
 def filterSingleEndBamAlignments(bamfile, outDir, mapper):
@@ -73,10 +90,12 @@ def filterSingleEndBamAlignments(bamfile, outDir, mapper):
 
             with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
                 bam2bed = subprocess.Popen(["bedtools", "bamtobed","-cigar", "-i", "stdin"], stdin=q255.stdout, stdout=out_file)
+                bam2bed.wait()
+                out_file.seek(0)
+                logging.info("DONE!!! %i alignments used for further analysis." % len(out_file.readlines()))
 
-            bam2bed.communicate()
-            aln_kept = subprocess.check_output(['wc', '-l', out_file], universal_newlines=True)
-            logging.info("DONE!!! %i alignments kept for further analysis." % aln_kept)
+            q255.stdout.close()
+            out_file.close()
 
         else:
             logging.error("Processing of the single end reads mapping is only available for bowtie2. Sorry!")
@@ -88,13 +107,20 @@ def filterSingleEndBamAlignments(bamfile, outDir, mapper):
 def bamToBedFromBam(bamfile, outputDir, mapper):
     logging.info("Converting BAM %s to BED.." % os.path.basename(bamfile))
     with open(os.path.join(outputDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
+
         if mapper == "star": #if RNA-seq mappings
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-split", "-i", bamfile], stdout=out_file)
             bam2bed.wait()
+            out_file.seek(0)
+            logging.info("DONE!!! %i alignments used for further analysis." % len(out_file.readlines()))
+            out_file.close()
+
         else:
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", bamfile], stdout=out_file)
             bam2bed.wait()
-
+            out_file.seek(0)
+            logging.info("DONE!!! %i alignments used for further analysis." % len(out_file.readlines()))
+            out_file.close()
 
 
 def main():
