@@ -143,7 +143,6 @@ def filterBamAlignments(bamfile,outDir,mapper):
             out_file.seek(0)
             logging.info("DONE!!! %i alignments kept for further analysis." % len(out_file.readlines()))
 
-        q255.stdout.close()
         q255bam.stdout.close()
         out_file.close()
 
