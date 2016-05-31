@@ -101,6 +101,13 @@ def filterBamAlignments(bamfile,outDir,mapper):
             q10XSbam.stdout.close()
             q10XSbitflag.stdout.close()
 
+            teste=[]
+            for i in bitflagList:
+                if not i in teste:
+                    teste.append(i)
+
+            for i in teste:
+                print(i)
     elif mapper == 'star':
 
 
@@ -194,6 +201,13 @@ def bamToBedFromBam(bamfile, outputDir, mapper):
             logging.info("DONE!!! %i alignments used for further analysis." % len(out_file.readlines()))
             out_file.close()
 
+    teste=[]
+    for i in bitflagList:
+        if not i in teste:
+            teste.append(i)
+
+    for i in teste:
+        print(i)
     return bitflagList
 
 
@@ -204,6 +218,8 @@ def replaceBedScoreToBitFlag(bedFile,bitflagList):
             elements = line.split()
             print(line.replace(elements[4], bitflag), end='')
 
+# and 147 - FR
+#82 and 163 - RF
 
 def main():
 
