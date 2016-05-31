@@ -64,7 +64,7 @@ do
 		let "numb_samples += 1"
 		printf "Running bwa mem aligner for library ${bam_basename} [sample ${numb_samples}] ..\n" 
 		bam_file="${bam_basename}.bam"
-		command="$base_command $pair1 $pair2 -H '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
+		command="$base_command $pair1 $pair2 -R '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
 		command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 
@@ -94,7 +94,7 @@ do
 		printf "Running bwa mem aligner for library ${bam_basename} [sample ${numb_samples}] ..\n"
 		
 	        bam_file="${bam_basename}.bam"
-                command="$base_command $pair1 $pair2 -H '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
+                command="$base_command $pair1 $pair2 -R '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
                 command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 
