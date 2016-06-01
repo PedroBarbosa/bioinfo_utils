@@ -234,17 +234,19 @@ def main():
 
     parser = argparse.ArgumentParser(description='Script to analyse the genome coverage and orientation of the scaffolds. Requires samtools and bedtools to be on the system path. BAM files must be sorted.')
     parser.add_argument(dest='bam_files', metavar='bamFiles', nargs='+', help='Bam files to process.')
-    parser.add_argument('-m',metavar = '--mapper', required = True, choices=['bwa_aln','bwa_mem','star','bowtie2'], help='Mapper used in the alignments. Available choices: [bwa_aln,bwa_mem,star,bowtie2].')
-    parser.add_argument('-g', metavar = '--genomeTable', required = True, help='Tab delimited genome file. Ex:chrom_name    size(bp). Required by bedtools.')
-    parser.add_argument('-o',metavar = '--outputDirectory', required = True, help='Output directory to write the results')
+    parser.add_argument('-m','--mapper', required = True, choices=['bwa_aln','bwa_mem','star','bowtie2'], help='Mapper used in the alignments. Available choices: [bwa_aln,bwa_mem,star,bowtie2].')
+    parser.add_argument('-g','--genomeTable', required = True, help='Tab delimited genome file. Ex:chrom_name    size(bp). Required by bedtools.')
+    parser.add_argument('-o','--outputDirectory', required = True, help='Output directory to write the results')
     parser.add_argument('-n', '--nofilterBam', action='store_true', help='If set, the filtering of BAM files will not be perfomed. Default: Process bam files.' )
     parser.add_argument('-s','--singleEnd', action='store_true', help='Single end read mappings. Default:Paired-end')
     args = parser.parse_args()
 
     for file in args.bam_files:
+        if not os.path.isfile(file):
+            logging.error("%s file is not valid." % file)
         if os.path.splitext(file)[1] != ".bam":
             logging.error("Only files with .bam extension are allowed. Exiting!")
-            exit(1)
+            #exit(1)
 
     if not os.path.exists(args.o):
         os.makedirs(args.o)
