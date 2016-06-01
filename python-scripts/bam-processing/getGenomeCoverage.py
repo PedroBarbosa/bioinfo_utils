@@ -248,25 +248,26 @@ def main():
             logging.error("Only files with .bam extension are allowed. Exiting!")
             #exit(1)
 
-    if not os.path.exists(args.o):
-        os.makedirs(args.o)
+    if not os.path.exists(args.outputDirectory):
+        os.makedirs(args.outputDirectory)
 
     for file in args.bam_files:
         logging.info("Processing %s file.." % os.path.basename(file))
-        outBed = os.path.join(args.o,os.path.basename(file).replace('.bam', '.bed'))
+        outBed = os.path.join(args.outputDirectory,os.path.basename(file).replace('.bam', '.bed'))
+
         if not args.nofilterBam:
             if args.singleEnd:
-                bitflagList = filterSingleEndBamAlignments(file,args.o,args.m)
+                bitflagList = filterSingleEndBamAlignments(file,args.outputDirectory,args.mapper)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
                 replaceBedScoreToBitFlag(outBed,bitflagList)
             else:
-                bitflagList = filterBamAlignments(file,args.o,args.m)
+                bitflagList = filterBamAlignments(file,args.outputDirectory,args.mapper)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
                 replaceBedScoreToBitFlag(outBed,bitflagList)
 
         else:
             logging.info("No filtering of BAM files will be done.")
-            bitflagList = bamToBedFromBam(file,args.o,args.m)
+            bitflagList = bamToBedFromBam(file,args.outputDirectory,args.mapper)
             logging.info("Adding bitFlags to the score column in BED file..")
             replaceBedScoreToBitFlag(outBed,bitflagList)
 
