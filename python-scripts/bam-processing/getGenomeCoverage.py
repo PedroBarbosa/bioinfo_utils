@@ -45,7 +45,7 @@ def filterBamAlignments(bamfile,outDir,mapper):
             out_file.close()
             UMR0.stdout.close()
             UMR1.stdout.close()
-            UMR.stdout.close()
+
 
     elif mapper == 'bwa_mem':
         logging.info("\tFiltering out secondary alignments and low quality mappings..")
@@ -74,7 +74,6 @@ def filterBamAlignments(bamfile,outDir,mapper):
 
             out_file.close()
             q10.stdout.close()
-            q10XA.stdout.close()
             q10XAbam.stdout.close()
 
 
@@ -176,7 +175,7 @@ def filterSingleEndBamAlignments(bamfile, outDir, mapper):
             out_file.seek(0)
             logging.info("DONE!!! %i alignments used for further analysis." % len(out_file.readlines()))
 
-        q255.stdout.close()
+
         q255bam.stdout.close()
         out_file.close()
 
