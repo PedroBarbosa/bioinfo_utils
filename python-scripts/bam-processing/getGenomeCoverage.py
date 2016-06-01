@@ -244,9 +244,10 @@ def main():
     for file in args.bam_files:
         if not os.path.isfile(file):
             logging.error("%s file is not valid." % file)
+            exit(1)
         if os.path.splitext(file)[1] != ".bam":
             logging.error("Only files with .bam extension are allowed. Exiting!")
-            #exit(1)
+            exit(1)
 
     if not os.path.exists(args.outputDirectory):
         os.makedirs(args.outputDirectory)
