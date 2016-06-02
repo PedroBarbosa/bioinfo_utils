@@ -13,8 +13,8 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %
 
 def filterBamAlignments(bamfile,outDir,mapper):
     logging.info("Filtering %s file using the specific %s flags and converting to BED format.." % (os.path.basename(bamfile),mapper))
-    bitflagList = []
     tmpfile = NamedTemporaryFile(delete=True)
+    tmpfile_bitFlag = NamedTemporaryFile(delete=True)
     if mapper == 'bwa_aln':
         logging.info("\tFiltering out secondary alignments and low quality mappings..")
         UMR0 = subprocess.Popen(["samtools","view","-h","-F260",bamfile], stdout=subprocess.PIPE)
@@ -27,13 +27,14 @@ def filterBamAlignments(bamfile,outDir,mapper):
             UMRbitflag = subprocess.Popen(["samtools", "view", "-S", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             UMRbam = subprocess.Popen(["samtools", "view", "-Shb", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
-            logging.info("\tExtracting bitflags to list..")
+            logging.info("\tExtracting bitflags ..")
             alignments = UMRbitflag.stdout.readlines()
-            for line in alignments:
-                decode = line.decode("utf-8")
-                bitflagList.append(decode.split("\t")[1])
+            with open(tmpfile_bitFlag.name, 'w+') as tmp_file_bitflag:
+                for line in alignments:
+                    decode = line.decode("utf-8")
+                    tmp_file_bitflag.write(decode.split("\t")[1] + '\n')
 
-
+        tmp_file_bitflag.close()
         logging.info("\tConverting bam to bed using BEDtools..")
         with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=UMRbam.stdout, stdout=out_file)
@@ -58,12 +59,13 @@ def filterBamAlignments(bamfile,outDir,mapper):
             q10XAbitflag = subprocess.Popen(["samtools", "view", "-S", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             q10XAbam = subprocess.Popen(["samtools", "view", "-Shb", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
-            logging.info("\tExtracting bitflags to list..")
+            logging.info("\tExtracting bitflags ..")
             alignments = q10XAbitflag.stdout.readlines()
-            for line in alignments:
-                decode = line.decode("utf-8")
-                bitflagList.append(decode.split("\t")[1])
-
+            with open(tmpfile_bitFlag.name, 'w+') as tmp_file_bitflag:
+                for line in alignments:
+                    decode = line.decode("utf-8")
+                    tmp_file_bitflag.write(decode.split("\t")[1] + '\n')
+        tmp_file_bitflag.close()
         logging.info("\tConverting bam to bed using BEDtools..")
         with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-cigar", "-i", "stdin"], stdin=q10XAbam.stdout, stdout=out_file)
@@ -87,12 +89,13 @@ def filterBamAlignments(bamfile,outDir,mapper):
             q10XS.wait()
 
             q10XSbitflag = subprocess.Popen(["samtools", "view", "-S", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            logging.info("\tExtracting bitflags to list..")
+            logging.info("\tExtracting bitflags..")
             alignments = q10XSbitflag.stdout.readlines()
-            for line in alignments:
-                decode = line.decode("utf-8")
-                bitflagList.append(decode.split("\t")[1])
-
+            with open(tmpfile_bitFlag.name, 'w+') as tmp_file_bitflag:
+                for line in alignments:
+                    decode = line.decode("utf-8")
+                    tmp_file_bitflag.write(decode.split("\t")[1] + '\n')
+        tmp_file_bitflag.close()
         logging.info("\tConverting bam to bed using BEDtools..")
         q10XSbam = subprocess.Popen(["samtools", "view", "-Shb", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
@@ -106,15 +109,13 @@ def filterBamAlignments(bamfile,outDir,mapper):
             q10XSbam.stdout.close()
             q10XSbitflag.stdout.close()
 
-            teste=[]
-            for i in bitflagList:
-                if not i in teste:
-                    teste.append(i)
+#            teste=[]
+#            for i in bitflagList:
+#                if not i in teste:
+#                    teste.append(i)
 
-            for i in teste:
-                print(i)
-
-
+#            for i in teste:
+#                print(i)
 
 
     elif mapper == 'star':
@@ -128,12 +129,14 @@ def filterBamAlignments(bamfile,outDir,mapper):
             q255bitflag = subprocess.Popen(["samtools", "view", "-S", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             q255bam = subprocess.Popen(["samtools", "view", "-Shb", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
-            logging.info("\tExtracting bitflags to list..")
+            logging.info("\tExtracting bitflags ..")
             alignments = q255bitflag.stdout.readlines()
-            for line in alignments:
-                decode = line.decode("utf-8")
-                bitflagList.append(decode.split("\t")[1])
+            with open(tmpfile_bitFlag.name, 'w+') as tmp_file_bitflag:
+                for line in alignments:
+                    decode = line.decode("utf-8")
+                    tmp_file_bitflag.write(decode.split("\t")[1] + '\n')
 
+        tmp_file_bitflag.close()
         logging.info("\tConverting bam to bed using BEDtools..")
         with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
             bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-split","-cigar", "-i", "stdin"], stdin=q255bam.stdout, stdout=out_file)
@@ -145,13 +148,13 @@ def filterBamAlignments(bamfile,outDir,mapper):
         q255bam.stdout.close()
         out_file.close()
 
-    return bitflagList
+    return tmpfile_bitFlag
 
 def filterSingleEndBamAlignments(bamfile, outDir, mapper):
 
     logging.info("Filtering %s file using the specific %s flags and converting to BED format.." % (os.path.basename(bamfile),mapper))
-    bitflagList = []
     tmpfile = NamedTemporaryFile(delete=True)
+    tmpfile_bitFlag = NamedTemporaryFile(delete=True)
 
     if mapper == 'bowtie2':
 
@@ -163,10 +166,12 @@ def filterSingleEndBamAlignments(bamfile, outDir, mapper):
             logging.info("\tExtracting bitflags to list..")
             q255bitflag = subprocess.Popen(["samtools","view","-S", "-q255", tmpfile.name], stdout=subprocess.PIPE)
             alignments = q255bitflag.stdout.readlines()
-            for line in alignments:
-                decode = line.decode("utf-8")
-                bitflagList.append(decode.split("\t")[1])
+            with open(tmpfile_bitFlag.name, 'w+') as tmp_file_bitflag:
+                for line in alignments:
+                    decode = line.decode("utf-8")
+                    tmp_file_bitflag.write(decode.split("\t")[1]+ '\n')
 
+        tmp_file_bitflag.close()
         logging.info("\tConverting bam to bed using BEDtools..")
         q255bam = subprocess.Popen(["samtools", "view", "-Shb", tmpfile.name], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
         with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
@@ -183,18 +188,22 @@ def filterSingleEndBamAlignments(bamfile, outDir, mapper):
         logging.error("Processing of the single end reads mapping is only available for bowtie2. Sorry!")
         exit(1)
 
+    return tmpfile_bitFlag
 
-    return bitflagList
 
 def bamToBedFromBam(bamfile, outputDir, mapper):
-    bitflagList = []
+
+    tmpfile_bitFlag = NamedTemporaryFile(delete=True)
     logging.info("Removing just the unmapped reads and extracting bitflags to list.")
     bitflag = subprocess.Popen(["samtools", "view", "-F4", bamfile], stdout=subprocess.PIPE)
     alignments = bitflag.stdout.readlines()
-    for line in alignments:
-        decode = line.decode("utf-8")
-        bitflagList.append(decode.split("\t")[1])
 
+    with open(tmpfile_bitFlag.name, 'w+') as tmp_file_bitflag:
+        for line in alignments:
+            decode = line.decode("utf-8")
+            tmp_file_bitflag.write(decode.split("\t")[1]+'\n')
+
+    tmp_file_bitflag.close()
     logging.info("Converting BAM %s to BED.." % os.path.basename(bamfile))
     with open(os.path.join(outputDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
 
@@ -219,24 +228,25 @@ def bamToBedFromBam(bamfile, outputDir, mapper):
 
 #    for i in teste:
 #        print(i)
-    return bitflagList
+#    return bitflagList
+    return tmpfile_bitFlag
 
+def replaceBedScoreToBitFlag(bedFile,bitflag_tmp):
 
-def replaceBedScoreToBitFlag(bedFile,bitflagList):
+    out = os.path.abspath(bedFile) + "BitFlag"
+    with open(out,'w+') as out_file:
 
-    with fileinput.FileInput(bedFile, inplace=True) as bedfile:
-        for bitflag,line in zip(bitflagList,bedfile):
-            elements = line.split()
-            print(line.replace(elements[4], bitflag), end='')
+        subprocess.Popen(["awk",'FNR==NR{a[NR]=$0;next}{$5=a[FNR]};OFS="\t"',bitflag_tmp, bedFile],stderr = subprocess.PIPE, stdout = out_file)
+        subprocess.Popen(["mv", out, bedFile])
 
 
 def main():
 
     parser = argparse.ArgumentParser(description='Script to analyse the genome coverage and orientation of the scaffolds. Requires samtools and bedtools to be on the system path. BAM files must be sorted.')
     parser.add_argument(dest='bam_files', metavar='bamFiles', nargs='+', help='Bam files to process.')
-    parser.add_argument('-m','--mapper', required = True, choices=['bwa_aln','bwa_mem','star','bowtie2'], help='Mapper used in the alignments. Available choices: [bwa_aln,bwa_mem,star,bowtie2].')
-    parser.add_argument('-g','--genomeTable', required = True, help='Tab delimited genome file. Ex:chrom_name    size(bp). Required by bedtools.')
-    parser.add_argument('-o','--outputDirectory', required = True, help='Output directory to write the results')
+    parser.add_argument('-m', metavar='mapper', required = True, choices=['bwa_aln','bwa_mem','star','bowtie2'], help='Mapper used in the alignments. Available choices: [bwa_aln,bwa_mem,star,bowtie2].')
+    parser.add_argument('-gn', metavar='genomeTable', required = True, help='Tab delimited genome file. Ex:chrom_name    size(bp). Required by bedtools.')
+    parser.add_argument('-o', metavar='outputDirectory', required = True, help='Output directory to write the results')
     parser.add_argument('-n', '--nofilterBam', action='store_true', help='If set, the filtering of BAM files will not be perfomed. Default: Process bam files.' )
     parser.add_argument('-s','--singleEnd', action='store_true', help='Single end read mappings. Default:Paired-end')
     args = parser.parse_args()
@@ -249,28 +259,28 @@ def main():
             logging.error("Only files with .bam extension are allowed. Exiting!")
             exit(1)
 
-    if not os.path.exists(args.outputDirectory):
-        os.makedirs(args.outputDirectory)
+    if not os.path.exists(args.o):
+        os.makedirs(args.o)
 
     for file in args.bam_files:
         logging.info("Processing %s file.." % os.path.basename(file))
-        outBed = os.path.join(args.outputDirectory,os.path.basename(file).replace('.bam', '.bed'))
+        outBed = os.path.join(args.o,os.path.basename(file).replace('.bam', '.bed'))
 
         if not args.nofilterBam:
             if args.singleEnd:
-                bitflagList = filterSingleEndBamAlignments(file,args.outputDirectory,args.mapper)
+                bitflag_tmp = filterSingleEndBamAlignments(file,args.o,args.m)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
-                replaceBedScoreToBitFlag(outBed,bitflagList)
+                replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
             else:
-                bitflagList = filterBamAlignments(file,args.outputDirectory,args.mapper)
+                bitflag_tmp = filterBamAlignments(file,args.o,args.m)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
-                replaceBedScoreToBitFlag(outBed,bitflagList)
+                replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
 
         else:
             logging.info("No filtering of BAM files will be done.")
-            bitflagList = bamToBedFromBam(file,args.outputDirectory,args.mapper)
+            bitflag_tmp = bamToBedFromBam(file,args.o,args.m)
             logging.info("Adding bitFlags to the score column in BED file..")
-            replaceBedScoreToBitFlag(outBed,bitflagList)
+            replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
 
         logging.info("DONE!!")
 
