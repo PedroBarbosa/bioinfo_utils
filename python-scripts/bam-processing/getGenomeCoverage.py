@@ -236,7 +236,8 @@ def replaceBedScoreToBitFlag(bedFile,bitflag_tmp):
     out = os.path.abspath(bedFile) + "BitFlag"
     with open(out,'w+') as out_file:
 
-        subprocess.Popen(["awk",'FNR==NR{a[NR]=$0;next}{$5=a[FNR]};OFS="\t"',bitflag_tmp, bedFile],stderr = subprocess.PIPE, stdout = out_file)
+        sub=subprocess.Popen(["awk",'FNR==NR{a[NR]=$0;next}{$5=a[FNR]};OFS="\t"',bitflag_tmp, bedFile],stderr = subprocess.PIPE, stdout = out_file)
+        sub.wait()
         subprocess.Popen(["mv", out, bedFile])
 
 
