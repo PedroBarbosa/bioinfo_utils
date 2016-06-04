@@ -5,7 +5,10 @@ import subprocess
 import logging
 import sys
 import os
-import fileinput
+import csv
+from collections import defaultdict
+from collections import OrderedDict
+import numpy
 from tempfile import NamedTemporaryFile
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
 
@@ -241,6 +244,109 @@ def replaceBedScoreToBitFlag(bedFile,bitflag_tmp):
         subprocess.Popen(["mv", out, bedFile])
 
 
+def genomeCoverageFromBed(bedfile,genome):
+    dictGenomeCoverageBedtools = defaultdict(list)
+    dictWholeGenomeCovLarger0 = OrderedDict()
+    dictPerScaffoldCovLarger0 = OrderedDict()
+    previous_scaff,tuple,regionsWithCov, cov5, cov10, cov50, attributes = "",(),0.0,0.0,0.0,0.0,[]
+
+    with open(genome) as fin:
+        genome_size = sum(int(r[1]) for r in csv.reader(fin, delimiter = "\t"))
+    fin.close()
+
+    subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome])
+    stdout = subTotal.decode("utf-8").split("\n")
+
+    logging.info("\tGenerating stats..")
+    for line in stdout:
+        attributes = line.split('\t')
+        if len(attributes) > 1:
+            #whole genome stats
+            if attributes[0] == "genome":
+
+                if int(attributes[1]) == 0:
+
+                    genomeCov0 = attributes[4]
+
+                    #Last scaffold:
+                    if dictPerScaffoldCovLarger0:
+                        for k,v in iter(dictPerScaffoldCovLarger0.items()):
+                            if int(k) < 5:
+                                regionsWithCov += float(v)
+                            elif int(k) >= 5 and int(k) < 10:
+                                cov5 += float(v)
+                                regionsWithCov += float(v)
+                            elif int(k) >= 10 and int(k) < 50:
+                                cov10 += v
+                                regionsWithCov += float(v)
+                            else:
+                                cov50 += float(v)
+                                regionsWithCov += float(v)
+                        print("estou cá, espero que só 1 vez")
+                        del dictGenomeCoverageBedtools[previous_scaff][-4:]
+                        dictGenomeCoverageBedtools[previous_scaff].extend([regionsWithCov,cov5,cov10,cov50])
+
+
+                    #if last scaffold had 0 of coverage
+                    #else:
+                    #    print("último scaffold,não tenho cobertura nenhuma")
+                    #    dictGenomeCoverageBedtools[previous_scaff].extend([0,0,0,0])
+
+                #whole genome non 0 coverage frequencies
+                else:
+                    dictWholeGenomeCovLarger0[attributes[1]] = attributes[4]
+
+            #new scaffold, report length and region with 0 coverage
+            elif not attributes[0] in dictGenomeCoverageBedtools:
+                #update previous scaffold with values from non 0 coverage
+                if dictPerScaffoldCovLarger0:
+
+                    for k,v in iter(dictPerScaffoldCovLarger0.items()):
+                        if int(k) < 5:
+                            regionsWithCov += float(v)
+                        elif int(k) >= 5 and int(k) < 10:
+                            cov5 += float(v)
+                            regionsWithCov += float(v)
+                        elif int(k) >= 10 and int(k) < 50:
+                            cov10 += v
+                            regionsWithCov += float(v)
+                        else:
+                            cov50 += float(v)
+                            regionsWithCov += float(v)
+
+                    del dictGenomeCoverageBedtools[previous_scaff][-4:]
+                    dictGenomeCoverageBedtools[previous_scaff].extend([regionsWithCov,cov5,cov10,cov50])
+                    dictPerScaffoldCovLarger0 = OrderedDict()
+                    regionsWithCov = 0
+                    cov5 = 0
+                    cov10 = 0
+                    cov50 = 0
+
+
+                #if new scaffold, report length and region with 0 coverage
+                dictGenomeCoverageBedtools[attributes[0]].extend([attributes[3],attributes[4],0,0,0,0])
+
+
+            #update dict with values of covarage and proportion
+            else:
+                previous_scaff = attributes[0]
+                dictPerScaffoldCovLarger0[attributes[1]] = attributes[4]
+
+
+
+
+
+
+    logging.info("Genome size\t%i" % genome_size)
+    logging.info("Genome fraction with coverage 0\t%i" % round(float(genomeCov0),4))
+    for k,v in iter(dictWholeGenomeCovLarger0.items()):
+        print(k,v)
+
+    for k,v in iter(dictGenomeCoverageBedtools.items()):
+        if v[1] != '1':
+            print(k,v)
+
+    print(len(dictGenomeCoverageBedtools))
 def main():
 
     parser = argparse.ArgumentParser(description='Script to analyse the genome coverage and orientation of the scaffolds. Requires samtools and bedtools to be on the system path. BAM files must be sorted.')
@@ -272,16 +378,20 @@ def main():
                 bitflag_tmp = filterSingleEndBamAlignments(file,args.o,args.m)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
                 replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
+                genomeCoverageFromBed(outBed, args.gn)
             else:
                 bitflag_tmp = filterBamAlignments(file,args.o,args.m)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
                 replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
+                genomeCoverageFromBed(outBed, args.gn)
 
         else:
             logging.info("No filtering of BAM files will be done.")
             bitflag_tmp = bamToBedFromBam(file,args.o,args.m)
             logging.info("Adding bitFlags to the score column in BED file..")
             replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
+            logging.info("Calculating genome coverage in each strand..")
+            genomeCoverageFromBed(outBed, args.gn)
 
         logging.info("DONE!!")
 
