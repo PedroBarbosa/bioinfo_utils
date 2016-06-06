@@ -248,7 +248,7 @@ def genomeCoverageFromBed(bedfile,genome):
     dictGenomeCoverageBedtools = defaultdict(list)
     dictWholeGenomeCovLarger0 = OrderedDict()
     dictPerScaffoldCovLarger0 = OrderedDict()
-    previous_scaff,tuple,regionsWithCov, cov5, cov10, cov50, attributes = "",(),0.0,0.0,0.0,0.0,[]
+    previous_scaff,tuple,genomeCov0,regionsWithCov, cov5, cov10, cov50, attributes = "",(),0,0.0,0.0,0.0,0.0,[]
 
     with open(genome) as fin:
         genome_size = sum(int(r[1]) for r in csv.reader(fin, delimiter = "\t"))
@@ -284,7 +284,7 @@ def genomeCoverageFromBed(bedfile,genome):
                                 regionsWithCov += float(v)
                         print("estou cá, espero que só 1 vez")
                         del dictGenomeCoverageBedtools[previous_scaff][-4:]
-                        dictGenomeCoverageBedtools[previous_scaff].extend([regionsWithCov,cov5,cov10,cov50])
+                        dictGenomeCoverageBedtools[previous_scaff].extend([round(regionsWithCov,4),round(cov5,4),round(cov10,4),round(cov50,4)])
 
 
                     #if last scaffold had 0 of coverage
@@ -315,7 +315,7 @@ def genomeCoverageFromBed(bedfile,genome):
                             regionsWithCov += float(v)
 
                     del dictGenomeCoverageBedtools[previous_scaff][-4:]
-                    dictGenomeCoverageBedtools[previous_scaff].extend([regionsWithCov,cov5,cov10,cov50])
+                    dictGenomeCoverageBedtools[previous_scaff].extend([round(regionsWithCov,4),round(cov5,4),round(cov10,4),round(cov50,4)])
                     dictPerScaffoldCovLarger0 = OrderedDict()
                     regionsWithCov = 0
                     cov5 = 0
@@ -324,7 +324,7 @@ def genomeCoverageFromBed(bedfile,genome):
 
 
                 #if new scaffold, report length and region with 0 coverage
-                dictGenomeCoverageBedtools[attributes[0]].extend([attributes[3],attributes[4],0,0,0,0])
+                dictGenomeCoverageBedtools[attributes[0]].extend([attributes[3],float(attributes[4]),0,0,0,0])
 
 
             #update dict with values of covarage and proportion
@@ -338,15 +338,33 @@ def genomeCoverageFromBed(bedfile,genome):
 
 
     logging.info("Genome size\t%i" % genome_size)
-    logging.info("Genome fraction with coverage 0\t%i" % round(float(genomeCov0),4))
+    logging.info("Genome fraction with coverage 0\t%i" % float(genomeCov0))
     for k,v in iter(dictWholeGenomeCovLarger0.items()):
         print(k,v)
 
-    for k,v in iter(dictGenomeCoverageBedtools.items()):
-        if v[1] != '1':
-            print(k,v)
-
+    writeDict(dictGenomeCoverageBedtools, bedfile,'both')
+#    for k,v in iter(dictGenomeCoverageBedtools.items()):
+#        if v[1] != '1':
+#            print(k,v)
     print(len(dictGenomeCoverageBedtools))
+
+
+def writeDict(dict,bedfile, strand):
+    out_file = ""
+    if strand == '+':
+        out_file = os.path.join(os.path.abspath(bedfile).split('.bed')[0],'-indScaffCov-plusStrand.txt')
+    elif strand == '-':
+        out_file = os.path.join(os.path.abspath(bedfile).split('.bed')[0],'-indScaffCov-minusStrand.txt')
+    else:
+        out_file = os.path.join(os.path.abspath(bedfile),'-indScaffCov-bothStrands.txt')
+
+
+    with open(out_file, 'w+') as fileout:
+        fileout.write('\t'.join(['#scaffold_id','#scaffold_length','#fraction 0 cov', '#fraction > 0 cov', '#fraction 5 > cov < 10', '#fraction 10 > cov > 50', '#fraction > 50 cov']))
+        for scaffold, cov in iter(dict.items()):
+            fileout.write(scaffold + '\t' + '\t'.join(c for c in cov))
+
+
 def main():
 
     parser = argparse.ArgumentParser(description='Script to analyse the genome coverage and orientation of the scaffolds. Requires samtools and bedtools to be on the system path. BAM files must be sorted.')
