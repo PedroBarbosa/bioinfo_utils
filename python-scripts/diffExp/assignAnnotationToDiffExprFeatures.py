@@ -59,6 +59,25 @@ def processFromBlastTab(listDiffExpressed, annotationFile, database_searched):
                             new_list.extend([swissprot_id, description])
                             dict[query] = new_list
                             previous_query = query
+        elif database_searched == "ncbi-nr":
+            for line in file:
+                line.rstrip()
+                if not line.startswith('#') :
+                    query = line.split()[0]
+                    if query in dict:
+
+                        if query == previous_query:
+                            previous_query = query
+                        else:
+                            annotated_features += 1
+                            ncbi_id = line.split('\t')[1]
+                            description = line.split('\t')[2]
+
+                            #update dict
+                            new_list = dict[query]
+                            new_list.extend([ncbi_id, description])
+                            dict[query] = new_list
+                            previous_query = query
 
     file.close()
     if annotated_features == 0:
@@ -97,12 +116,12 @@ def main():
                                                 ' All non-feature lines must start with a "#".')
     parser.add_argument(dest='annotationFile', metavar='annotationFile', nargs=1, help='Blast like tab separated file with functional annotations.')
     parser.add_argument(dest='output_file', metavar='output_file', nargs=1, help='File to write the output.')
-    parser.add_argument(dest='database_searched', metavar='database_searched', nargs=1, type=str, choices=['swissprot'],help='Database used for similarity searches.')
-    parser.add_argument(dest='software_used', metavar='software_used', nargs=1, type=str, choices=['rapsearch2'],help='Tool used to run similarity searches.')
+    parser.add_argument(dest='database_searched', metavar='database_searched', nargs=1, type=str, choices=['swissprot','ncbi-nr'],help='Database used for similarity searches. If ncbi-nr is selected, ncbi id must come on the 2nd columns and its decription on the 3rd.Available choices [swissprot, ncbi-nr]')
+    parser.add_argument(dest='software_used', metavar='software_used', nargs=1, type=str, choices=['rapsearch2', 'blastp'],help='Tool used to run similarity searches. Available choices [rapsearch2, blastp]')
 
     args = parser.parse_args()
 
-    if "rapsearch2" in args.software_used:
+    if "rapsearch2" in args.software_used or "blastp" in args.software_used:
         dict_updated, commented_lines = processFromBlastTab(args.listDiffExpressed[0], args.annotationFile[0], args.database_searched[0])
         writeOutput(dict_updated,commented_lines, args.output_file[0], args.database_searched[0])
 
