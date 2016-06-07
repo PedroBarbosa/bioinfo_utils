@@ -245,20 +245,39 @@ def replaceBedScoreToBitFlag(bedFile,bitflag_tmp):
 
 
 def genomeCoverageFromBed(bedfile,genome):
-    dictGenomeCoverageBedtools = defaultdict(list)
-    dictWholeGenomeCovLarger0 = OrderedDict()
-    dictPerScaffoldCovLarger0 = OrderedDict()
-    previous_scaff,tuple,genomeCov0,regionsWithCov, cov5, cov10, cov50, attributes = "",(),0,0.0,0.0,0.0,0.0,[]
+
 
     with open(genome) as fin:
         genome_size = sum(int(r[1]) for r in csv.reader(fin, delimiter = "\t"))
     fin.close()
 
-    subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome])
-    stdout = subTotal.decode("utf-8").split("\n")
+    for i in range(0,2):
+        if i == 0:
+            subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome])
+            stdout = subTotal.decode("utf-8").split("\n")
+            logging.info("\tGenerating stats for both strands coverage")
+            generateStatsAndCoverageFiles(stdout,bedfile,i)
+        elif i == 1:
+            subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome, "-strand", "+"])
+            stdout = subTotal.decode("utf-8").split("\n")
+            logging.info("\tGenerating stats for positive strand coverage")
+            generateStatsAndCoverageFiles(stdout,bedfile,i)
+        elif i == 2:
+            subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome, "-strand", "-"])
+            stdout = subTotal.decode("utf-8").split("\n")
+            logging.info("\tGenerating stats for negative strand coverage")
+            generateStatsAndCoverageFiles(stdout,bedfile,i)
 
-    logging.info("\tGenerating stats..")
-    for line in stdout:
+
+
+def generateStatsAndCoverageFiles(std_out,bedfile,i):
+    dictGenomeCoverageBedtools = defaultdict(list)
+    dictWholeGenomeCovLarger0 = OrderedDict()
+    dictPerScaffoldCovLarger0 = OrderedDict()
+    previous_scaff,tuple,genomeCov0,regionsWithCov, cov5, cov10, cov50, attributes = "",(),0,0.0,0.0,0.0,0.0,[]
+
+
+    for line in std_out:
         attributes = line.split('\t')
         if len(attributes) > 1:
             #whole genome stats
@@ -267,7 +286,7 @@ def genomeCoverageFromBed(bedfile,genome):
                 if int(attributes[1]) == 0:
 
                     genomeCov0 = attributes[4]
-
+                    print(genomeCov0)
                     #Last scaffold:
                     if dictPerScaffoldCovLarger0:
                         for k,v in iter(dictPerScaffoldCovLarger0.items()):
@@ -308,7 +327,7 @@ def genomeCoverageFromBed(bedfile,genome):
                             cov5 += float(v)
                             regionsWithCov += float(v)
                         elif int(k) >= 10 and int(k) < 50:
-                            cov10 += v
+                            cov10 += float(v)
                             regionsWithCov += float(v)
                         else:
                             cov50 += float(v)
@@ -333,36 +352,32 @@ def genomeCoverageFromBed(bedfile,genome):
                 dictPerScaffoldCovLarger0[attributes[1]] = attributes[4]
 
 
-
-
-
-
-    logging.info("Genome size\t%i" % genome_size)
-    logging.info("Genome fraction with coverage 0\t%i" % float(genomeCov0))
+#    logging.info("Genome size\t%i" % genome_size)
+    logging.info("Genome fraction with coverage 0\t%s" % genomeCov0)
     for k,v in iter(dictWholeGenomeCovLarger0.items()):
-        print(k,v)
+        print("Genome fraction with coverage %s\t%s" % (k,v))
 
-    writeDict(dictGenomeCoverageBedtools, bedfile,'both')
+    writeDict(dictGenomeCoverageBedtools, bedfile,i)
 #    for k,v in iter(dictGenomeCoverageBedtools.items()):
 #        if v[1] != '1':
 #            print(k,v)
-    print(len(dictGenomeCoverageBedtools))
+#    print(len(dictGenomeCoverageBedtools))
 
 
-def writeDict(dict,bedfile, strand):
+def writeDict(dict,bedfile, i):
     out_file = ""
-    if strand == '+':
-        out_file = os.path.join(os.path.abspath(bedfile).split('.bed')[0],'-indScaffCov-plusStrand.txt')
-    elif strand == '-':
-        out_file = os.path.join(os.path.abspath(bedfile).split('.bed')[0],'-indScaffCov-minusStrand.txt')
+    if i == 1:
+        out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-plusStrand.txt')
+    elif i == 2:
+        out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-minusStrand.txt' )
     else:
-        out_file = os.path.join(os.path.abspath(bedfile),'-indScaffCov-bothStrands.txt')
+        out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-bothStrands.txt' )
 
 
     with open(out_file, 'w+') as fileout:
         fileout.write('\t'.join(['#scaffold_id','#scaffold_length','#fraction 0 cov', '#fraction > 0 cov', '#fraction 5 > cov < 10', '#fraction 10 > cov > 50', '#fraction > 50 cov']))
         for scaffold, cov in iter(dict.items()):
-            fileout.write(scaffold + '\t' + '\t'.join(c for c in cov))
+            fileout.write('\n' + scaffold + '\t' + '\t'.join(str(c) for c in cov))
 
 
 def main():
