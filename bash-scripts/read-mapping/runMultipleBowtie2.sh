@@ -80,7 +80,9 @@ do
                 $command | $command_view > ${bam_file} 2>> ./stderr.txt
                 printf "Done!! Sorting bam file..\n\n"
                 $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt\n\n
-
+		printf "Done!! Indexing sorted bam file..\n\n"
+		samtools index ${bam_file/.bam/_sorted.bam}
+		rm $bam_file
 	elif [ ! -f "$filename" -a "$matepairFlag" = "false"  ]; then
 		echo "$filename" is not a file
 		continue
@@ -110,6 +112,9 @@ do
                 $command | $command_view > ${bam_file} 2>> ./stderr.txt
                 printf "Done!! Sorting bam file..\n\n"
 		$command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt\n\n
+                printf "Done!! Indexing sorted bam file..\n\n"
+                samtools index ${bam_file/.bam/_sorted.bam}
+                rm $bam_file
 
 	elif [ ! -f "$filename" -a "$matepairFlag" = "true" ]; then
 		echo "$filename" is not a file

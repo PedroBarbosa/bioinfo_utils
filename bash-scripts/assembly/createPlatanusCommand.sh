@@ -270,7 +270,8 @@ function generate_final_file_scaffolds(){
 #########################################################
 #################General variables#######################
 #########################################################
-exec="/opt/tools/platanus-v1.2.4/platanus"
+#exec="/opt/tools/platanus-v1.2.4/platanus"
+exec="/opt/tools/platanus-v1.2.4/platanus_v1.2.4_igonore_quality"
 #check if required arguments are there and display usage message
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
 	printf "\nPlease provide the arguments required for the script.\n\n"
