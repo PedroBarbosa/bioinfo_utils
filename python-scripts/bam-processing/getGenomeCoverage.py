@@ -353,9 +353,9 @@ def generateStatsAndCoverageFiles(std_out,bedfile,i):
 
 
 #    logging.info("Genome size\t%i" % genome_size)
-    logging.info("Genome fraction with coverage 0\t%s" % genomeCov0)
-    for k,v in iter(dictWholeGenomeCovLarger0.items()):
-        print("Genome fraction with coverage %s\t%s" % (k,v))
+#    logging.info("Genome fraction with coverage 0\t%s" % genomeCov0)
+#    for k,v in iter(dictWholeGenomeCovLarger0.items()):
+#        print("Genome fraction with coverage %s\t%s" % (k,v))
 
     writeDict(dictGenomeCoverageBedtools, bedfile,i)
 #    for k,v in iter(dictGenomeCoverageBedtools.items()):
