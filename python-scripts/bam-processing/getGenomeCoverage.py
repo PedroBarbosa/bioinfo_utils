@@ -251,7 +251,7 @@ def genomeCoverageFromBed(bedfile,genome):
         genome_size = sum(int(r[1]) for r in csv.reader(fin, delimiter = "\t"))
     fin.close()
 
-    for i in range(0,2):
+    for i in range(0,3):
         if i == 0:
             subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome])
             stdout = subTotal.decode("utf-8").split("\n")
@@ -376,7 +376,8 @@ def writeDict(dict,bedfile, i):
 
     with open(out_file, 'w+') as fileout:
         fileout.write('\t'.join(['#scaffold_id','#scaffold_length','#fraction 0 cov', '#fraction > 0 cov', '#fraction 5 > cov < 10', '#fraction 10 > cov > 50', '#fraction > 50 cov']))
-        for scaffold, cov in iter(dict.items()):
+
+        for scaffold, cov in sorted(dict.items(), key=lambda x: x[1][2], reverse=True):
             fileout.write('\n' + scaffold + '\t' + '\t'.join(str(c) for c in cov))
 
 
@@ -430,3 +431,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
