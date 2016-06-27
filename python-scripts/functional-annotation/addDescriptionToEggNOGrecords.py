@@ -29,32 +29,48 @@ def getAnnotationFromAPI(listNOGs,output):
     #    fasta, raw_alg, trimmed_alg, tree, go_terms, domains
     #[nogname] A valid EggNOG group name (i.e. ENOG410ZSWV or COG0575)
 
+    lessFreqGO = 0
     lessFreqDom = 0
     out_dict = defaultdict()
 
-
+    f = urllib.request.urlopen('http://eggnogapi.embl.de/nog_data/json/domains,go_terms/ENOG4100E81').read()
+    data = json.loads(f.decode('utf-8'))
+    print(data)
     i=1
     for nog in listNOGs:
         logging.info("Processing %s NOG.. %i" % (nog,i))
         i+=1
         f = urllib.request.urlopen('http://eggnogapi.embl.de/nog_data/json/domains,go_terms/'+nog).read()
         data = json.loads(f.decode('utf-8'))
-       # print(data)
-       # print("\n\n\n\n")
+
         for k,subdict in iter(data.items()):
             out_dict[nog] = []
             if k == "go_terms":
-
+                index = 0
+                print(subdict)
                 for go_category, gosListPerCategory in iter(subdict.items()):
+
+                    if go_category == 'Molecular Funcion':
+                        index = 0
+                    elif go_category == 'Biological Process':
+                        index = 1
+                    elif go_category == 'Cellular Component':
+                        index = 2
+
                     go_value = ""
                     for go in gosListPerCategory:
                         if float(go[4]) > 90: #if frequency of this GO in the sequences used to produced this NOG is higher than 90%
                             go_value = go_value + go[0] + "[" + go[1] + "]" + ";"
+                        else:
+                            lessFreqGO += 1
                     if go_value == "":
                         out_dict[nog].append("-")
                     else:
                         out_dict[nog].append(go_value)
-                        print(out_dict[nog][2])
+
+                for k,v in iter(out_dict.items()):
+                    print(k,v)
+
 
                  #print(k,subdict)
                  #print("\n\n\n")
