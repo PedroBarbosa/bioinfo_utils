@@ -23,6 +23,7 @@ def processFeaturesIDs(listDiffExpressed,onlyIds ):
                     exit(1)
                 else:
                     dict[line.rstrip()] = []
+                    total_feature += 1
         else:
             for line in file:
                 line.rstrip()
