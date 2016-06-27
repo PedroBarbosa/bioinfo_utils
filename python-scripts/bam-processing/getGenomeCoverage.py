@@ -381,6 +381,9 @@ def writeDict(dict,bedfile, i):
             fileout.write('\n' + scaffold + '\t' + '\t'.join(str(c) for c in cov))
 
 
+class AlignmentsAnalysis(object):
+    def __init__(self, bedFile):
+        self.bedfile = bedFile
 def main():
 
     parser = argparse.ArgumentParser(description='Script to analyse the genome coverage and orientation of the scaffolds. Requires samtools and bedtools to be on the system path. BAM files must be sorted.')
