@@ -64,12 +64,13 @@ do
 		let "numb_samples += 1"
 		printf "Running bwa mem aligner for library ${bam_basename} [sample ${numb_samples}] ..\n" 
 		bam_file="${bam_basename}.bam"
-		command="$base_command $pair1 $pair2 -R '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
+		command="$base_command -R @RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general $pair1 $pair2"
 		command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 
-                printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
-                $command | $command_view > ${bam_file} 2>> ./stderr.txt
+                #printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
+                echo "$command"
+		$command | $command_view > ${bam_file} 2>> ./stderr.txt
                 printf "\nDone!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
                 $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
 		
@@ -94,11 +95,12 @@ do
 		printf "Running bwa mem aligner for library ${bam_basename} [sample ${numb_samples}] ..\n"
 		
 	        bam_file="${bam_basename}.bam"
-                command="$base_command $pair1 $pair2 -R '@RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general'"
+                command="$base_command -R @RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general $pair1 $pair2"
                 command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
 
-                printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
+                #printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
+		echo "$command"
                 $command | $command_view > ${bam_file} 2>> ./stderr.txt
                 printf "\nDone!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
 		$command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
