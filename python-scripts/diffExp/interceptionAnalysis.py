@@ -252,7 +252,7 @@ def processFromBlastTab(dict_final, annotationFile):
     ncbi_nr = False
     database_id,description = "",""
     print(annotationFile)
-    with open(annotationFile[0], 'r') as annotFile:
+    with open(annotationFile, 'r') as annotFile:
         for line in annotFile:
             line.rstrip()
             if not line.startswith('#') :
