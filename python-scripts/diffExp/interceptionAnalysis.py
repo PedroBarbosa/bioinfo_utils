@@ -145,7 +145,7 @@ def writeOutputWithLogFC(mydict,features_per_comparison):#,outputFile):
 
 
     final_dict['#FeatureID'] = ['Comparisons with diffExp', string_columns ]
-    for featureID, comparisons in iter(mydict.tems()):
+    for featureID, comparisons in iter(mydict.items()):
 
         for comparison in features_per_comparison.keys():
             l = [item for item in comparisons if comparison in item]
