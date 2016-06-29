@@ -62,11 +62,12 @@ def processTxtTab(inputFiles):
             comparison = os.path.splitext(os.path.basename(filename))[0]
             numb_features = 0
             for line in file:
+                line.replace(" ","\t")
                 if not line.startswith('#'):
                     line = line.rstrip()
                     numb_features += 1
                     featureID = line.split('\t')[0]
-
+                    print(featureID)
                     if featureID not in mydict:
                         overlapping_comparisons_perFeature = []
                         overlapping_comparisons_perFeature.append(comparison)
