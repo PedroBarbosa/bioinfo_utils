@@ -329,7 +329,7 @@ def main():
         mydict,diffexpressed_features_per_comparison = processWithlogFC(args.input_files)
         final_dict, ocurrencesDict = writeOutputWithLogFC(mydict,diffexpressed_features_per_comparison)#, args.output)
         if args.annotationFile:
-            printFinalWithAnnotation(final_dict,args.annotationFile[0])
+            printFinalWithAnnotation(final_dict,args.annotationFile)
         else:
             printFinal(final_dict)
 
@@ -337,7 +337,7 @@ def main():
         mydict,diffexpressed_features_per_comparison = processTxtTab(args.input_files)
         final_dict, ocurrencesDict = writeOutput(mydict,diffexpressed_features_per_comparison)#, args.output)
         if args.annotationFile:
-            printFinalWithAnnotation(final_dict,args.annotationFile[0])
+            printFinalWithAnnotation(final_dict,args.annotationFile)
         else:
             printFinal(final_dict)
 
