@@ -68,7 +68,6 @@ def processTxtTab(inputFiles):
                     line = line.rstrip()
                     numb_features += 1
                     featureID = line.split('\t')[0]
-                    print(featureID)
                     if featureID not in mydict:
                         overlapping_comparisons_perFeature = []
                         overlapping_comparisons_perFeature.append(comparison)
@@ -127,7 +126,7 @@ def writeOutputWithLogFC(mydict,features_per_comparison):#,outputFile):
 #    with open(outputFile, "w") as file:
 
     print('#Comparison' + '\t' + '#Number of differential features')
-    for comparison,number_features in iter(features_per_comparison.tems()):
+    for comparison,number_features in iter(features_per_comparison.items()):
         print(comparison + '\t' + str(number_features))
     print('\n')
     print('#Total number of unique features with differential expression in any comparison' + '\t' + str(len(mydict)))
