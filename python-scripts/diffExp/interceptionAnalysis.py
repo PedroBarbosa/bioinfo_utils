@@ -252,6 +252,7 @@ def processFromBlastTab(dict_final, annotationFile):
     swissprot = False
     ncbi_nr = False
     database_id,description = "",""
+    print(annotationFile)
     with open(annotationFile[0], 'r') as annotFile:
         for line in annotFile:
             line.rstrip()
