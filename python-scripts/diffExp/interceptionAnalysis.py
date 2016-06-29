@@ -18,6 +18,7 @@ def processWithlogFC(inputFiles):
             comparison = os.path.splitext(os.path.basename(filename))[0]
             numb_features = 0
             for line in file:
+                line.replace(" ","\t")
                 if not line.startswith('#'):
                     line = line.rstrip()
                     numb_features += 1
@@ -251,7 +252,7 @@ def processFromBlastTab(dict_final, annotationFile):
     swissprot = False
     ncbi_nr = False
     database_id,description = "",""
-    with open(annotationFile, 'r') as annotFile:
+    with open(annotationFile[0], 'r') as annotFile:
         for line in annotFile:
             line.rstrip()
             if not line.startswith('#') :
