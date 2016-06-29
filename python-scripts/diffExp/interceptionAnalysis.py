@@ -249,7 +249,7 @@ def processFromBlastTab(dict_final, annotationFile):
     annotated_features = 0
     previous_query = ""
     swissprot = False
-    ncbi_nr = False
+    ncbi_nr = True
     database_id,description = "",""
     print(annotationFile)
     with open(annotationFile, 'r') as annotFile:
@@ -280,11 +280,14 @@ def processFromBlastTab(dict_final, annotationFile):
                         new_list.extend([database_id, description])
                         dict_final[query] = new_list
                         previous_query = query
+          #      else:
+          #          logging.info("%s ID present in annotation file is not concordant with any differential expressed feature.")
             elif 'nr' in line:
                 ncbi_nr = True
 
             elif 'swissprot' in line:
                 swissprot = True
+                ncbi_nr = False
 
     if annotated_features == 0:
         logging.error("No features found in the annotation file are present in the list of differential expressed genes. Please check if the feature IDs are concordant.")
