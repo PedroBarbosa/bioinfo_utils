@@ -217,9 +217,9 @@ def writeOutput(mydict,features_per_comparison):#,outputFile):
 #    file.close()
     return final_dict, ocurrences_dict
 
-def printFinalWithAnnotation(final_dict,annotationFile):
+def printFinalWithAnnotation(final_dict,annotationFile, softwareUsed):
 
-    output_dict = processFromBlastTab(final_dict, annotationFile)
+    output_dict = processFromBlastTab(final_dict, annotationFile, softwareUsed)
 
     print('\n\n#Table displaying the comparisons in which the features have differential expression.')
     header = output_dict['#FeatureID']
@@ -245,7 +245,7 @@ def printFinal(final_dict):
 
 
 
-def processFromBlastTab(dict_final, annotationFile):
+def processFromBlastTab(dict_final, annotationFile, softwareUsed):
     annotated_features = 0
     previous_query = ""
     swissprot = False
@@ -263,18 +263,33 @@ def processFromBlastTab(dict_final, annotationFile):
                         previous_query = query
                     else:
                         annotated_features += 1
-                        hit = line.split('\t')[1]
                         if swissprot:
-                            database_id = hit.split("|")[1]
-                            description = hit.split("|")[2]
-                        elif ncbi_nr:
-                            protein_id = hit.split("|")[1]
-                            refseq_id = hit.split("|")[3]
-                            database_id = "NCBI_id:" + protein_id + ",RefSeq_id:" + refseq_id
-                            description = hit.split("|")[4]
-                            description = description.split("]")[0]
-                            description = description + "]"
 
+                            if softwareUsed == "rapsearch2":
+                                hit = line.split('\t')[1]
+                                database_id = hit.split("|")[1]
+                                description = hit.split("|")[2]
+                            elif softwareUsed == 'blastp':
+                                database_id = line.split("\t")[1].split("|")[1]
+                                description = line.split("\t")[2]
+
+                        elif ncbi_nr:
+                                if softwareUsed == "rapsearch2":
+                                    hit = line.split('\t')[1]
+                                    protein_id = hit.split("|")[1]
+                                    refseq_id = hit.split("|")[3]
+                                    database_id = "NCBI_id:" + protein_id + ",RefSeq_id:" + refseq_id
+                                    description = hit.split("|")[4]
+                                    description = description.split("]")[0]
+                                    description = description + "]"
+
+                                elif softwareUsed == "blastp":
+
+                                    protein_id = line.split("\t")[1].split("|")[1]
+                                    refseq_id = line.split("\t")[1].split("|")[3]
+                                    database_id = "NCBI_id:" + protein_id + ",RefSeq_id:" + refseq_id
+                                    description = line.split("\t")[2].split("]")[0]
+                                    description = description + "]"
                         #update dict
                         new_list = dict_final[query]
                         new_list.extend([database_id, description])
@@ -309,7 +324,8 @@ def main():
 #    parser.add_argument('-o', "--output", required =True, help='File to write the output.')
     parser.add_argument('-l', '--list', action='store_true', help='Process feature identifiers (one per line) rather than txt tab separated output files.')
     parser.add_argument('-a', '--all', action='store_true', help='Include log fold changes in the ouptut. Tab separated files are required. By default (edgeR), logFC values appear in the second column.')
-    parser.add_argument('-f', dest='annotationFile', help='Add annotations to the output. Please add a file with the annotations in the blastTAB format.')
+    parser.add_argument('-f', dest='annotationFile', help='Add annotations to the output. Please add a file with the annotations in the blastTAB format. If blastp used, it will be assumed that NCBI-nr was the database searched. Otherwise, database will be accessed by the commented lines that rapsearch2 outputs.')
+    parser.add_argument('-s', dest ='softwareUsed', type=str, choices=['rapsearch2', 'blastp'],help='Tool used to run similarity searches. Available choices [rapsearch2, blastp]. When blastp used, it is assumed that the description comes in the 3rd columns of the annotation file.')
     args = parser.parse_args()
 
 
@@ -323,6 +339,12 @@ def main():
     elif args.list and args.all:
         logging.fatal('Error: %s\n' % 'If --all provided, txt tab separated files are required. Please remove --list parameter.')
 
+    elif args.annotationFile and not args.softwareUsed:
+        logging.fatal('Error: %s\n' % 'If --f provided, -s is also needed. Please set the -s argument.')
+
+    elif args.softwareUsed and not args.annotationFile:
+        logging.fatal('Error: %s\n' % '-s argument is only required when -f is set. Please either remove -s parameter or add an annotation file with the -f argument.')
+
     elif args.list:
         mydict,diffexpressed_features_per_comparison=processFromIDs(args.input_files)
         writeOutput(mydict,diffexpressed_features_per_comparison)#, args.output)
@@ -332,7 +354,7 @@ def main():
         mydict,diffexpressed_features_per_comparison = processWithlogFC(args.input_files)
         final_dict, ocurrencesDict = writeOutputWithLogFC(mydict,diffexpressed_features_per_comparison)#, args.output)
         if args.annotationFile:
-            printFinalWithAnnotation(final_dict,args.annotationFile)
+            printFinalWithAnnotation(final_dict,args.annotationFile, args.softwareUsed)
         else:
             printFinal(final_dict)
 
@@ -340,7 +362,7 @@ def main():
         mydict,diffexpressed_features_per_comparison = processTxtTab(args.input_files)
         final_dict, ocurrencesDict = writeOutput(mydict,diffexpressed_features_per_comparison)#, args.output)
         if args.annotationFile:
-            printFinalWithAnnotation(final_dict,args.annotationFile)
+            printFinalWithAnnotation(final_dict,args.annotationFile, args.softwareUsed)
         else:
             printFinal(final_dict)
 
