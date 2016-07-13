@@ -4,7 +4,10 @@ import argparse
 import sys
 import os
 import csv
-import collections
+from itertools import combinations
+from collections import defaultdict
+import subprocess
+
 def processFromBlastTab(inputFiles,bestHit):
     mydict_unique = {} #dictionary of all unique IDs obtained annotation file
     mydict_repeated = {} #dictionary of the repeated IDs per annotation file
@@ -13,15 +16,18 @@ def processFromBlastTab(inputFiles,bestHit):
         list_name_repeated = filename + "_repeated"
         mydict_unique[list_name] = []
         mydict_repeated[list_name_repeated] = []
+        annotated_reads = 0
 
         with open(filename) as file:
+
             previous_query = ""
-            query = ""
-            annotated_reads = 0
             print("Processing file " + filename + "..")
             if bestHit:
 
                 for line in file:
+                    if len(line.split()) == 1:
+                        print("%s file represents gene identifiers, please set '-g' argument accordingly. Exiting.." % filename)
+                        exit(2)
                     if not line.startswith('#') and line.rstrip():
 
                         query = line.split()[0]
@@ -48,6 +54,10 @@ def processFromBlastTab(inputFiles,bestHit):
 
             else:
                 for line in file:
+                    if len(line.split()) == 1:
+                        print("%s file represents gene identifiers, please set '-g' argument accordingly. Exiting.." % filename)
+                        exit(2)
+
                     if not line.startswith('#'):
 
                         query = line.split()[0]
@@ -71,86 +81,61 @@ def processFromBlastTab(inputFiles,bestHit):
 
 
 def processFromHmmer(inputFiles,bestHit,eggNOG):
-    mydict_unique = {} #dictionary of all unique IDs obtained annotation file
-    mydict_repeated = {} #dictionary of the repeated IDs per annotation file
+    mydict_unique = defaultdict(list) #dictionary of all unique IDs obtained annotation file
+    mydict_repeated = defaultdict(list) #dictionary of the repeated IDs per annotation file
     for filename in inputFiles:
-
-
         list_name = filename
         list_name_repeated = filename + "_repeated"
         mydict_unique[list_name] = []
         mydict_repeated[list_name_repeated] = []
-
+        annotated_reads = 0
         with open(filename) as file:
             previous_query = ""
-            query = ""
-            annotated_reads = 0
             print("Processing file " + filename + "..")
-            if bestHit:
 
+            if bestHit:
                 for line in file:
                     if not line.startswith('#') and line.rstrip():
-
                         query = line.split()[2]
-                        if query == previous_query:
-                            previous_query = query
+                        if query != previous_query:
 
-                        else:
                             annotated_reads += 1
-
                             if eggNOG:
                                 hit = line.split("\t")[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
-
                             else:
-
                                 hit = line.split()[0]
 
                             values = mydict_unique[list_name]
-                            if hit not in values:
-                                values.append(hit)
-                                mydict_unique[list_name] = values
-                            else:
-                                values_repeated = mydict_repeated[list_name_repeated]
-                                values_repeated.append(hit)
-                                mydict_repeated[list_name_repeated] = values_repeated
-
+                            mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name_repeated].append(hit)
                         previous_query = query
 
 
             else:
                 for line in file:
                     if not line.startswith('#'):
-                            query = line.split()[2]
-                            if query != previous_query:
-                                annotated_reads += 1
+                        query = line.split()[2]
+                        if query != previous_query:
+                            annotated_reads += 1
 
-                            if eggNOG:
-                                hit = line.split()[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
-                            else:
+                        if eggNOG:
+                            hit = line.split()[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
+                        else:
+                            hit = line.split()[0]
 
-                                hit = line.split()[0]
-
-                            values = mydict_unique[list_name]
-                            if hit not in values:
-                                values.append(hit)
-                                mydict_unique[list_name] = values
-                            else:
-                                values_repeated = mydict_repeated[list_name_repeated]
-                                values_repeated.append(hit)
-                                mydict_repeated[list_name_repeated] = values_repeated
-
-                            previous_query = query
+                        values = mydict_unique[list_name]
+                        mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name_repeated].append(hit)
+                        previous_query = query
 
 
         print("%s annotated genes/reads in file %s!" % (annotated_reads,filename))
     return annotated_reads,mydict_unique,mydict_repeated
 
 
-def processFromIDs(inputFiles,bestHit):
-    #createLists
-    mydict_unique = {}
-    mydict_repeated = {}
-    list_all = []
+def processFromIDs(inputFiles):
+    #createDicts
+    mydict_unique = defaultdict(list)
+    mydict_repeated = defaultdict(list)
+
     for filename in inputFiles:
 
         with open(filename) as file:
@@ -158,73 +143,114 @@ def processFromIDs(inputFiles,bestHit):
             list_name_repeated = filename + "_repeated"
             mydict_unique[list_name] = []
             mydict_repeated[list_name_repeated] = []
-            for GI in file:
+            for gi in file:
                 values = mydict_unique[list_name]
+                GI = gi.rstrip()
                 if GI not in values:
-                    values.append(GI)
-                    mydict_unique[list_name] = values
+                    mydict_unique[list_name].append(GI)
                 else:
-                    #update retepated IDs dict
-                    values_repeated = mydict_repeated[list_name_repeated]
-                    values_repeated.append(GI)
-                    mydict_repeated[list_name_repeated] = values_repeated
+                    mydict_repeated[list_name_repeated].append(GI)
 
     return mydict_unique,mydict_repeated
 
-def intersection(dict_uniq,dict_repeat):
+def intersection(dict_uniq,dict_repeat,outputBasename):
     #Get interception list
     print("\nCalculating interception..")
     print("Generating stats..\n")
-    interception = dict_uniq.itervalues().next()
-    previous_k = dict_uniq.iteritems().next()[0].split("/")[-1]
+
+    interception = set()
+
+    for v in iter(dict_uniq.values()):
+        interception.update(v)
+
     max_possible = 100000000000
-    for k,v in dict_uniq.iteritems():
-        interception = list(set(interception) & set(v))
+    smallest_set = ""
+    list_of_sets, list_of_k = [],[]
+    i = 0
+    total_ids = len(interception)
+    for k,v in iter(dict_uniq.items()):
+
+        interception = interception & set(v)
         if len(v) < max_possible:
             max_possible = len(v)
-        #print("Annotations shared between %s and %s:\t%s" %  (previous_k, k.split("/")[-1],len(paired_interception)))
-        #print(k.split("/")[-1] + "\t" + str(len(interception)))
-    print ("Maximum number of possible overlaps (Size of the smallest set of IDs in all files):\t%s" % max_possible)
-    print ("Number of annotations shared:\t%s (%s)" % (len(interception),round(float(len(interception)) / float(max_possible) * 100,2)))
+            smallest_set = k.split("/")[-1]
+
+        list_of_k.append(k)
+        list_of_sets.append((i,set(v)))
+        i += 1
+
+    print("Total number of existing IDs across all annotations:\t%s" % total_ids)
+    print ("Maximum number of possible overlaps (Size of the smallest set of IDs in all files):\t%s (%s)" % (max_possible,smallest_set))
+    print ("Number of annotations shared among all:\t%s (%s)" % (len(interception),round(float(len(interception)) / float(max_possible) * 100,2)) + '\n')
+
     #Percentage
-    for k,v in dict_uniq.iteritems():
+    for k,v in iter(dict_uniq.items()):
         percentage = round(float(len(interception)) / float((len(v))) * 100,2)
         print("Percentage of %s shared across all annotations:\t%s" % (k.split("/")[-1], percentage))
 
+    #Pairwise comparison
+    print("\n")
+    for i in combinations(list_of_sets, 2):
+        inter = i[0][1] & i[1][1]
+        print("Number of annotations shared between %s and %s:\t%s" % (list_of_k[i[0][0]].split("/")[-1], list_of_k[i[1][0]].split("/")[-1], str(len(inter))))
 
-    
+
     ##Unique analysis
-    newDict={}
+    newDict=defaultdict(set)
     print("\n")
     print("#################Single copy genes analysis ################\n#########################################################")
-    for k,v in dict_uniq.iteritems():
+    for k,v in iter(dict_uniq.items()):
+        [newDict[id].add(k.split("/")[-1]) for id in v]
 
-        for id in v:
 
-            if id in newDict.keys():
-                newDict[id].add(k.split("/")[-1])
-            else:
-                newDict[id] = set()
-                newDict[id].add(k.split("/")[-1])
 
-    outputFile = "uniqueIDs_output.txt"
-    print("Writing output file to %s directory..\n\n" % os.path.abspath(outputFile))
-    with open(outputFile, "w") as csvfile:
+    print("Writing unique IDs output file to %s directory.." % os.path.basename(outputBasename))
+    with open(outputBasename + "_uniqueIDs.txt", "w") as csvfile:
         writer = csv.writer(csvfile,dialect=csv.excel_tab)
         writer.writerow(("#List of unique IDs to each annotation",''))
-        for id in sorted(newDict,key=newDict.get, reverse=True):
-            print(id,newDict[id])
-            if len(newDict[id]) == 1: #check if only one annotation has this id
-                writer.writerow((''.join(newDict[id]),id))
+
+        dict_IDs_1annotation = defaultdict(list)
+        for id,samples in iter(newDict.items()):
+            if len(samples) == 1: #check if only one annotation has this id
+                sample = next(iter(samples))
+                dict_IDs_1annotation[sample].append(id)
+
+        for k in sorted(dict_IDs_1annotation, key=lambda k: len(dict_IDs_1annotation[k]), reverse=True):
+            [writer.writerow((k,id)) for id in dict_IDs_1annotation[k]]
     csvfile.close()
 
 
+
+    print("Writing intersections to %s directory..\n\n" % os.path.basename(outputBasename))
+    with open(outputBasename + "_interseptionTable.txt", "w") as csvfile:
+        writer = csv.writer(csvfile,dialect=csv.excel_tab)
+        i = 0
+        listKeys = []
+        dict_withIndex = {}
+        for k in dict_uniq.keys():
+            key = k.split("/")[-1]
+            listKeys.append(key)
+            dict_withIndex[key] = i
+            i += 1
+
+
+        writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys)))
+        for k in sorted(newDict, key=lambda k: len(newDict[k]), reverse=True):
+            final_list = ['no'] * len(listKeys)
+            for annotations in newDict[k]:
+                index = dict_withIndex[annotations]
+                final_list[index] = 'yes'
+            writer.writerow((k,'\t'.join(final_list)))
+
+        #removeChar(outputBasename + "_interseptionTable.txt")
+
+    csvfile.close()
 
     #Repeated genes analysis
     newDict_rep = {}
     print("\n")
     print("####################Repeated genes analysis ################\n################################################################")
-    for k,v in dict_repeat.iteritems():
+    for k,v in iter(dict_repeat.items()):
         print("Number of genes with more than one copy in the genome for %s sample:\t%s" % (k.split("/")[-1].split("_")[:-1],len(set(v))))
         for repeated in v:
 
@@ -249,10 +275,14 @@ def intersection(dict_uniq,dict_repeat):
 
 
 
+#def removeChar(filename):
+#    print(filename)
+#    subprocess.call(['sed', '-i', 's/\"//g', filename])
 
 parser = argparse.ArgumentParser(description='Script to check the interception of the genes present in different genome annotations (default blastTAB format).')
 parser.add_argument(dest='input_files', metavar='annotated_files', nargs='+', help='Annotation files to be analyzed (minimum 2).')
-parser.add_argument('-g', '--GIlist', action='store_true', help='Process gene identifiers (one per line) rather than blast tab output files.')
+parser.add_argument('-o', metavar='outputBasename', required = True, help='Output basename for which the output files will be written.')
+parser.add_argument('-g', '--GIlist', action='store_true', help='Process gene identifiers (one per line) rather than blast tab output files. No bestHit approach will be taken into consideration.')
 parser.add_argument('-d', '--hmmerFile', action='store_true', help='Process hmmscan output. The files should be on the parseable table output format (tblout or domtblout or pfamtblout arguments on hmmscan)')
 parser.add_argument('-e', '--eggNOG', action='store_true', help='Set this argument if annotations were done against new eggNOG 4.1 version (implies -d).')
 parser.add_argument('-b', '--bestHitOnly', action='store_true', help='Set this argument if you only want to process the best hit per gene.')
@@ -273,14 +303,17 @@ if __name__ == "__main__":
         sys.stderr.write('Error: %s\n' % 'Please decide if input files are a ID list or a hmmer output file, not both.')
         sys.exit(2)
 
+    elif args.GIlist and args.bestHitOnly:
+        sys.stderr.write('Error: %s\n' % 'When gene identifiers files are provided (-g argument), no hits are being analysed. Please remove -b argument.')
+        sys.exit(2)
+
     elif args.GIlist:
-        dict_unique,dict_repeated=processFromIDs(args.input_files, args.bestHitOnly)
-        intersection(dict_unique,dict_repeated)
+        dict_unique,dict_repeated=processFromIDs(args.input_files)
+        intersection(dict_unique,dict_repeated,args.o)
 
     elif args.hmmerFile:
-
         annotated_genes,dict_unique,dict_repeated = processFromHmmer(args.input_files,args.bestHitOnly,args.eggNOG)
-        intersection(dict_unique,dict_repeated)
+        intersection(dict_unique,dict_repeated,args.o)
 
     elif args.eggNOG:
         sys.stderr.write('Error: %s\n' % 'eggNOG v4.1 annotations are only available through an hmmscan search. Please set -d argument.')
