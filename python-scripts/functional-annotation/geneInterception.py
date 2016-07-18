@@ -153,8 +153,9 @@ def processFromIDs(inputFiles):
 
     return mydict_unique,mydict_repeated
 
-def intersection(dict_uniq,dict_repeat,outputBasename):
+def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
     #Get interception list
+    dic_annDescription = {}
     print("\nCalculating interception..")
     print("Generating stats..\n")
 
@@ -162,6 +163,20 @@ def intersection(dict_uniq,dict_repeat,outputBasename):
 
     for v in iter(dict_uniq.values()):
         interception.update(v)
+
+    if descriptionFile:
+        with open(descriptionFile, 'r') as annotFile:
+
+            for line in annotFile:
+                if len(line.split("\t")) == 2:
+                    id = line.split("\t")[0].rstrip()
+                    if id in interception:
+                        dic_annDescription[id] = line.split("\t")[1].rstrip()
+                else:
+                    print("Annotations description file is not tab separated or doesn't have 2 columns. Please check the format of the file or just remove '-a' argument. Exiting..")
+                    exit(2)
+            if len(dic_annDescription) == 0:
+                print("No gene ID was concordant between the annotations files and the description (-a) file. Descriptions will not be added.")
 
     max_possible = 100000000000
     smallest_set = ""
@@ -215,6 +230,7 @@ def intersection(dict_uniq,dict_repeat,outputBasename):
                 sample = next(iter(samples))
                 dict_IDs_1annotation[sample].append(id)
 
+
         for k in sorted(dict_IDs_1annotation, key=lambda k: len(dict_IDs_1annotation[k]), reverse=True):
             [writer.writerow((k,id)) for id in dict_IDs_1annotation[k]]
     csvfile.close()
@@ -233,16 +249,24 @@ def intersection(dict_uniq,dict_repeat,outputBasename):
             dict_withIndex[key] = i
             i += 1
 
+        if len(dic_annDescription) > 0:
+            writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys), "Feature description"))
+        else:
+            writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys)))
 
-        writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys)))
         for k in sorted(newDict, key=lambda k: len(newDict[k]), reverse=True):
+
             final_list = ['no'] * len(listKeys)
             for annotations in newDict[k]:
                 index = dict_withIndex[annotations]
                 final_list[index] = 'yes'
-            writer.writerow((k,'\t'.join(final_list)))
 
-        #removeChar(outputBasename + "_interseptionTable.txt")
+            if len(dict_IDs_1annotation) > 0 and k in dic_annDescription.keys():
+                writer.writerow((k,'\t'.join(final_list),dic_annDescription[k]))
+            else:
+                writer.writerow((k,'\t'.join(final_list)))
+
+        removeChar(outputBasename + "_interseptionTable.txt")
 
     csvfile.close()
 
@@ -275,9 +299,9 @@ def intersection(dict_uniq,dict_repeat,outputBasename):
 
 
 
-#def removeChar(filename):
-#    print(filename)
-#    subprocess.call(['sed', '-i', 's/\"//g', filename])
+def removeChar(filename):
+    print(filename)
+    subprocess.call(['sed', '-i', 's/\"//g', filename])
 
 parser = argparse.ArgumentParser(description='Script to check the interception of the genes present in different genome annotations (default blastTAB format).')
 parser.add_argument(dest='input_files', metavar='annotated_files', nargs='+', help='Annotation files to be analyzed (minimum 2).')
@@ -286,6 +310,7 @@ parser.add_argument('-g', '--GIlist', action='store_true', help='Process gene id
 parser.add_argument('-d', '--hmmerFile', action='store_true', help='Process hmmscan output. The files should be on the parseable table output format (tblout or domtblout or pfamtblout arguments on hmmscan)')
 parser.add_argument('-e', '--eggNOG', action='store_true', help='Set this argument if annotations were done against new eggNOG 4.1 version (implies -d).')
 parser.add_argument('-b', '--bestHitOnly', action='store_true', help='Set this argument if you only want to process the best hit per gene.')
+parser.add_argument('-a', metavar='addDescription', help='Two-column tab separated file giving the annotation description for each ID. ID must come in 1st col, descritption in 2nd.')
 args = parser.parse_args()
 
 
@@ -309,11 +334,11 @@ if __name__ == "__main__":
 
     elif args.GIlist:
         dict_unique,dict_repeated=processFromIDs(args.input_files)
-        intersection(dict_unique,dict_repeated,args.o)
+        intersection(dict_unique,dict_repeated,args.o, args.a)
 
     elif args.hmmerFile:
         annotated_genes,dict_unique,dict_repeated = processFromHmmer(args.input_files,args.bestHitOnly,args.eggNOG)
-        intersection(dict_unique,dict_repeated,args.o)
+        intersection(dict_unique,dict_repeated,args.o,args.a)
 
     elif args.eggNOG:
         sys.stderr.write('Error: %s\n' % 'eggNOG v4.1 annotations are only available through an hmmscan search. Please set -d argument.')
@@ -321,4 +346,4 @@ if __name__ == "__main__":
 
     else:
         annotated_genes,dict_unique,dict_repeated = processFromBlastTab(args.input_files,args.bestHitOnly)
-        intersection(dict_unique,dict_repeated)
+        intersection(dict_unique,dict_repeated,args.a)
