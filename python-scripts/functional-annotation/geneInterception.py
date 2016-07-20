@@ -7,15 +7,18 @@ import csv
 from itertools import combinations
 from collections import defaultdict
 import subprocess
+import functools
+import operator
+from collections import OrderedDict
+from operator import itemgetter
 
 def processFromBlastTab(inputFiles,bestHit):
     mydict_unique = {} #dictionary of all unique IDs obtained annotation file
     mydict_repeated = {} #dictionary of the repeated IDs per annotation file
     for filename in inputFiles:
         list_name = filename
-        list_name_repeated = filename + "_repeated"
         mydict_unique[list_name] = []
-        mydict_repeated[list_name_repeated] = []
+        mydict_repeated[list_name] = []
         annotated_reads = 0
 
         with open(filename) as file:
@@ -25,7 +28,7 @@ def processFromBlastTab(inputFiles,bestHit):
             if bestHit:
 
                 for line in file:
-                    if len(line.split()) == 1:
+                    if not line.startswith('#') and len(line.split()) == 1:
                         print("%s file represents gene identifiers, please set '-g' argument accordingly. Exiting.." % filename)
                         exit(2)
                     if not line.startswith('#') and line.rstrip():
@@ -45,16 +48,16 @@ def processFromBlastTab(inputFiles,bestHit):
                                 values.append(hit)
                                 mydict_unique[list_name] = values
                             else:
-                                values_repeated = mydict_repeated[list_name_repeated]
+                                values_repeated = mydict_repeated[list_name]
                                 values_repeated.append(hit)
-                                mydict_repeated[list_name_repeated] = values_repeated
+                                mydict_repeated[list_name] = values_repeated
 
                         previous_query = query
 
 
             else:
                 for line in file:
-                    if len(line.split()) == 1:
+                    if not line.startswith("#") and len(line.split()) == 1:
                         print("%s file represents gene identifiers, please set '-g' argument accordingly. Exiting.." % filename)
                         exit(2)
 
@@ -70,9 +73,9 @@ def processFromBlastTab(inputFiles,bestHit):
                             values.append(hit)
                             mydict_unique[list_name] = values
                         else:
-                            values_repeated = mydict_repeated[list_name_repeated]
+                            values_repeated = mydict_repeated[list_name]
                             values_repeated.append(hit)
-                            mydict_repeated[list_name_repeated] = values_repeated
+                            mydict_repeated[list_name] = values_repeated
 
                         previous_query = query
 
@@ -85,9 +88,8 @@ def processFromHmmer(inputFiles,bestHit,eggNOG):
     mydict_repeated = defaultdict(list) #dictionary of the repeated IDs per annotation file
     for filename in inputFiles:
         list_name = filename
-        list_name_repeated = filename + "_repeated"
         mydict_unique[list_name] = []
-        mydict_repeated[list_name_repeated] = []
+        mydict_repeated[list_name] = []
         annotated_reads = 0
         with open(filename) as file:
             previous_query = ""
@@ -106,7 +108,7 @@ def processFromHmmer(inputFiles,bestHit,eggNOG):
                                 hit = line.split()[0]
 
                             values = mydict_unique[list_name]
-                            mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name_repeated].append(hit)
+                            mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name].append(hit)
                         previous_query = query
 
 
@@ -123,7 +125,7 @@ def processFromHmmer(inputFiles,bestHit,eggNOG):
                             hit = line.split()[0]
 
                         values = mydict_unique[list_name]
-                        mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name_repeated].append(hit)
+                        mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name].append(hit)
                         previous_query = query
 
 
@@ -140,16 +142,13 @@ def processFromIDs(inputFiles):
 
         with open(filename) as file:
             list_name = filename
-            list_name_repeated = filename + "_repeated"
             mydict_unique[list_name] = []
-            mydict_repeated[list_name_repeated] = []
+            mydict_repeated[list_name] = []
             for gi in file:
                 values = mydict_unique[list_name]
                 GI = gi.rstrip()
-                if GI not in values:
-                    mydict_unique[list_name].append(GI)
-                else:
-                    mydict_repeated[list_name_repeated].append(GI)
+                mydict_unique[list_name].append(GI) if GI not in values else mydict_repeated[list_name].append(GI)
+
 
     return mydict_unique,mydict_repeated
 
@@ -271,36 +270,57 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
     csvfile.close()
 
     #Repeated genes analysis
-    newDict_rep = {}
+    newDict_rep = defaultdict(list)
     print("\n")
     print("####################Repeated genes analysis ################\n################################################################")
+    #populate dict
+    all_repeated_ids = set()
+    for v in iter(dict_repeat.values()):
+        all_repeated_ids.update(v)
+
+    for k in iter(dict_repeat.keys()):
+        for id in all_repeated_ids:
+            newDict_rep[id].append([k.split("/")[-1],0])
+
+    print("Total number of genes with more than one copy in any of the genomes:\t%s\n" % len(all_repeated_ids))
+
     for k,v in iter(dict_repeat.items()):
-        print("Number of genes with more than one copy in the genome for %s sample:\t%s" % (k.split("/")[-1].split("_")[:-1],len(set(v))))
+
+        print("Number of genes with more than one copy in the genome for %s sample:\t%s" % (k.split("/")[-1],len(set(v))))
+
         for repeated in v:
+            for element in newDict_rep[repeated]:
+                ind = newDict_rep[repeated].index(element)
+                if element[0] == k.split("/")[-1] and element[1] == 0:
+                    newDict_rep[repeated][ind] = [element[0],2]
+                elif element[0] == k.split("/")[-1]:
+                    newDict_rep[repeated][ind] = [element[0], element[1] + 1]
 
-            if repeated in newDict_rep:
-                if k.split("/")[-1] in newDict_rep[repeated].keys():
-                    newDict_rep[repeated][k.split("/")[-1]] += 1
-                else:
-                    newDict_rep[repeated][k.split("/")[-1]] = 2
-
-            else:
-                newDict_rep[repeated] = {}
-                newDict_rep[repeated][k.split("/")[-1]] = 2 #2nd copy because firts was not added to this dict previously (was added to the unique set)
-
+            #print(a)
+           # if newDict_rep[repeated][k.split("/")[-1]] == 0:
+           #     newDict_rep[repeated][k.split("/")[-1]] += 2
+           # else:
+           #     newDict_rep[repeated][k.split("/")[-1]] += 1
 
 
     print("\nFrequency of the > 1x copy genes across samples:")
     if bool(newDict_rep):
-        for id in sorted(newDict_rep, key=newDict_rep.get, reverse=True):
-            print (id,newDict_rep[id])
+
+        for key,value in sorted(newDict_rep.items(), key=lambda e: e[1][0:len(e)], reverse=True): # sorted(newDict_rep,lambda v: newDict_rep[v][0]):#, reverse=True):
+            #print(value[0:len(value)])
+            print(key,value)
+
+
+
+        #for id in sorted(list(newDict_rep.values()),key=lambda (k,p) :(newDict_rep[p][k]),reverse=True):#,key=lambda k: k[id],reverse=True):# key=lambda x: x[0], reverse =True):#lambda x: newDict_rep[x][0], reverse=True):
+        #    print(id, newDict_rep[id])
+        #    break
     else:
         print("No genes found on this condition.")
 
 
 
 def removeChar(filename):
-    print(filename)
     subprocess.call(['sed', '-i', 's/\"//g', filename])
 
 parser = argparse.ArgumentParser(description='Script to check the interception of the genes present in different genome annotations (default blastTAB format).')
