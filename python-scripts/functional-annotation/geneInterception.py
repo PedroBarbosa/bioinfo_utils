@@ -6,20 +6,18 @@ import os
 import csv
 from itertools import combinations
 from collections import defaultdict
-import subprocess
-import functools
-import operator
 from collections import OrderedDict
-from operator import itemgetter
+
 
 def processFromBlastTab(inputFiles,bestHit):
-    mydict_unique = {} #dictionary of all unique IDs obtained annotation file
-    mydict_repeated = {} #dictionary of the repeated IDs per annotation file
+    mydict_unique = defaultdict(list) #dictionary of all unique IDs obtained annotation file
+    mydict_repeated = defaultdict(list) #dictionary of the repeated IDs per annotation file
     for filename in inputFiles:
         list_name = filename
         mydict_unique[list_name] = []
         mydict_repeated[list_name] = []
         annotated_reads = 0
+
 
         with open(filename) as file:
 
@@ -34,23 +32,11 @@ def processFromBlastTab(inputFiles,bestHit):
                     if not line.startswith('#') and line.rstrip():
 
                         query = line.split()[0]
-                        if "WP_" in query:
-                            query = query.split("|")[-1]
-                            print (query)
-                        if query == previous_query:
-                            previous_query = query
-
-                        else:
+                        if query != previous_query:
                             annotated_reads += 1
                             hit = line.split()[1]
                             values = mydict_unique[list_name]
-                            if hit not in values:
-                                values.append(hit)
-                                mydict_unique[list_name] = values
-                            else:
-                                values_repeated = mydict_repeated[list_name]
-                                values_repeated.append(hit)
-                                mydict_repeated[list_name] = values_repeated
+                            mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name].append(hit)
 
                         previous_query = query
 
@@ -69,14 +55,7 @@ def processFromBlastTab(inputFiles,bestHit):
 
                         hit = line.split()[1]
                         values = mydict_unique[list_name]
-                        if hit not in values:
-                            values.append(hit)
-                            mydict_unique[list_name] = values
-                        else:
-                            values_repeated = mydict_repeated[list_name]
-                            values_repeated.append(hit)
-                            mydict_repeated[list_name] = values_repeated
-
+                        mydict_unique[list_name].append(hit) if hit not in values else mydict_repeated[list_name].append(hit)
                         previous_query = query
 
         print("%s annotated genes/reads in file %s!" % (annotated_reads,filename))
@@ -318,10 +297,6 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
     else:
         print("No genes found on this condition.")
 
-
-
-def removeChar(filename):
-    subprocess.call(['sed', '-i', 's/\"//g', filename])
 
 parser = argparse.ArgumentParser(description='Script to check the interception of the genes present in different genome annotations (default blastTAB format).')
 parser.add_argument(dest='input_files', metavar='annotated_files', nargs='+', help='Annotation files to be analyzed (minimum 2).')
