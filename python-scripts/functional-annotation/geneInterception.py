@@ -238,11 +238,11 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
 
     print("Writing intersections to %s directory..\n\n" % os.path.basename(outputBasename))
     with open(outputBasename + "_interseptionTable.txt", "w") as csvfile:
-        writer = csv.writer(csvfile,dialect=csv.excel_tab)
+        writer = csv.writer(csvfile,dialect=csv.excel_tab,escapechar="\t",quoting = csv.QUOTE_NONE)
         i = 0
         listKeys = []
-        dict_withIndex = {}
-        for k in dict_uniq.keys():
+        dict_withIndex = OrderedDict()
+        for k in sorted(dict_uniq.keys()):
             key = k.split("/")[-1]
             listKeys.append(key)
             dict_withIndex[key] = i
@@ -253,6 +253,7 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
         else:
             writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys)))
 
+
         for k in sorted(newDict, key=lambda k: len(newDict[k]), reverse=True):
 
             final_list = ['no'] * len(listKeys)
@@ -262,10 +263,12 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
 
             if len(dict_IDs_1annotation) > 0 and k in dic_annDescription.keys():
                 writer.writerow((k,'\t'.join(final_list),dic_annDescription[k]))
+
+
             else:
                 writer.writerow((k,'\t'.join(final_list)))
 
-        removeChar(outputBasename + "_interseptionTable.txt")
+        #removeChar(outputBasename + "_interseptionTable.txt")
 
     csvfile.close()
 
@@ -309,9 +312,6 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
         for key,value in sorted(newDict_rep.items(), key=lambda e: e[1][0:len(e)], reverse=True): # sorted(newDict_rep,lambda v: newDict_rep[v][0]):#, reverse=True):
             #print(value[0:len(value)])
             print(key,value)
-
-
-
         #for id in sorted(list(newDict_rep.values()),key=lambda (k,p) :(newDict_rep[p][k]),reverse=True):#,key=lambda k: k[id],reverse=True):# key=lambda x: x[0], reverse =True):#lambda x: newDict_rep[x][0], reverse=True):
         #    print(id, newDict_rep[id])
         #    break
