@@ -228,10 +228,10 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
             i += 1
 
         if len(dic_annDescription) > 0:
-            csvfile.write("#List of unique IDs to each annotation" +'\t'.join(listKeys) + "\tFeature description\n")
+            csvfile.write("#List of unique IDs to each annotation" + "\t" + "\t".join(listKeys) + "\tFeature description\n")
             #writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys), "Feature description"))
         else:
-            csvfile.write("#List of unique IDs to each annotation" +"\t".join(listKeys) + "\n")
+            csvfile.write("#List of unique IDs to each annotation" + "\t" + "\t".join(listKeys) + "\n")
             #writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys)))
 
 
@@ -243,12 +243,12 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
                 final_list[index] = 'yes'
 
             if len(dict_IDs_1annotation) > 0 and k in dic_annDescription.keys():
-                csvfile.write(k + "\t".join(final_list) + "\t" + dic_annDescription[k] + "\n")
+                csvfile.write(k + + "\t" + "\t".join(final_list) + "\t" + dic_annDescription[k] + "\n")
                 #writer.writerow((k + '\t'.join(final_list),dic_annDescription[k]))
 
 
             else:
-                csvfile.write(k + "\t".join(final_list)+ "\n")
+                csvfile.write(k + "\t" + "\t".join(final_list)+ "\n")
                 #writer.writerow((k,'\t'.join(final_list)))
 
         #removeChar(outputBasename + "_interseptionTable.txt")
