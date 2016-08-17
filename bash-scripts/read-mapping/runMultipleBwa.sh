@@ -58,7 +58,7 @@ do
 	elif [ -f "$filename" -a  "$second_pair" = "true" -a "$2" = "true" -a "$matepairFlag" = "false" ]; then
 		pair2="$filename"
 				
-		bam_basename=$(basename $pair2 | cut -d "_" -f1)
+		bam_basename=$(basename $pair2 | cut -d "." -f1)
 		first_pair=true
 		second_pair=false     
 		let "numb_samples += 1"
