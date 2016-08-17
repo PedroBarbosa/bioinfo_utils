@@ -217,7 +217,7 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
 
     print("Writing intersections to %s directory..\n\n" % os.path.basename(outputBasename))
     with open(outputBasename + "_interseptionTable.txt", "w") as csvfile:
-        writer = csv.writer(csvfile,dialect=csv.excel_tab,escapechar="\t",quoting = csv.QUOTE_NONE)
+        #writer = csv.writer(csvfile,dialect=csv.excel_tab,escapechar='',doublequote=False, quoting=csv.QUOTE_NONE)
         i = 0
         listKeys = []
         dict_withIndex = OrderedDict()
@@ -228,9 +228,11 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
             i += 1
 
         if len(dic_annDescription) > 0:
-            writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys), "Feature description"))
+            csvfile.write("#List of unique IDs to each annotation" +'\t'.join(listKeys) + "\tFeature description\n")
+            #writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys), "Feature description"))
         else:
-            writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys)))
+            csvfile.write("#List of unique IDs to each annotation" +"\t".join(listKeys) + "\n")
+            #writer.writerow(("#List of unique IDs to each annotation",'\t'.join(listKeys)))
 
 
         for k in sorted(newDict, key=lambda k: len(newDict[k]), reverse=True):
@@ -241,11 +243,13 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
                 final_list[index] = 'yes'
 
             if len(dict_IDs_1annotation) > 0 and k in dic_annDescription.keys():
-                writer.writerow((k,'\t'.join(final_list),dic_annDescription[k]))
+                csvfile.write(k + "\t".join(final_list) + "\t" + dic_annDescription[k] + "\n")
+                #writer.writerow((k + '\t'.join(final_list),dic_annDescription[k]))
 
 
             else:
-                writer.writerow((k,'\t'.join(final_list)))
+                csvfile.write(k + "\t".join(final_list)+ "\n")
+                #writer.writerow((k,'\t'.join(final_list)))
 
         #removeChar(outputBasename + "_interseptionTable.txt")
 
