@@ -243,7 +243,7 @@ def intersection(dict_uniq,dict_repeat,outputBasename, descriptionFile):
                 final_list[index] = 'yes'
 
             if len(dict_IDs_1annotation) > 0 and k in dic_annDescription.keys():
-                csvfile.write(k + + "\t" + "\t".join(final_list) + "\t" + dic_annDescription[k] + "\n")
+                csvfile.write(k + "\t" + "\t".join(final_list) + "\t" + dic_annDescription[k] + "\n")
                 #writer.writerow((k + '\t'.join(final_list),dic_annDescription[k]))
 
 
