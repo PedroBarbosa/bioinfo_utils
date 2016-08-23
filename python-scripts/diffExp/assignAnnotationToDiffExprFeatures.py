@@ -57,51 +57,46 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
                 line.rstrip()
                 if not line.startswith('#') :
                     query = line.split()[0]
-                    if query in dict_features:
+                    if query in dict_features and query != previous_query:
 
-                        if query == previous_query:
-                            previous_query = query
-                        else:
-                            annotated_features += 1
-                            hit = line.split('\t')[1]
-                            swissprot_id = hit.split("|")[1]
-                            description = hit.split("|")[2]
+                        annotated_features += 1
+                        hit = line.split('\t')[1]
+                        swissprot_id = hit.split("|")[1]
+                        description = hit.split("|")[2]
 
-                            #update dict
-                            new_list = dict_features[query]
-                            new_list.extend([swissprot_id, description])
-                            dict_features[query] = new_list
-                            previous_query = query
+                        #update dict
+                        new_list = dict_features[query]
+                        new_list.extend([swissprot_id, description])
+                        dict_features[query] = new_list
+                        previous_query = query
 
         elif database_searched == "ncbi-nr":
             for line in file:
                 line.rstrip()
                 if not line.startswith('#') :
                     query = line.split()[0]
-                    if query in dict_features:
+                    if query in dict_features and query != previous_query:
 
-                        if query == previous_query:
-                            previous_query = query
+                        annotated_features += 1
+                        ncbi_id = line.split('\t')[1]
+                        if noDescription:
+                            description = "No description available"
                         else:
-                            annotated_features += 1
-                            ncbi_id = line.split('\t')[1]
-                            if noDescription:
-                                description = "No description available"
-                            else:
-                                description = line.split('\t')[2]
+                            description = line.split('\t')[2]
 
-                            #update dict
-                            new_list = dict_features[query]
-                            new_list.extend([ncbi_id, description])
-                            dict_features[query] = new_list
-                            previous_query = query
+                        #update dict
+                        new_list = dict_features[query]
+                        new_list.extend([ncbi_id, description])
+                        dict_features[query] = new_list
+                        previous_query = query
 
         elif database_searched == "eggnog":
             for line in file:
                 line.rstrip()
                 if not line.startswith('#') :
                     query = line.split()[2]
-                    if query != previous_query:
+                    if query in dict_features and query != previous_query:
+
                         annotated_features += 1
                         eggnong_id = line.split("\t")[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
                         if noDescription:
