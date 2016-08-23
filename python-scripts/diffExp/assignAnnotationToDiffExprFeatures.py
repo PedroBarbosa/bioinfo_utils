@@ -110,6 +110,11 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
                             logging.error("When searching against eggnog (using hmmer), no description is available in the table output format (generated used "
                                           "tblout or domtblout or pfamtblout arguments on hmmscan. Please set the '-n' argument and rerun the script without descriptions.")
                             exit(1)
+                                                #update dict
+                        new_list = dict_features[query]
+                        new_list.extend([eggnong_id, description])
+                        dict_features[query] = new_list
+                        previous_query = query
     file.close()
     if annotated_features == 0:
         logging.error("No features found in the annotation file are present in the list of differential expressed genes. Please check if the feature IDs are concordant.")
