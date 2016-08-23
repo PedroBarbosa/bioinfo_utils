@@ -161,7 +161,7 @@ def main():
     3rd column of the annotation file, please set this argumet')
     args = parser.parse_args()
 
-    if "rapsearch2" in args.software_used or "blastp" in args.software_used:
+    if "rapsearch2" in args.software_used or "blastp" in args.software_used or "hmmer" in args.software_used:
         dict_features, total_features, commented_lines= processFeaturesIDs(args.listDiffExpressed[0], args.idOnly)
         dict_updated = processAnnotationFile(args.annotationFile[0], args.database_searched[0], dict_features,total_features, args.noDescriptionBlastp)
         writeOutput(dict_updated,commented_lines, args.output_file[0], args.database_searched[0])
