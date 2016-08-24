@@ -21,7 +21,7 @@ def processFeaturesIDs(listDiffExpressed,onlyIds ):
                 if line.startswith("#"):
                     commented_lines.append(line)
                 elif line.rstrip() in dict:
-                    logging.error("Error Duplicate feature ID in" + listDiffExpressed + " file:\t" + line.rstrip())
+                    logging.error("Error Duplicate feature ID in " + listDiffExpressed + " file:\t" + line.rstrip())
                     exit(1)
                 else:
                     dict[line.rstrip()] = []
@@ -40,10 +40,11 @@ def processFeaturesIDs(listDiffExpressed,onlyIds ):
                     for field in feature_fields:
                         measures.append(field)
                     if featureID in dict:
-                        logging.error("Error Duplicate feature ID in" + listDiffExpressed + " file:\t" + featureID )
-                        exit(1)
+                        logging.error("Warning - Duplicate feature ID in" + listDiffExpressed + " file:\t" + featureID )
+                        dict[featureID].append(measures)
+
                     else:
-                        dict[featureID] = measures
+                        dict[featureID] = [measures]
     file.close()
     return dict, total_feature, commented_lines
 
@@ -66,8 +67,15 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
 
                         #update dict
                         new_list = dict_features[query]
-                        new_list.extend([swissprot_id, description])
-                        dict_features[query] = new_list
+                        if len(new_list) != 0:
+                             i=0
+                             for measures in new_list:
+                                 measures.extend([swissprot_id, description])
+                                 new_list[i] = measures
+                                 i+=1
+                             dict_features[query] = new_list
+                        else:
+                            dict_features[query].append([swissprot_id, description])
                         previous_query = query
 
 
@@ -87,9 +95,17 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
 
                         #update dict
                         new_list = dict_features[query]
-                        new_list.extend([ncbi_id, description])
-                        dict_features[query] = new_list
+                        if len(new_list) != 0:
+                             i=0
+                             for measures in new_list:
+                                 measures.extend([ncbi_id, description])
+                                 new_list[i] = measures
+                                 i+=1
+                             dict_features[query] = new_list
+                        else:
+                            dict_features[query].append([ncbi_id, description])
                         previous_query = query
+
 
         elif database_searched == "eggnog":
             for line in file:
@@ -100,17 +116,26 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
 
                         annotated_features += 1
                         eggnong_id = line.split("\t")[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
-                        if noDescription:
-                            description = "No description available"
-                        else:
+                        if not noDescription:
+
                             logging.error("When searching against eggnog (using hmmer), no description is available in the table output format (generated used "
                                           "tblout or domtblout or pfamtblout arguments on hmmscan. Please set the '-n' argument and rerun the script without descriptions.")
                             exit(1)
-                                                #update dict
+
+                        #update dict
                         new_list = dict_features[query]
-                        new_list.extend([eggnong_id, description])
-                        dict_features[query] = new_list
+                        if len(new_list) != 0:
+
+                             i=0
+                             for measures in new_list:
+                                 measures.extend([eggnong_id])
+                                 new_list[i] = measures
+                                 i+=1
+                             dict_features[query] = new_list
+                        else:
+                            dict_features[query].append([eggnong_id])
                         previous_query = query
+
     file.close()
     if annotated_features == 0:
         logging.error("No features found in the annotation file are present in the list of differential expressed genes. Please check if the feature IDs are concordant.")
@@ -130,17 +155,34 @@ def writeOutput(dict,commented_lines,outputFile,database):
     if os.path.exists(outputFile):
         os.remove(outputFile)
     with open(outputFile, 'w') as file:
-        if len(commented_lines) > 0:
+        if len(commented_lines) > 0 and database == "eggnog":
+            new_attributes_line = [commented_lines[-1].rstrip() + '\t' + database + '_id' + '\n']
+            commented_lines = commented_lines[:-1] + new_attributes_line
+            for line in commented_lines:
+                file.write(line)
+        elif len(commented_lines) > 0:
             new_attributes_line = [commented_lines[-1].rstrip() + '\t' + database + '_id' + '\t' + 'description' + '\n']
             commented_lines = commented_lines[:-1] + new_attributes_line
             for line in commented_lines:
-                file.write(line )
+                file.write(line)
+
+        list_length_col = []
+        max_col = 0
+        for v in dict.values():
+            for value in v:
+                list_length_col.append(len(value))
+            max_col = max(list_length_col)
+
         for k,v in dict.items():
-            file.write(k + '\t')
             if v:
-                file.write("\t".join(v) + '\n')
+                for value in v:
+
+                    if len(value) != max_col:
+                        file.write(k + "\t" + "\t".join(value) + '\tNo annotation available\n')
+                    else:
+                        file.write(k + "\t" + "\t".join(value) + '\n')
             else:
-                file.write("No annotation available" + "\n")
+                file.write(k + "\tNo annotation available\n")
     file.close()
 
 
@@ -160,10 +202,18 @@ def main():
     3rd column of the annotation file, please set this argumet')
     args = parser.parse_args()
 
-    if "rapsearch2" in args.software_used or "blastp" in args.software_used or "hmmer" in args.software_used:
-        dict_features, total_features, commented_lines= processFeaturesIDs(args.listDiffExpressed[0], args.idOnly)
-        dict_updated = processAnnotationFile(args.annotationFile[0], args.database_searched[0], dict_features,total_features, args.noDescriptionBlastp)
-        writeOutput(dict_updated,commented_lines, args.output_file[0], args.database_searched[0])
+    if args.database_searched == "eggnog" and args.software_used != "hmmer":
+        logging.error("Searches against eggnog database are only available using hmmer software. Please set 'hmmer' in the software used argument.")
+        exit(1)
+    elif args.database_searched == "swissprot" or args.database_searched == "ncbi-nr" and args.software_used == "hmmer":
+        logging.error("Searches against swissprot or any ncbi database (except for CDD domain database) can not be performed with hmmer software. Please change"
+                      " the software sued argument to a different value.")
+        exit(1)
+
+
+    dict_features, total_features, commented_lines= processFeaturesIDs(args.listDiffExpressed[0], args.idOnly)
+    dict_updated = processAnnotationFile(args.annotationFile[0], args.database_searched[0], dict_features,total_features, args.noDescriptionBlastp)
+    writeOutput(dict_updated,commented_lines, args.output_file[0], args.database_searched[0])
 
 if __name__ == "__main__":
     main()
