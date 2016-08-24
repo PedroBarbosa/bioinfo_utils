@@ -345,4 +345,4 @@ if __name__ == "__main__":
 
     else:
         annotated_genes,dict_unique,dict_repeated = processFromBlastTab(args.input_files,args.bestHitOnly)
-        intersection(dict_unique,dict_repeated,args.a)
+        intersection(dict_unique,dict_repeated,args.o,args.a)

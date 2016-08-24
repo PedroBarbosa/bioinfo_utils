@@ -4,17 +4,37 @@ import sys
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
 import urllib.request
 import json
-from collections import defaultdict
+import collections
 import os.path
 
-def nogs2list(nogsFile):
+def nogs2list(nogsFile, tab, col):
     listnogs=[]
     with open(nogsFile, 'r') as file:
-        for nog in file:
-            if not nog in listnogs:
-                listnogs.append(nog.rstrip())
-            else:
-                logging.warning("%s id repeated in file" % nog)
+        if tab:
+            for line in file:
+                if not line.startswith("#"):
+                    nog_line = line.rstrip()
+                    if len(nog_line.split("\t")) == 1:
+                        logging.error("Your input file in single column. Please remove the '-tab' and '-col' arguments from your command.")
+                        exit(1)
+                    elif len(nog_line.split("\t")) < col:
+                        logging.error("Tab separated file doesn't have column number you supplied in '-col' argument. Please change the column number argument.")
+                        exit(1)
+                    nog = nog_line.split("\t")[col-1]
+
+                    if not nog in listnogs and not "available" in nog:
+                        listnogs.append(nog.rstrip())
+                    elif not "available" in nog:
+                        logging.warning("%s id repeated in file" % nog)
+        else:
+            for line in file:
+                if not line.startswith("#"):
+                    nog = line.rstrip()
+                    if not nog in listnogs:
+                        listnogs.append(nog.rstrip())
+                    else:
+                        logging.warning("%s id repeated in file" % nog)
+
     return listnogs
 
 
@@ -32,13 +52,14 @@ def getAnnotationFromAPI(listNOGs):
 
     lessFreqGO = 0
     lessFreqDom = 0
-    out_dict = defaultdict()
+    out_dict = collections.OrderedDict()
 
     f = urllib.request.urlopen('http://eggnogapi.embl.de/nog_data/json/domains,go_terms/ENOG41010CW').read()
     data = json.loads(f.decode('utf-8'))
 
     i=1
     ##Assumes that domain dict comes first in the iteration
+
     for nog in listNOGs:
         logging.info("Processing %s NOG.. %i" % (nog,i))
         i+=1
@@ -137,6 +158,31 @@ def writeOutput(outFile, out_dict, addAnn):
             out_file.write(nog + "\t" + "\t".join(i for i in annotations) + "\n")
 
 
+def writeOutputFromTabSeparatedFile(outFile, out_dict, addAnn, inputFile,col):
+    with open(inputFile, 'r') as file:
+        with open(outFile, 'w') as out_file:
+            for line in file:
+
+                if not line.startswith("#"):
+                    numb_col = len(line.split())
+                    aux_list = ['']*numb_col
+                    break
+            file.close()
+            if addAnn:
+                out_file.write("#" + "\t".join(aux_list) + "SMART domains" + "\t" + "PFAM_domains" + "\t" + "GOs Cellular Componet" + "\t" + "GOs Molecular Function" + "\t" +
+        "GOs Biological Process" + "\t" + "COG category" + "\t" + "COG description" + "\n")
+            else:
+                out_file.write("#" + "\t".join(aux_list) + "SMART domains" + "\t" + "PFAM_domains" + "\t" + "GOs Cellular Componet" + "\t" + "GOs Molecular Function" + "\t" +
+        "GOs Biological Process" + "\n")
+            with open(inputFile,'r') as infile:
+                for line in infile:
+                    if not line.startswith("#"):
+                        nog = line.split()[col-1]
+                        if nog in out_dict.keys():
+                            out_file.write(line.rstrip() + '\t' + '\t'.join(out_dict[nog]) + "\n")
+                        else:
+                            out_file.write(line.rstrip() + "\n")
+
 
 
 
@@ -144,11 +190,19 @@ def main():
     parser = argparse.ArgumentParser(description='Script add annotation information of an eggNOG record. Uses eggNOG API to retrieve data. Outputs a tab separarted file.')
     parser.add_argument(dest='nogs', metavar='nogsFile', help='File listing the NOGs to process. One perl line.')
     parser.add_argument(dest='output', metavar='outputFile', help='Output File will be a tab delimited file to open in excel or related programs.')
-    parser.add_argument('-add',metavar ='-addNOGAnnotationFile', help='Additional file with information about each NOG, particularly COG categories and descriptions. Downloadable from eggNOG website.')
+    parser.add_argument('-add' ,metavar ='-addNOGAnnotationFile', help='Additional file with information about each NOG, particularly COG categories and descriptions. Downloadable from eggNOG website.')
+    parser.add_argument('-tab', '--tabSeparated', action='store_true', help="Flag indicating that NOGs file is tab separated. If set, requires '-col' to be set too.")
+    parser.add_argument('-col', metavar = '-column', type=int, nargs=1, help="Column number in the tab separated file in which NOG records are displayed.")
     args = parser.parse_args()
 
+    if args.tabSeparated and not args.col:
+        logging.error("If -tab is provided, please set also '-col' argument.")
+        exit(1)
+    elif args.col and not args.tabSeparated:
+        logging.error("Please set '-col' argument only if input file in tab separated. Either remove '-col' or add '-tab' to the command.")
+        exit(1)
 
-    listNOGs = nogs2list(args.nogs)
+    listNOGs = nogs2list(args.nogs, args.tabSeparated, args.col[0])
     out_dict = getAnnotationFromAPI(listNOGs)
     if args.add:
         if os.path.isfile(args.add):
@@ -156,7 +210,10 @@ def main():
         else:
             logging.error("Please provide a valid file in the '-add' argument.")
             exit(1)
-    writeOutput(args.output,out_dict, args.add)
+    if args.tabSeparated:
+        writeOutputFromTabSeparatedFile(args.output,out_dict, args.add, args.nogs,args.col[0])
+    else:
+        writeOutput(args.output,out_dict, args.add)
 
 if __name__ == "__main__":
     main()
