@@ -70,6 +70,7 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
                         dict_features[query] = new_list
                         previous_query = query
 
+
         elif database_searched == "ncbi-nr":
             for line in file:
                 line.rstrip()
@@ -136,7 +137,10 @@ def writeOutput(dict,commented_lines,outputFile,database):
                 file.write(line )
         for k,v in dict.items():
             file.write(k + '\t')
-            file.write("\t".join(v) + '\n')
+            if v:
+                file.write("\t".join(v) + '\n')
+            else:
+                file.write("No annotation available" + "\n")
     file.close()
 
 
