@@ -17,7 +17,9 @@ def nogs2list(nogsFile, tab, col):
                     if len(nog_line.split("\t")) == 1:
                         logging.error("Your input file in single column. Please remove the '-tab' and '-col' arguments from your command.")
                         exit(1)
+
                     elif len(nog_line.split("\t")) < col:
+                        print(len(nog_line.split("\t")))
                         logging.error("Tab separated file doesn't have column number you supplied in '-col' argument. Please change the column number argument.")
                         exit(1)
                     nog = nog_line.split("\t")[col-1]
