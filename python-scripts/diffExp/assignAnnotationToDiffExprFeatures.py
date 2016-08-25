@@ -201,13 +201,14 @@ def main():
     parser.add_argument('-n', '--noDescriptionBlastp', action='store_true', help='By default, blastp does not output database records description. If blastp was not run with special configuration to report this information in the\
     3rd column of the annotation file, please set this argumet')
     args = parser.parse_args()
-
-    if args.database_searched == "eggnog" and args.software_used != "hmmer":
+	
+   
+    if "eggnog" in args.database_searched  and not "hmmer" in args.software_used:
         logging.error("Searches against eggnog database are only available using hmmer software. Please set 'hmmer' in the software used argument.")
         exit(1)
-    elif args.database_searched == "swissprot" or args.database_searched == "ncbi-nr" and args.software_used == "hmmer":
+    elif "swissprot" in args.database_searched  or "ncbi-nr" in args.database_searched  and "hmmer" in args.software_used:
         logging.error("Searches against swissprot or any ncbi database (except for CDD domain database) can not be performed with hmmer software. Please change"
-                      " the software sued argument to a different value.")
+                      " the software used argument to a different value.")
         exit(1)
 
 
