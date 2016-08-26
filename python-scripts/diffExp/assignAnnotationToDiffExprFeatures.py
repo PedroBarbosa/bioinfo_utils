@@ -30,21 +30,24 @@ def processFeaturesIDs(listDiffExpressed,onlyIds ):
         else:
             for line in file:
                 line.rstrip()
+
                 if line.startswith("#"):
                     commented_lines.append(line)
                 else:
-                    total_feature += 1
+
                     feature_fields = line.split()[1:]
                     measures = []
                     featureID = line.split()[0]
                     for field in feature_fields:
                         measures.append(field)
                     if featureID in dict:
-                        logging.error("Warning - Duplicate feature ID in" + listDiffExpressed + " file:\t" + featureID )
+                        logging.error("Warning - Duplicate feature ID in " + listDiffExpressed + " file:\t" + featureID )
                         dict[featureID].append(measures)
 
                     else:
+                        total_feature += 1
                         dict[featureID] = [measures]
+
     file.close()
     return dict, total_feature, commented_lines
 
@@ -104,6 +107,7 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
                              dict_features[query] = new_list
                         else:
                             dict_features[query].append([ncbi_id, description])
+
                         previous_query = query
 
 
@@ -112,6 +116,7 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
                 line.rstrip()
                 if not line.startswith('#') :
                     query = line.split()[2]
+
                     if query in dict_features and query != previous_query:
 
                         annotated_features += 1
@@ -126,14 +131,16 @@ def processAnnotationFile(annotationFile, database_searched,dict_features, total
                         new_list = dict_features[query]
                         if len(new_list) != 0:
 
-                             i=0
-                             for measures in new_list:
-                                 measures.extend([eggnong_id])
-                                 new_list[i] = measures
-                                 i+=1
-                             dict_features[query] = new_list
+                            i=0
+                            for measures in new_list:
+                                measures.extend([eggnong_id])
+                                new_list[i] = measures
+                                i+=1
+                            dict_features[query] = new_list
                         else:
+
                             dict_features[query].append([eggnong_id])
+                        #print(query + str(dict_features[query]))
                         previous_query = query
 
     file.close()
