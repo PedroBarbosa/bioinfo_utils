@@ -75,7 +75,7 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                         logging.info("Peak %s, which has been marked totally within the gene %s, is actually partially outside of the gene at the downstream level" % (fields[0],gene_id))
 
                     if not result:
-                        result =  '[No feature predicted]'
+                        result =  "['No feature predicted']"
                         logging.info("There is no feature detected in GFF within the gene %s, for which the peak %s was found to be totally within" % (gene_id,fields[0]))
                     fields[i] = fields[i] + ' ' + str(result)
                     outFile.write('\t'.join(fields) + '\n')
