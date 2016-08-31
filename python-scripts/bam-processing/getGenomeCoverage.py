@@ -244,33 +244,35 @@ def replaceBedScoreToBitFlag(bedFile,bitflag_tmp):
         subprocess.Popen(["mv", out, bedFile])
 
 
-def genomeCoverageFromBed(bedfile,genome):
+def genomeCoverageFromBed(bedfile,genome,stranded):
 
 
     with open(genome) as fin:
         genome_size = sum(int(r[1]) for r in csv.reader(fin, delimiter = "\t"))
     fin.close()
 
-    for i in range(0,3):
-        if i == 0:
-            subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome])
-            stdout = subTotal.decode("utf-8").split("\n")
-            logging.info("\tGenerating stats for both strands coverage")
-            generateStatsAndCoverageFiles(stdout,bedfile,i)
-        elif i == 1:
-            subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome, "-strand", "+"])
-            stdout = subTotal.decode("utf-8").split("\n")
-            logging.info("\tGenerating stats for positive strand coverage")
-            generateStatsAndCoverageFiles(stdout,bedfile,i)
-        elif i == 2:
-            subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome, "-strand", "-"])
-            stdout = subTotal.decode("utf-8").split("\n")
-            logging.info("\tGenerating stats for negative strand coverage")
-            generateStatsAndCoverageFiles(stdout,bedfile,i)
+    subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome])
+    stdout = subTotal.decode("utf-8").split("\n")
+    logging.info("\tGenerating stats for coverage..")
+    generateStatsAndCoverageFiles(stdout,bedfile,-1,genome_size)
+
+    if stranded:
+        logging.info("\tCalculating genome coverage in each strand independently..")
+        for i in range(0,1):
+            if i == 0:
+                subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome, "-strand", "+"])
+                stdout = subTotal.decode("utf-8").split("\n")
+                logging.info("\tGenerating stats for coverage in the positive strand..")
+                generateStatsAndCoverageFiles(stdout,bedfile,i,genome_size)
+            elif i == 1:
+                subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", bedfile, "-g", genome, "-strand", "-"])
+                stdout = subTotal.decode("utf-8").split("\n")
+                logging.info("\tGenerating stats for coverage in the  negative strand..")
+                generateStatsAndCoverageFiles(stdout,bedfile,i,genome_size)
 
 
 
-def generateStatsAndCoverageFiles(std_out,bedfile,i):
+def generateStatsAndCoverageFiles(std_out,bedfile,i,genomeSize):
     dictGenomeCoverageBedtools = defaultdict(list)
     dictWholeGenomeCovLarger0 = OrderedDict()
     dictPerScaffoldCovLarger0 = OrderedDict()
@@ -282,11 +284,11 @@ def generateStatsAndCoverageFiles(std_out,bedfile,i):
         if len(attributes) > 1:
             #whole genome stats
             if attributes[0] == "genome":
-
+                print(attributes)
                 if int(attributes[1]) == 0:
 
                     genomeCov0 = attributes[4]
-                    print(genomeCov0)
+
                     #Last scaffold:
                     if dictPerScaffoldCovLarger0:
                         for k,v in iter(dictPerScaffoldCovLarger0.items()):
@@ -352,10 +354,10 @@ def generateStatsAndCoverageFiles(std_out,bedfile,i):
                 dictPerScaffoldCovLarger0[attributes[1]] = attributes[4]
 
 
-#    logging.info("Genome size\t%i" % genome_size)
-#    logging.info("Genome fraction with coverage 0\t%s" % genomeCov0)
-#    for k,v in iter(dictWholeGenomeCovLarger0.items()):
-#        print("Genome fraction with coverage %s\t%s" % (k,v))
+    logging.info("Genome size\t%i" % genomeSize)
+    logging.info("Genome fraction with coverage 0\t%s" % genomeCov0)
+    for k,v in iter(dictWholeGenomeCovLarger0.items()):
+        logging.info("Genome fraction with coverage %s\t%s" % (k,v))
 
     writeDict(dictGenomeCoverageBedtools, bedfile,i)
 #    for k,v in iter(dictGenomeCoverageBedtools.items()):
@@ -366,16 +368,15 @@ def generateStatsAndCoverageFiles(std_out,bedfile,i):
 
 def writeDict(dict,bedfile, i):
     out_file = ""
-    if i == 1:
+    if i == 0:
         out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-plusStrand.txt')
-    elif i == 2:
+    elif i == 1:
         out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-minusStrand.txt' )
     else:
         out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-bothStrands.txt' )
 
-
     with open(out_file, 'w+') as fileout:
-        fileout.write('\t'.join(['#scaffold_id','#scaffold_length','#fraction 0 cov', '#fraction > 0 cov', '#fraction 5 > cov < 10', '#fraction 10 > cov > 50', '#fraction > 50 cov']))
+        fileout.write('\t'.join(['#scaffold_id','#scaffold_length','#fraction 0 cov', '#fraction > 0 cov', '#fraction 5 > cov < 10', '#fraction 10 > cov < 50', '#fraction > 50 cov']))
 
         for scaffold, cov in sorted(dict.items(), key=lambda x: x[1][2], reverse=True):
             fileout.write('\n' + scaffold + '\t' + '\t'.join(str(c) for c in cov))
@@ -393,6 +394,8 @@ def main():
     parser.add_argument('-o', metavar='outputDirectory', required = True, help='Output directory to write the results')
     parser.add_argument('-n', '--nofilterBam', action='store_true', help='If set, the filtering of BAM files will not be perfomed. Default: Process bam files.' )
     parser.add_argument('-s','--singleEnd', action='store_true', help='Single end read mappings. Default:Paired-end')
+    parser.add_argument('-str','--stranded', action='store_true', help='Perform also strand specific coverage analysis. Default: Only both strands analysis.')
+
     args = parser.parse_args()
 
     for file in args.bam_files:
@@ -415,20 +418,22 @@ def main():
                 bitflag_tmp = filterSingleEndBamAlignments(file,args.o,args.m)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
                 replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
-                genomeCoverageFromBed(outBed, args.gn)
+                logging.info("Calculating genome coverage..")
+                genomeCoverageFromBed(outBed, args.gn, args.stranded)
             else:
                 bitflag_tmp = filterBamAlignments(file,args.o,args.m)
                 logging.info("\tAdding bitFlags to the score column in BED file..")
                 replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
-                genomeCoverageFromBed(outBed, args.gn)
+                logging.info("Calculating genome coverage..")
+                genomeCoverageFromBed(outBed, args.gn,args.stranded)
 
         else:
             logging.info("No filtering of BAM files will be done.")
             bitflag_tmp = bamToBedFromBam(file,args.o,args.m)
             logging.info("Adding bitFlags to the score column in BED file..")
             replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
-            logging.info("Calculating genome coverage in each strand..")
-            genomeCoverageFromBed(outBed, args.gn)
+            logging.info("Calculating genome coverage..")
+            genomeCoverageFromBed(outBed, args.gn, args.stranded)
 
         logging.info("DONE!!")
 
