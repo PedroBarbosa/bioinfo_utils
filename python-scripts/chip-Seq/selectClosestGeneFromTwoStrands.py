@@ -35,8 +35,21 @@ def processPeaksFile(peakFile,dist, outputFile):
                                 elif int(upstream_forward) > dist:
                                     outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\tintergenic\n')
                             elif "total_within" in upstream_forward:
-                                bind_feature = upstream_forward.split("[")[1].replace('\'','')
-                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace(']','') +'\n')
+                                if "," in upstream_forward:
+                                    noDup=set()
+                                    for i in upstream_forward.split(','):
+                                        b=i.replace("[","").replace("]","").replace(" ","").replace("total_within","")
+                                        #b=i.translate(str.maketrans('\"[] ', ''))
+                                        noDup.add(b)
+                                    bind_feature = str(noDup).split("{")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace('}','').
+                                                  replace("\"","").replace(" ","") +'\n')
+
+                                else:
+                                    bind_feature = upstream_forward.split("[")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace(']','') +'\n')
+
+                                    
                             elif "partial_within" in upstream_forward:
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + 'partial_upstream\n')
                             elif "partial_downstream" in upstream_forward:
@@ -51,8 +64,21 @@ def processPeaksFile(peakFile,dist, outputFile):
                                 elif int(upstream_reverse) > dist:
                                     outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[13:16]) + '\tintergenic\n')
                             elif "total_within" in upstream_reverse:
-                                bind_feature = upstream_reverse.split("[")[1].replace('\'','')
-                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[13:16]) + '\t' + bind_feature.replace(']','') +'\n')
+                                if "," in upstream_reverse:
+                                    noDup=set()
+                                    for i in upstream_reverse.split(','):
+                                        b=i.replace("[","").replace("]","").replace(" ","").replace("total_within","")
+                                        #b=i.translate(str.maketrans('\"[] ', ''))
+                                        noDup.add(b)
+                                    bind_feature = str(noDup).split("{")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace('}','').
+                                                  replace("\"","").replace(" ","") +'\n')
+
+                                else:
+                                    bind_feature = upstream_reverse.split("[")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace(']','') +'\n')
+
+
                             elif "partial_within" in upstream_reverse:
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[13:16]) + '\t' + 'partial_upstream\n')
                             elif "partial_downstream" in upstream_reverse:
@@ -74,8 +100,21 @@ def processPeaksFile(peakFile,dist, outputFile):
                                 elif int(upstream_forward) > dist:
                                     outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:12]) + '\tintergenic\n')
                             elif "total_within" in upstream_forward:
-                                bind_feature = upstream_forward.split("[")[1].replace('\'','')
-                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:12]) + '\t' + bind_feature.replace(']','') +'\n')
+                                if "," in upstream_forward:
+                                    noDup=set()
+                                    for i in upstream_forward.split(','):
+                                        b=i.replace("[","").replace("]","").replace(" ","").replace("total_within","")
+                                        #b=i.translate(str.maketrans('\"[] ', ''))
+                                        noDup.add(b)
+                                    bind_feature = str(noDup).split("{")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace('}','').
+                                                  replace("\"","").replace(" ","") +'\n')
+
+                                else:
+                                    bind_feature = upstream_forward.split("[")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace(']','') +'\n')
+
+
                             elif "partial_within" in upstream_forward:
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:12]) + '\t' + 'partial_upstream\n')
                             elif "partial_downstream" in upstream_forward:
@@ -90,8 +129,21 @@ def processPeaksFile(peakFile,dist, outputFile):
                                 elif int(upstream_reverse) > dist:
                                     outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[12:14]) + '\tintergenic\n')
                             elif "total_within" in upstream_reverse:
-                                bind_feature = upstream_reverse.split("[")[1].replace('\'','')
-                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[12:14]) + '\t' + bind_feature.replace(']','') +'\n')
+                                if "," in upstream_reverse:
+                                    noDup=set()
+                                    for i in upstream_reverse.split(','):
+                                        b=i.replace("[","").replace("]","").replace(" ","").replace("total_within","")
+                                        #b=i.translate(str.maketrans('\"[] ', ''))
+                                        noDup.add(b)
+                                    bind_feature = str(noDup).split("{")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace('}','').
+                                                  replace("\"","").replace(" ","") +'\n')
+
+                                else:
+                                    bind_feature = upstream_reverse.split("[")[1].replace('\'','')
+                                    outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace(']','') +'\n')
+
+                                    
                             elif "partial_within" in upstream_reverse:
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[12:14]) + '\t' + 'partial_upstream\n')
                             elif "partial_downstream" in upstream_reverse:
@@ -178,12 +230,26 @@ def processPeaksFile(peakFile,dist, outputFile):
 
                     else:
                         i = indices[0]
-                        if len(fields) == 16:
-                            bind_feature = fields[i].split("[")[1].replace('\'','')
-                            outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[i-2:i+1]) + '\t' + bind_feature.replace(']','') +'\n')
-                        elif len(fields) == 14:
-                            bind_feature = fields[i].split("[")[1].replace('\'','')
-                            outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[i-1:i+1]) + '\t' + bind_feature.replace(']','') +'\n')
+                        if "," in fields[i]:
+                            noDup=set()
+                            for j in fields[i].split(','):
+                                b=j.replace("[","").replace("]","").replace(" ","").replace("total_within","")
+                                #b=j.translate(str.maketrans('\"[] ', ''))
+                                noDup.add(b)
+                            bind_feature = str(noDup).split("{")[1].replace('\'','')
+                            if len(fields) == 16:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace('}','').
+                                                  replace("\"","").replace(" ","") +'\n')
+                            elif len(fields) == 14:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace('}','').
+                                                  replace("\"","").replace(" ","") +'\n')
+
+                        else:
+                            bind_feature = fields[i].split("[")[1].replace('\'','') 
+                            if len(fields) == 16:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[i-2:i+1]) + '\t' + bind_feature.replace(']','') +'\n')
+                            elif len(fields) == 14:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[i-1:i+1]) + '\t' + bind_feature.replace(']','') +'\n')
 
 
                 ##############################################################

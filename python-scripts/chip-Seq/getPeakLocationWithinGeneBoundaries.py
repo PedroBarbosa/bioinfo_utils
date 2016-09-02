@@ -60,7 +60,7 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                                     tss=True
                                 elif feature[0] == "tts" and stop_codon == True:
                                     tts=True
-                                    result.append("3'prime UTR")
+                                    result.append("3_prime_UTR")
                                 elif feature[0] == "tts" and stop_codon == False:
                                     tts=True
                                     #result.append("3'prime UTR - without stop_codon")
@@ -70,7 +70,7 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                                 if feature[1] == "tts":
                                     tts=True
                                 elif feature[0] == "tss" and start_codon == True:
-                                    result.append("5'prime UTR")
+                                    result.append("5_prime_UTR")
                                     tss=True
                                 elif feature[0] == "tss" and start_codon == False:
                                     tss=True
@@ -96,16 +96,16 @@ def processPeaksFile(peakFile,gffDict, outputFile):
 
                                 if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]): # if totally included
 
-                                    result.append("5'prime UTR")
+                                    result.append("5_prime_UTR")
 
                                 elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]): #if totally upstream
-                                    result.append("5'prime UTR")
+                                    result.append("5_prime_UTR")
 
                             elif "start_codon" in feature[0]:
                                 if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]): # if totally included
-                                    result.append("5'prime UTR - without tss")
+                                    result.append("5_prime_UTR_without_tss")
                                 elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]): #if totally upstream
-                                    result.append("5'prime UTR - without tss")
+                                    result.append("5_prime_UTR_without_tss")
 
 
 
@@ -118,16 +118,16 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                         elif feature[3] == "-": #tts appears before
                             if tts and "stop_codon" in feature[0]:
                                 if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]):
-                                    result.append("3'prime UTR")
+                                    result.append("3_prime_UTR")
                                 elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]):
-                                    result.append("3'prime UTR")
+                                    result.append("3_prime_UTR")
                                     #result.append("3'prime UTR - without tts")
 
                             elif "stop_codon" in feature[0]:
                                 if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]): # if totally included
-                                    result.append("3'prime UTR - without tss")
+                                    result.append("3_prime_UTR_without_tss")
                                 elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]): #if totally upstream
-                                    result.append("3'prime UTR - without tss")
+                                    result.append("3_prime_UTR_without_tss")
 
 
                             elif "start_codon" in feature[0]:
@@ -151,7 +151,7 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                         logging.info("Peak %s, which has been marked totally within the gene %s, is actually partially outside of the gene at the downstream level" % (fields[0],gene_id))
 
                     if not result:
-                        result =  "['No feature predicted']"
+                        result =  "['no_feature_predicted']"
                         #logging.info("There is no feature detected in GFF within the gene %s, for which the peak %s was found to be totally within" % (gene_id,fields[0]))
 
                     fields[i] = fields[i] + ' ' + str(result)
