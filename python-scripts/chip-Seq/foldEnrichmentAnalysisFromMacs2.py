@@ -78,7 +78,7 @@ def processGFFfile(annotation_dict,gff):
                     elif start_peak <= start: #if peak is upstream a gene in the forward strand, assuming the order of the coordinates in the gff is correct
                         distance_upstream_plus = start - start_peak
                         if length_peak > distance_upstream_plus:
-                            closer_genes['+'] = [gene[3],'partial within '+ str(length_peak - distance_upstream_plus)]
+                            closer_genes['+'] = [gene[3],'partial_within '+ str(length_peak - distance_upstream_plus)]
                             partial_peaks_plus += 1
                         else:
                             closer_genes['+'] = [gene[3],str(distance_upstream_plus)]
@@ -87,11 +87,11 @@ def processGFFfile(annotation_dict,gff):
 
 
                     elif start_peak <  end and end_peak > end and stop_downstream_plus == False:#if peak is downtream all genes in scaffold
-                        temp_plus = [gene[3], 'partial downstream ' +str(end - start_peak)]
+                        temp_plus = [gene[3], 'partial_downstream ' +str(end - start_peak)]
                         stop_downstream_plus = True
 
                     elif start_peak > end and stop_downstream_plus == False:
-                        temp_plus = [gene[3], 'totally downstream ' +str(start_peak - end)]
+                        temp_plus = [gene[3], 'total_downstream ' +str(start_peak - end)]
                         stop_downstream_plus = True
 
 
@@ -99,10 +99,10 @@ def processGFFfile(annotation_dict,gff):
 
             if plus_check == True and stop_downstream_plus == True: #checked all genes for upstream location in the forward strand but didn't found any, despite the fact it found downstream
                 #print temp_plus
-                if any("partial" in element for element in temp_plus):
+                if any("partial_" in element for element in temp_plus):
                     peaks_partially_downstream_plus += 1
 
-                elif any("totally" in element for element in temp_plus):
+                elif any("total_" in element for element in temp_plus):
                     peaks_downstream_plus += 1
 
                 closer_genes['+'] = temp_plus
@@ -122,7 +122,7 @@ def processGFFfile(annotation_dict,gff):
 
                         if start_peak <= start:
                             distance_upstream_minus = start - start_peak
-                            closer_genes['-'] = [gene[3],'partial within '+ str(distance_upstream_minus)]
+                            closer_genes['-'] = [gene[3],'partial_within '+ str(distance_upstream_minus)]
                             partial_peaks_minus += 1
                         else:
                             distance_upstream_minus = start_peak - start
@@ -131,18 +131,18 @@ def processGFFfile(annotation_dict,gff):
                         minus_check = False
 
                     elif start_peak < end and end_peak >= end and stop_downstream_minus == False:
-                        temp_minus = [gene[3], 'partial downstream ' +str(end_peak - end)]
+                        temp_minus = [gene[3], 'partial_downstream ' +str(end_peak - end)]
                         stop_downstream_minus = True
 
                     elif start_peak < start and end_peak < start and stop_downstream_minus == False:
-                        temp_minus = [gene[3], 'totally downstream ' +str(end - end_peak)]
+                        temp_minus = [gene[3], 'total_downstream ' +str(end - end_peak)]
                         stop_downstream_minus = True
 
 
             if minus_check == True and stop_downstream_minus == True: #checked all genes for upstream location in the reverse strand but didn't found any, despite the fact it found downstream
-                if any("partial" in element for element in temp_minus):
+                if any("partial_" in element for element in temp_minus):
                     peaks_partially_downstream_minus += 1
-                elif any("totally" in element for element in temp_minus):
+                elif any("total_" in element for element in temp_minus):
                     peaks_downstream_minus += 1
                 closer_genes['-'] = temp_minus
 
