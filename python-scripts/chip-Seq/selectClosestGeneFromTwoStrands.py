@@ -119,10 +119,7 @@ def processPeaksFile(peakFile,dist, outputFile):
 
 
                         elif upstream_forward > upstream_reverse: #select reverse gene
-                            if fields[0] == "chip1_pooled_pooledMock2-noModelkeepDup8_peak_94952":
-                                print(fields)
-                                print(line)
-                                print(upstream_reverse)
+
                             if upstream_reverse <= dist:
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[13:16]) + '\tpromotor\n')
                             else:
@@ -198,9 +195,30 @@ def processPeaksFile(peakFile,dist, outputFile):
                     indices = [item for item in range(len(fields)) if "partial_within" in fields[item]]
                     
                     if len(indices) > 1:
-                        logging.error("Error: Peak %s is partially included in two genes from different strands, this can not happen. Please check if there is any error in the structural "
-                                      "annotation file." % fields[0])
-                        exit(1)
+                        logging.warning("Warning: Peak %s is partially included in two genes from different strands, this is interesting, because two genes"
+                                        "in the annotation file are very close to each other in different strands. Alternatively, this peak might be very large."
+                                        "Anyway, the gene selected will be the one with closer distance upstream to the beginning of the gene." % fields[0])
+
+                        if len(fields) == 16:
+                            upstream_forward = fields[12]
+                            upstream_reverse = fields[15]
+                            dist_ups_for = upstream_forward.split(" ")[1]
+                            dist_ups_rev = upstream_reverse.split(" ")[1]
+                            if dist_ups_for <= dist_ups_rev:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\tpartial_upstream\n')
+                            else:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[13:16]) + '\tpartial_upstream\n')
+
+                        elif len(fields) == 14:
+                            upstream_forward = fields[11]
+                            upstream_reverse = fields[13]
+                            dist_ups_for = upstream_forward.split(" ")[1]
+                            dist_ups_rev = upstream_reverse.split(" ")[1]
+                            if dist_ups_for <= dist_ups_rev:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:12]) + '\tpartial_upstream\n')
+                            else:
+                                outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[12:14]) + '\tpartial_upstream\n')
+
                     else:
                         i = indices[0]
                         if len(fields) == 16:
@@ -328,7 +346,7 @@ def processPeaksFile(peakFile,dist, outputFile):
                     fields = line.split("\t")
                     logging.warning("Peak %s has no gene associated in any of the strands. This scaffold does not contain any predicted gene in "
                                     "the annotation file." % fields[0])
-                    #logging.warning(line + "\n")
+                    #logging.warning(line)
                     if len(fields) == 16:
                         outFile.write("\t".join(fields[0:10]) + "\tNo annotation available\t-\t-\tunknown\n")
                     elif len(fields) == 14:

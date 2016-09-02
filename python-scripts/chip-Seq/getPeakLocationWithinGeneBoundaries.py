@@ -37,6 +37,7 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                     outFile.write(line + '\n')
                 else:
                     fields = line.split("\t")
+                    tss,tts,start_codon,stop_codon=False,False,False,False
                     i = fields.index("total_within")
                     gene_id = fields[i-2]
                     start_peak = fields[2]
@@ -48,17 +49,92 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                     max_coord=0
 
                     min_coord = min(list_features, key = lambda t: int(t[1]))[1]
+
                     for feature in list_features:
                         if int(feature[2]) > max_coord:
                             max_coord = int(feature[2])
 
                         if feature[1] == feature[2]: #if tts or tss
+                            if feature[3] == "+":
+                                if int(start_peak) <= int(feature[1]) and int(end_peak) >= int(feature[1]) and feature[0] == "tss":
+                                    tss=True
+                                elif feature[0] == "tts" and stop_codon == True:
+                                    tts=True
+                                    result.append("3'prime UTR")
+                                elif feature[0] == "tts" and stop_codon == False:
+                                    tts=True
+                                    #result.append("3'prime UTR - without stop_codon")
+                                    a = "cant' say nothin"
 
-                            if int(feature[1]) >= int(start_peak) and int(feature[1]) <= int(end_peak):
-                                result.append(feature[0])
+                            elif feature[3] == "-":
+                                if feature[1] == "tts":
+                                    tts=True
+                                elif feature[0] == "tss" and start_codon == True:
+                                    result.append("5'prime UTR")
+                                    tss=True
+                                elif feature[0] == "tss" and start_codon == False:
+                                    tss=True
+                                    #result.append("5'prime UTR - without start codon")
+                                    a= "can't say nothing"
 
-                        if int(start_peak) >= int(feature[1]) and int(start_peak) <= int(feature[2]): #totally included in feature
+
+
+                        elif int(start_peak) >= int(feature[1]) and int(end_peak) <= int(feature[2]): #totally included in feature
                             result.append(feature[0])
+
+                        elif int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]) and not "codon" in feature[0] : #totally spans a feature, that is not stop/start codon and tts/tts
+                            result.append(feature[0])
+
+                        elif int(start_peak) > int(feature[1]) and int(start_peak) < int(feature[2]) and not "codon" in feature[0]: #partially included in the end of feature
+                            result.append(feature[0])
+
+                        elif int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[1]) and not "codon" in feature[0]: #partially inclided in the beginning of feature
+                            result.append(feature[0])
+
+                        if feature[3] == "+": #tss appears before and tss appears after
+                            if tss and "start_codon" in feature[0]:
+
+                                if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]): # if totally included
+
+                                    result.append("5'prime UTR")
+
+                                elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]): #if totally upstream
+                                    result.append("5'prime UTR")
+
+                            elif "start_codon" in feature[0]:
+                                if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]): # if totally included
+                                    result.append("5'prime UTR - without tss")
+                                elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]): #if totally upstream
+                                    result.append("5'prime UTR - without tss")
+
+
+
+                            elif "stop_codon" in feature[0]:
+                                if int(start_peak) <= int(feature[1]) and int(end_peak) >= int(feature[2]):
+                                    stop_codon=True
+
+
+
+                        elif feature[3] == "-": #tts appears before
+                            if tts and "stop_codon" in feature[0]:
+                                if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]):
+                                    result.append("3'prime UTR")
+                                elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]):
+                                    result.append("3'prime UTR")
+                                    #result.append("3'prime UTR - without tts")
+
+                            elif "stop_codon" in feature[0]:
+                                if int(start_peak) < int(feature[1]) and int(end_peak) > int(feature[2]): # if totally included
+                                    result.append("3'prime UTR - without tss")
+                                elif int(start_peak) < int(feature[1]) and int(end_peak) < int(feature[1]): #if totally upstream
+                                    result.append("3'prime UTR - without tss")
+
+
+                            elif "start_codon" in feature[0]:
+                                if int(start_peak) <= int(feature[1]) and int(end_peak) >= int(feature[2]):
+                                    start_codon = True
+
+
 
 
                         if int(end_peak) > max_coord and '+' in feature:
@@ -76,7 +152,8 @@ def processPeaksFile(peakFile,gffDict, outputFile):
 
                     if not result:
                         result =  "['No feature predicted']"
-                        logging.info("There is no feature detected in GFF within the gene %s, for which the peak %s was found to be totally within" % (gene_id,fields[0]))
+                        #logging.info("There is no feature detected in GFF within the gene %s, for which the peak %s was found to be totally within" % (gene_id,fields[0]))
+
                     fields[i] = fields[i] + ' ' + str(result)
                     outFile.write('\t'.join(fields) + '\n')
                     #print(fields)
