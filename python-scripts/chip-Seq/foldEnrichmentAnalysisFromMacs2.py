@@ -29,6 +29,11 @@ def processGFFfile(annotation_dict,gff):
     peaks2gene_within_plus = {}
     peaks2gene_within_minus = {}
     final_dict = defaultdict(tuple)
+    no_gene_plus = 0
+    no_gene_minus = 0
+    count=0
+    peak_count = 0
+
 
     p1 = subprocess.Popen(['cat', gff[0]],stdout=subprocess.PIPE)
     p2 = subprocess.Popen(['grep', '-v', '#'], stdin=p1.stdout, stdout=subprocess.PIPE)
@@ -49,121 +54,158 @@ def processGFFfile(annotation_dict,gff):
   #      print(k)
     for peak,info in iter(annotation_dict.items()):
 
-        scaffold_id = info[0]
-        start_peak = int(info[1])
-        end_peak = int(info[2])
-        length_peak = int(info[3])
+        peak_count +=1
 
+        scaffold_id = info[0]
+        peak_summit = int(info[4])
         if scaffold_id in gff_dict:
 
             genes_per_peak_scaffold = gff_dict[scaffold_id]
             plus_check = True #Flag to avoid searching for genes when the closest by each strand was already found
             minus_check = True
-            stop_downstream_plus = False
-            stop_downstream_minus = False
+            exist_gene_plus = False
+            exist_gene_minus = False
+            temp_downstream_dist_plus = 0
+            temp_downstream_dist_minus = 0
             closer_genes = {}
             temp_plus = []
             temp_minus = []
+
 
             for gene in genes_per_peak_scaffold:
                 start = int(gene[0])
                 end = int(gene[1])
                 if gene[2] == "+" and plus_check:
-                    if start_peak >= start and start_peak <= end and end_peak <= end: #if peak is within a gene in the forward strand
+
+                    exist_gene_plus = True
+                    if peak_summit >= start and peak_summit <= end:
+                        #if start_peak >= start and start_peak <= end and end_peak <= end: #if peak is within a gene in the forward strand
                         peaks_within_plus += 1
                         peaks2gene_within_plus[peak] = gene[3] #dict with the genes that the peaks are within
                         plus_check = False
                         closer_genes['+'] = [gene[3], 'total_within']
+                        break
+                    #elif start_peak <= start: #if peak is upstream a gene in the forward strand, assuming the order of the coordinates in the gff is correct
+                    elif peak_summit < start:
 
-                    elif start_peak <= start: #if peak is upstream a gene in the forward strand, assuming the order of the coordinates in the gff is correct
-                        distance_upstream_plus = start - start_peak
-                        if length_peak > distance_upstream_plus:
-                            closer_genes['+'] = [gene[3],'partial_within '+ str(length_peak - distance_upstream_plus)]
-                            partial_peaks_plus += 1
+                        distance_upstream_plus = start - peak_summit
+                        if len(temp_plus) != 0:
+                            if temp_downstream_dist_plus <= 1000 and distance_upstream_plus > 2000:
+                                #print(temp_plus)
+                                closer_genes['+'] = temp_plus
+                                peaks_partially_downstream_plus += 1
+                                plus_check = False
+                                break
+
+                            else:
+                                closer_genes['+'] = [gene[3],str(distance_upstream_plus)]
+                                peaks_distance_plus.append(distance_upstream_plus)
+                                plus_check = False
+                                break
                         else:
+
                             closer_genes['+'] = [gene[3],str(distance_upstream_plus)]
                             peaks_distance_plus.append(distance_upstream_plus)
-                        plus_check = False
+                            plus_check = False
+                            break
 
+                    elif peak_summit > end and plus_check:#if peak is partially downtream all genes in scaffold
+                        #temp_plus = [gene[3], 'partial_downstream ' +str(end - start_peak)]
 
-                    elif start_peak <  end and end_peak > end and stop_downstream_plus == False:#if peak is downtream all genes in scaffold
-                        temp_plus = [gene[3], 'partial_downstream ' +str(end - start_peak)]
-                        stop_downstream_plus = True
-
-                    elif start_peak > end and stop_downstream_plus == False:
-                        temp_plus = [gene[3], 'total_downstream ' +str(start_peak - end)]
-                        stop_downstream_plus = True
-
+                        temp_plus = [gene[3], 'downstream_' + str(peak_summit - end)]
+                        temp_downstream_dist_plus = peak_summit - end
 
 
 
-            if plus_check == True and stop_downstream_plus == True: #checked all genes for upstream location in the forward strand but didn't found any, despite the fact it found downstream
-                #print temp_plus
-                if any("partial_" in element for element in temp_plus):
-                    peaks_partially_downstream_plus += 1
+            if plus_check and exist_gene_plus: #checked all genes for upstream location in the forward strand but didn't found any, despite the fact it found downstream
 
-                elif any("total_" in element for element in temp_plus):
-                    peaks_downstream_plus += 1
-
+                peaks_downstream_plus += 1
                 closer_genes['+'] = temp_plus
 
+            elif exist_gene_plus == False:
+                no_gene_plus += 1
 
+
+            #######################################################
+            ######################################################
+            #####################################################
             for gene in reversed(genes_per_peak_scaffold): #run reversed list to search for minus genes
+
                 end = int(gene[0])
                 start = int(gene[1])
                 if gene[2] == "-" and minus_check:
-                    if start_peak >= end and end_peak <= start: #if peak is within a gene in the reverse strand
+
+                    exist_gene_minus = True
+                    if peak_summit <= start and peak_summit >= end:
+                        #if start_peak >= start and start_peak <= end and end_peak <= end: #if peak is within a gene in the forward strand
                         peaks_within_minus += 1
                         peaks2gene_within_minus[peak] = gene[3] #dict with the genes that the peaks are within
                         minus_check = False
                         closer_genes['-'] = [gene[3], 'total_within']
+                        break
+                    #elif start_peak <= start: #if peak is upstream a gene in the forward strand, assuming the order of the coordinates in the gff is correct
+                    elif peak_summit > start:
 
-                    elif end_peak > start:
+                        distance_upstream_minus = peak_summit - start
+                        if len(temp_minus) != 0:
+                            if temp_downstream_dist_minus <= 1000 and distance_upstream_minus > 2000:
+                                #print(temp_plus)
+                                closer_genes['-'] = temp_minus
+                                peaks_partially_downstream_minus += 1
+                                minus_check = False
+                                break
 
-                        if start_peak <= start:
-                            distance_upstream_minus = start - start_peak
-                            closer_genes['-'] = [gene[3],'partial_within '+ str(distance_upstream_minus)]
-                            partial_peaks_minus += 1
+                            else:
+                                closer_genes['-'] = [gene[3],str(distance_upstream_minus)]
+                                peaks_distance_minus.append(distance_upstream_minus)
+                                minus_check = False
+                                break
                         else:
-                            distance_upstream_minus = start_peak - start
+
                             closer_genes['-'] = [gene[3],str(distance_upstream_minus)]
                             peaks_distance_minus.append(distance_upstream_minus)
-                        minus_check = False
+                            minus_check = False
+                            break
 
-                    elif start_peak < end and end_peak >= end and stop_downstream_minus == False:
-                        temp_minus = [gene[3], 'partial_downstream ' +str(end_peak - end)]
-                        stop_downstream_minus = True
+                    elif peak_summit < end and minus_check:#if peak is partially downtream all genes in scaffold
 
-                    elif start_peak < start and end_peak < start and stop_downstream_minus == False:
-                        temp_minus = [gene[3], 'total_downstream ' +str(end - end_peak)]
-                        stop_downstream_minus = True
+                        temp_minus = [gene[3], 'downstream_' + str(end - peak_summit)]
+                        temp_downstream_dist_minus = end - peak_summit
 
 
-            if minus_check == True and stop_downstream_minus == True: #checked all genes for upstream location in the reverse strand but didn't found any, despite the fact it found downstream
-                if any("partial_" in element for element in temp_minus):
-                    peaks_partially_downstream_minus += 1
-                elif any("total_" in element for element in temp_minus):
-                    peaks_downstream_minus += 1
+
+            if minus_check and exist_gene_minus: #checked all genes for upstream location in the forward strand but didn't found any, despite the fact it found downstream
+
+                peaks_downstream_minus += 1
                 closer_genes['-'] = temp_minus
+
+            elif exist_gene_minus == False:
+                no_gene_minus += 1
 
 
 
             if '+' in closer_genes and '-' in closer_genes:
                 final_dict[peak] = info + (closer_genes['+'][0],closer_genes['+'][1], closer_genes['-'][0], closer_genes['-'][1],)
             elif '+' in closer_genes:
+                #print(info)
+                #print(closer_genes['+'])
                 final_dict[peak] = info + (closer_genes['+'][0], closer_genes['+'][1],'no_gene_minus','-',)
             elif '-' in closer_genes:
                 final_dict[peak] = info + ('no_gene_plus','-', closer_genes['-'][0], closer_genes['-'][1],)
+
+
 
         else:
             #logging.warning("There are no predicted genes in the scaffold %s where the peak %s was found!" % (scaffold_id,peak))
             no_annotation += 1
             final_dict[peak] = info + ('No annotation available','-','-','-',)
 
+
+
     #print(no_annotation,peaks_within_plus,peaks_within_minus,partial_peaks_plus,partial_peaks_minus,peaks_distance_plus,peaks_distance_minus,peaks2gene_within_plus,\
      #      peaks2gene_within_minus,peaks_downstream_plus, peaks_partially_downstream_plus, peaks_downstream_minus, peaks_partially_downstream_minus, final_dict)
     return no_annotation,peaks_within_plus,peaks_within_minus,partial_peaks_plus,partial_peaks_minus,peaks_distance_plus,peaks_distance_minus,peaks2gene_within_plus,\
-           peaks2gene_within_minus,peaks_downstream_plus, peaks_partially_downstream_plus, peaks_downstream_minus, peaks_partially_downstream_minus, final_dict
+           peaks2gene_within_minus,peaks_downstream_plus, peaks_partially_downstream_plus, peaks_downstream_minus, peaks_partially_downstream_minus, final_dict, no_gene_plus, no_gene_minus
 
 
 
@@ -238,7 +280,7 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation, col):
                         #process peaks based on GTF file. Only need the following dict which contains only the peaks above the threshold
                         no_annotation,peaks_within_plus,peaks_within_minus,partial_peaks_plus,partial_peaks_minus,peaks_distance_plus,peaks_distance_minus,\
                         peaks2gene_within_plus,peaks2gene_within_minus,peaks_downstream_plus, peaks_partially_downstream_plus, peaks_downstream_minus,\
-                        peaks_partially_downstream_minus,final_dict = processGFFfile(structural_annotation,gff)
+                        peaks_partially_downstream_minus,final_dict,no_gene_plus, no_gene_minus = processGFFfile(structural_annotation,gff)
 
 
 
@@ -274,12 +316,12 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation, col):
                                 outputFile.write("##Annotation analysis of the peaks above the threshold:##\n")
                                 outputFile.write("Forward strand:\n")
                                 outputFile.write("\tNumber of peaks totally within the range of genes predicted in the forward strand\t%i\n" % peaks_within_plus)
-                                outputFile.write("\tNumber of peaks partially within the range of genes predicted in the forward strand\t%i\n" % partial_peaks_plus)
+                                #outputFile.write("\tNumber of peaks partially within the range of genes predicted in the forward strand\t%i\n" % partial_peaks_plus)
                                 outputFile.write("\tNumber of peaks located upstream of genes predicted in the forward strand\t%i\n" % len(peaks_distance_plus))
                                 outputFile.write("\tNumber of peaks where all the genes predicted in the forward strand are totally upstream of the peak itself (peaks located downstream of all genes of the scaffold)\t%i\n" % peaks_downstream_plus)
-                                outputFile.write("\tNumber of peaks where one of the genes predicted in the forward strand is partially upstream of the peak itself (peaks located partially downstream of at least one gene)\t%i\n" % peaks_partially_downstream_plus)
-
-                                outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_plus,partial_peaks_plus,len(peaks_distance_plus),peaks_downstream_plus,peaks_partially_downstream_plus,no_annotation])))
+                                outputFile.write("\tNumber of peaks where located downstream of one gene up to 1000bp, considering that there is a gene more than 2000bp downstream of the peak)\t%i\n" % peaks_partially_downstream_plus)
+                                #outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_plus,len(peaks_distance_plus),peaks_downstream_plus,peaks_partially_downstream_plus,no_annotation])))
+                                outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % no_gene_plus)
 
                                 if len(peaks_distance_plus) > 0:
                                     outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the forward strand\t%s\n" % str(round(float(sum(peaks_distance_plus))/len(peaks_distance_plus),4)))
@@ -292,11 +334,12 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation, col):
 
                                 outputFile.write("Reverse strand:\n")
                                 outputFile.write("\tNumber of peaks totally within the range of genes predicted in the reverse strand\t%i\n" % peaks_within_minus)
-                                outputFile.write("\tNumber of peaks partially within the range of genes predicted in the reverse strand\t%i\n" % partial_peaks_minus)
+                                #outputFile.write("\tNumber of peaks partially within the range of genes predicted in the reverse strand\t%i\n" % partial_peaks_minus)
                                 outputFile.write("\tNumber of peaks located upstream of genes predicted in the reverse strand\t%i\n" % len(peaks_distance_minus))
                                 outputFile.write("\tNumber of peaks where all the genes predicted in the reverse strand are totally upstream of the peak itself (peaks located downstream of all genes of the scaffold)\t%i\n" % peaks_downstream_minus)
-                                outputFile.write("\tNumber of peaks where one of the genes predicted in the reverse strand is partially upstream of the peak itself (peaks located partially downstream of at least one gene)\t%i\n" % peaks_partially_downstream_minus)
-                                outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_minus,partial_peaks_minus,len(peaks_distance_minus),peaks_downstream_minus,peaks_partially_downstream_minus, no_annotation])))
+                                outputFile.write("\tNumber of peaks where located downstream of one gene up to 1000bp, considering that there is a gene more than 2000bp downstream of the peak)\t%i\n" % peaks_partially_downstream_minus)
+                                #outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_minus,len(peaks_distance_minus),peaks_downstream_minus,peaks_partially_downstream_minus, no_annotation])))
+                                outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % no_gene_minus)
                                 if len(peaks_distance_minus) > 0:
                                     outputFile.write("\tAverage distance of the upstream peaks to the start of the closest gene predicted in the reverse strand\t%s\n" % str(round(float(sum(peaks_distance_minus))/len(peaks_distance_minus),4)))
                                     outputFile.write("\tMax distance of an upstream peak to the start of the closest gene predicted in the reverse strand\t%i\n" % max(peaks_distance_minus))
