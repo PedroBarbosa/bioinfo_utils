@@ -319,7 +319,7 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation, col):
                                 #outputFile.write("\tNumber of peaks partially within the range of genes predicted in the forward strand\t%i\n" % partial_peaks_plus)
                                 outputFile.write("\tNumber of peaks located upstream of genes predicted in the forward strand\t%i\n" % len(peaks_distance_plus))
                                 outputFile.write("\tNumber of peaks where all the genes predicted in the forward strand are totally upstream of the peak itself (peaks located downstream of all genes of the scaffold)\t%i\n" % peaks_downstream_plus)
-                                outputFile.write("\tNumber of peaks where located downstream of one gene up to 1000bp, considering that there is a gene more than 2000bp downstream of the peak)\t%i\n" % peaks_partially_downstream_plus)
+                                outputFile.write("\tNumber of peaks located downstream of one gene up to 1000bp distance, considering that there is a gene more than 2000bp downstream of the peak)\t%i\n" % peaks_partially_downstream_plus)
                                 #outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_plus,len(peaks_distance_plus),peaks_downstream_plus,peaks_partially_downstream_plus,no_annotation])))
                                 outputFile.write("\tNumber of peaks with no gene information in the forward strand (scaffold of the peak has only gene predictions in reverse strand)\t%i\n" % no_gene_plus)
 
@@ -337,7 +337,7 @@ def processFiles(peak_files,threshold, sort,gff, addAnnotation, col):
                                 #outputFile.write("\tNumber of peaks partially within the range of genes predicted in the reverse strand\t%i\n" % partial_peaks_minus)
                                 outputFile.write("\tNumber of peaks located upstream of genes predicted in the reverse strand\t%i\n" % len(peaks_distance_minus))
                                 outputFile.write("\tNumber of peaks where all the genes predicted in the reverse strand are totally upstream of the peak itself (peaks located downstream of all genes of the scaffold)\t%i\n" % peaks_downstream_minus)
-                                outputFile.write("\tNumber of peaks where located downstream of one gene up to 1000bp, considering that there is a gene more than 2000bp downstream of the peak)\t%i\n" % peaks_partially_downstream_minus)
+                                outputFile.write("\tNumber of peaks located downstream of one gene up to 1000bp, considering that there is a gene more than 2000bp downstream of the peak)\t%i\n" % peaks_partially_downstream_minus)
                                 #outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % int(peaks_threshold - sum([peaks_within_minus,len(peaks_distance_minus),peaks_downstream_minus,peaks_partially_downstream_minus, no_annotation])))
                                 outputFile.write("\tNumber of peaks with no gene information in the reverse strand (scaffold of the peak has only gene predictions in forward strand)\t%i\n" % no_gene_minus)
                                 if len(peaks_distance_minus) > 0:

@@ -39,7 +39,7 @@ def processPeaksFile(peakFile,dist, outputFile):
                                 bind_feature = upstream_forward.split("[")[1].replace('\'','').replace('\"','')
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + bind_feature.replace(']','') +'\n')
 
-                            elif "dowstream_" in upstream_forward:
+                            elif "downstream_" in upstream_forward:
                                 part_down_distance = int(upstream_forward.split("_")[1])
                                 if part_down_distance <= 1000:
                                     outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\t' + 'terminator\n')
@@ -219,7 +219,7 @@ def processPeaksFile(peakFile,dist, outputFile):
                             else:
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\tterminator\n')
 
-                        elif upstream_forward.isdigit() and int(upstream_forward) > dist and "_downstream" in upstream_reverse: #criteria 2
+                        elif upstream_forward.isdigit() and int(upstream_forward) > dist and "downstream_" in upstream_reverse: #criteria 2
                             if int(upstream_reverse.split("_")[1]) >= 1000:
                                 outFile.write("\t".join(fields[0:10]) + "\t" + '\t'.join(fields[10:13]) + '\tintergenic\n')
                             else:

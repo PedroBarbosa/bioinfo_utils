@@ -77,7 +77,8 @@ def processPeaksFile(peakFile,gffDict, outputFile):
 
 
                                 elif not feature[0] == "tss" and not feature[0] == "tts" and not feature[0] == "CDS": #add feature where summit is included. Exception when the feature is tss or tts. This is associated with the begining of gene
-                                    result.append(feature[0])
+                                    if len(result) == 0:
+                                        result.append(feature[0])
 
                             if feature[0] == "start_codon": #if start codon, check 5' UTR exists and if yes, check if summit is there. If so, replace result with 5' UTR
                                 if int(feature[1]) > min_coord and summit_peak < int(feature[1]):
@@ -121,12 +122,12 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                                         result.append(feature[0])
 
                             if feature[0] == "start_codon": #if start codon, check 5' UTR exists and if yes, check if summit is there. If so, replace result with 5' UTR
-                                if int(feature[1]) < max_coord and summit_peak > int(feature[1]):
+                                if int(feature[1]) < max_coord and summit_peak > int(feature[2]):
                                     result = []
                                     result.append('5\'UTR')
 
                             elif feature[0] == "stop_codon": #if stop codon, check 3'UTR exists and if yes, check if summit is there.
-                                if int(feature[1]) > int(min_coord) and summit_peak < int(feature[2]):
+                                if int(feature[1]) > int(min_coord) and summit_peak < int(feature[1]):
                                     result = []
                                     result.append('3\'UTR')
                             other_processed=True
@@ -138,9 +139,9 @@ def processPeaksFile(peakFile,gffDict, outputFile):
                     fields[i] = fields[i] + ' ' + str(result)
                     outFile.write('\t'.join(fields) + '\n')
 
-            print(ngenes)
-            print(ntss)
-            print(ntts)
+            #print(ngenes)
+            #print(ntss)
+            #print(ntts)
 
 
 
