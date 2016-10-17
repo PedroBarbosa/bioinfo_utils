@@ -69,6 +69,7 @@ do
 		command="$base_command -R @RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general $pair1 $pair2"
 		command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
+		command_index="samtools index"		
 
                 #printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
                 echo "$command"
@@ -76,7 +77,7 @@ do
 		$command | $command_view > ${bam_file} 2>> ./stderr.txt
                 printf "\nDone!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
                 $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
-
+		$command_index ${bam_file}_sorted.bam 2>> ./stderr.txt
 
 	elif [ ! -f "$filename" -a "$matepairFlag" = "false"  ]; then
 		echo "$filename" is not a file
@@ -92,6 +93,8 @@ do
 
 	elif [ "$matepairFlag" = "true" -a -f "$filename" -a  "$second_pair" = "true" -a "$3" = "true" ]; then
 		pair2="$filename"
+		bam_basename=$(basename $pair2 | sed 's/\(.*\)_.*/\1/')
+                #bam_basename=$(basename $pair2 | cut -d "_" 
 		first_pair=true
 		second_pair=false
 		let "numb_samples += 1"
@@ -101,12 +104,13 @@ do
                 command="$base_command -R @RG\tID:${bam_basename}_id\tSM:${bam_basename}\t$read_group_general $pair1 $pair2"
                 command_view="samtools view -Sbh -"
                 command_sort="samtools sort ${bam_file}"
-
+		command_view="samtools index"
                 #printf "##CMD##:\n$command | $command_view > ${bam_file} 2>> ./stderr.txt"
 		echo "$command"
                 $command | $command_view > ${bam_file} 2>> ./stderr.txt
                 printf "\nDone!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
 		$command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
+		$command_index ${bam_file}_sorted.bam 2>> ./stderr.txt
 
 	elif [ ! -f "$filename" -a "$matepairFlag" = "true" ]; then
 		echo "$filename" is not a file

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 #Script to run bowtie multiple times for each library. One sam per library will be produced. 
 display_usage() { 
 printf "First argument must be the file. In this file the Paired end libraries need to be first
@@ -45,9 +46,9 @@ do
 	#path=/mnt/msa/workflow_scripts/
 	#filename=$path$line
 	filename=$line
-	#sam_basename=$(basename $filename .fq)
-#	sam_basename=$(basename $filename |awk -F '_2.' '{print $1}')
-	sam_basename=$(basename $filename | awk -F '_unmapped' '{print $1}')
+
+	sam_basename=$(basename $filename | sed 's/\(.*\)_.*/\1/')
+#	sam_basename=$(basename $filename | awk -F '_unmapped' '{print $1}')
 	#check if reached the MATE PAIR samples, and if not supposed to map them, break the loop
 	if [[ "$filename" == *"MP"* && "$3" = "true" ]];then
 		matepairFlag=true

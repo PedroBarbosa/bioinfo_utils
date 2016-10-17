@@ -3,7 +3,7 @@ usage="$(basename "$0") input_file mapper [-h] [-b] [-s]. Script to generate dif
 
 where:
     input_file	Text file where each line represents the path for the SAM/BAM files to be processed.
-    mapper	Aligner used to generate the alignments. Available options: Tophat2, Hisat2, STAR, bowtie2.
+    mapper	Aligner used to generate the alignments. Available options: Tophat2, Hisat2, STAR, bowtie2, bwa-mem.
    
     Optional arguments:
     -h  show this help text
@@ -43,7 +43,7 @@ containsElement () {
   return 1
 }
 
-MAPPERS_AVAILABLE=("Tophat2" "Hisat2" "STAR" "bowtie2")
+MAPPERS_AVAILABLE=("Tophat2" "Hisat2" "STAR" "bowtie2" "bwa-mem")
 containsElement "$2" "${MAPPERS_AVAILABLE[@]}"
 if [ $(echo $?) = 1 ]; then
     printf "ERROR: Unrecognized mapper. Please set a valid aligner name.\n\n"
@@ -74,7 +74,7 @@ do
     printf '%s\t%s\n' 'Number of primary and linear aligments with mapping quality > 10:' $(samtools view -cF2308q10 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of secondary alignments:' $(samtools view -cf256 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of chimeric alignments:' $(samtools view -cf2048 $filename) >> $PWD/mappingStats.txt
-    printf '%s\t%s\n' 'Number of reads mapped as proper pair:' $(samtools view -cf2 $filename) >> $PWD/mappingStats.txt
+    printf '%s\t%s\n' 'Number of alignments reported as proper pair:' $(samtools view -cf2 $filename) >> $PWD/mappingStats.txt
     printf '\t%s\t%s\n' 'Number of proper pairs mapped as FR:' $(samtools view -cf99 $filename) >> $PWD/mappingStats.txt
     printf '\t%s\t%s\n' 'Number of proper pairs mapped as RF:' $(samtools view -cf83 $filename) >> $PWD/mappingStats.txt
     if [ $MAPPER = "STAR" ];then
@@ -82,8 +82,10 @@ do
         printf '%s\t%s\n' 'Number of alignments in STAR with the mapping quality of 255 (supposely represent unique mappers, if you did not change this parameter when running star):' $(samtools view -cq255 $filename) >> $PWD/mappingStats.txt
 	printf '%s\t%s\n' 'Number of unique pairs using bitflag, tags and sort/uniq filtering :' $(samtools view -q255 -F 2308 $filename | grep -w "NH:i:1" | cut -f 1 | sort | uniq -c | sed -e 's/^[ \t]*//' | grep "^2" | cut -d ' ' -f 2 | wc -l) >> $PWD/mappingStats.txt
     elif [ $MAPPER = "bowtie2" ];then
-        printf '%s\t%s\n' 'Number of alignments in bowtie2 with the mapping quality of 255 (supposely represent unique mappers):' $(samtools view -cq255 $filename) >> $PWD/mappingStats.txt
-
+#        printf '%s\t%s\n' 'Number of alignments in bowtie2 with the mapping quality of 255 (supposely represent unique mappers):' $(samtools view -cq255 $filename) >> $PWD/mappingStats.txt
+	printf '%s\t%s\n' 'Number of alignments in bowtie2 without the XS tag (supposely represent unique mappers):' $(samtools view -q10 -F2308 $filename | grep -cv "XS:") >> $PWD/mappingStats.txt    
+    elif [ $MAPPER = "bwa-mem" ]; then
+	printf '%s\t%s\n' 'Number of alignments in bwa-mem without XA tag (supposely represent unique mappers):' $(samtools view -q10 -F2308 $filename | grep -cv "XA:") >> $PWD/mappingStats.txt 
     fi
     printf "DONE!!\n\n\n" 2>&1 | tee -a $PWD/mappingStats.txt
 done <$1
