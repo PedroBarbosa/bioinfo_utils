@@ -36,11 +36,13 @@ def processQualityFiles(qualFile):
     for record in qualities:
         read_qualities = record.letter_annotations["phred_quality"]
         dict_qualities[record.id] = np.mean(read_qualities)
+
     return  dict_qualities
 
 def writeIndividualReadLenght(tuples, dict_qual, inputfile):
-    basename = os.path.splitext(inputfile)[0]
-    outFile = basename + "-indivReadInfo.txt"
+    basename = os.path.basename(inputfile).rsplit('.',1)[0]
+    outFile = os.getcwd() +'/' + str(basename) + "-indivReadInfo.txt"
+
     dictNsPerReadLenght = {}
     dictFor4QualScatterPlot = {}
     with open(outFile,'w') as out:
@@ -53,8 +55,8 @@ def writeIndividualReadLenght(tuples, dict_qual, inputfile):
     return dictNsPerReadLenght, dictFor4QualScatterPlot
 
 def countsAndStats(lengths, listNs ,dict_qual, inputfile):
-    basename = os.path.splitext(inputfile)[0]
-    outFile = basename + "-statsAndCounts.txt"
+    basename = os.path.basename(inputfile).rsplit('.',1)[0]
+    outFile = os.getcwd() +'/' + str(basename) + "-statsAndCounts.txt"
     dict_counter = Counter(lengths)
 
     with open(outFile,'w') as out:
@@ -94,9 +96,9 @@ def countsAndStats(lengths, listNs ,dict_qual, inputfile):
 
 
 def drawHistograms(counter, dictNsReadLength, inputfile):
-    basename = os.path.splitext(inputfile)[0]
-    outFileReadLength = basename + "-histReadLength.png"
-    outFileNsReadLength = basename + "-histNsPerReadLength.png"
+    basename = os.path.basename(inputfile).rsplit('.',1)[0]
+    outFileReadLength = os.getcwd() +'/' + str(basename) + "-histReadLength.png"
+    outFileNsReadLength = os.getcwd() +'/' + str(basename) + "-histNsPerReadLength.png"
 
     ####Read length#####
     val, weight = zip(*[(k, v) for k,v in counter.items()])
@@ -114,14 +116,15 @@ def drawHistograms(counter, dictNsReadLength, inputfile):
     plt.savefig(outFileNsReadLength)
     plt.close()
 
-def drawScatterPlot(dictFor4QualScatterPlot,inputFile):
-    basename = os.path.splitext(inputFile)[0]
-    outFileScatterQual = basename + "-scatterQualities.png"
+def drawScatterPlot(dictFor4QualScatterPlot,inputfile):
+    basename = os.path.basename(inputfile).rsplit('.',1)[0]
+    outFileScatterQual = os.getcwd() +'/' + str(basename) + "-scatterQualities.png"
 
     for length,qual in dictFor4QualScatterPlot.items():
         plt.scatter(length,qual,color='grey',s=25,alpha=0.6)
     plt.xlabel("Read lenght")
     plt.ylabel("Average Phread Qualities")
+    plt.xlim(0,2000)
     plt.savefig(outFileScatterQual)
     plt.close()
 
@@ -133,21 +136,24 @@ def main():
 
     for file in args.inputFile:
         logging.info("Processing %s file." % file)
-        list_tuples, alllenghts, listNs = processFastaFiles(file)
-
-
         if args.listqualityFiles:
+
             qualities=""
             with open(args.listqualityFiles,'r') as listFiles:
                 for qualFile in listFiles:
-
-                    if os.path.splitext(file)[0] == os.path.splitext(qualFile)[0]:
+                    if os.path.abspath(file).rsplit('.', 1)[0] == os.path.abspath(qualFile).rsplit('.',1)[0]:
                         qualities = qualFile.rstrip()
                         break
+            if qualities=="":
+                logging.error("Error. %s file does not have quality file associated. Please check carefully the name of the files." % file)
+                logging.info("Problematic FASTA file path without extension:\t%s" % os.path.abspath(file).rsplit('.', 1)[0])
+                exit(1)
 
             logging.info("Taking a look at quality file (%s)." % qualities)
             dict_qual = processQualityFiles(qualities)
 
+        logging.info("Checking quality..Done.")
+        list_tuples, alllenghts, listNs = processFastaFiles(file)
         logging.info("Calculating overall stats..")
         dict_NsReadLen,dictFor4QualScatterPlot = writeIndividualReadLenght(list_tuples,dict_qual,file)
         counter4hist =countsAndStats(alllenghts,listNs,dict_qual,file)
