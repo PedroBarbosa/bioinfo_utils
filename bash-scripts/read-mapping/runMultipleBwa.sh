@@ -79,7 +79,7 @@ do
       		    $command | $command_view > ${bam_file} 2>> ./stderr.txt
                 printf "Done!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
                 $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
-                $command_index ${bam_file}_sorted.bam 2>> ./stderr.txt
+                $command_index ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
                 rm $bam_file
 
         elif [ ! -f "$filename" -a "$matepairFlag" = "false"  ]; then
@@ -118,7 +118,7 @@ do
                 $command | $command_view > ${bam_file} 2>> ./stderr.txt
 	            printf "Done!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
                 $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
-                $command_index ${bam_file}_sorted.bam 2>> ./stderr.txt
+                $command_index ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
                 rm $bam_file
 
         elif [ ! -f "$filename" -a "$matepairFlag" = "true" ]; then
