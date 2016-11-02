@@ -50,7 +50,7 @@ def createDict(fileList):
 
 def writeOutput(dict):
 
-    with open(os.getcwd() + "/mappingComparison.xlsx", "w") as outfile:
+    with open(os.getcwd() + "/mappingComparison.tsv", "w") as outfile:
 
 
 
