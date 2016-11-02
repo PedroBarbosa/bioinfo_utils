@@ -73,7 +73,7 @@ def writeOutput(dict):
         for key,value in dict.items():
             strategies,alignments,unmapped,primary_linear,primary_q10,secondary,chimeric,proper,proper_FR,proper_RF,unique = [],[],[],[],[],[],[],[],[],[],[]
 
-            print(key,value)
+
             for strategy in value:
                 strategies.append(str(strategy[0]))
                 alignments.append(str(strategy[1]))
