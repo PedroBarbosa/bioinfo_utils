@@ -95,7 +95,7 @@ do
                 second_pair="false"
                 printf "Running STAR for $bam_basename sample...\n"
                 RUN_STAR="$STAR --runThreadN $THREADS --runMode alignReads --genomeDir $GENOMIC_INDEX --readFilesIn $pair1 $pair2 --outFileNamePrefix $bam_basename
- ---outSAMattributes All --outSAMstrandField $CUFFLINKS_COMPATIBLE --outFilterIntronMotifs $NON_CANONICAL_JUNCTIONS --outSAMtype BAM SortedByCoordinate
+ --outSAMattributes All --outSAMstrandField $CUFFLINKS_COMPATIBLE --outFilterIntronMotifs $NON_CANONICAL_JUNCTIONS --outSAMtype BAM SortedByCoordinate
  --chimSegmentMin 20 --outReadsUnmapped Fastx --quantMode TranscriptomeSAM GeneCounts --quantTranscriptomeBan $EXPRESS_COMPATIBLE --twopassMode $TWO_PASS_MAPPING
  --outSAMattrRGline ID:${bam_basename}_ID SM:$bam_basename PL:illumina LB:lib"
 
