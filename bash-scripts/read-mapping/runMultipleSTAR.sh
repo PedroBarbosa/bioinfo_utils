@@ -3,6 +3,8 @@ display_usage() {
 echo 'Script to run STAR for each library. STAR executable must be in the path. If not, please edit STAR variable within the script with the full path.
 Read groups are automatically added to each output based on the sample basename.
 If there is annotation file available, please use it in the genome index generation step [check 4th argument].
+
+
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
 -2nd argument must be the directory of the reference indexed database.
 -3rd argument must be the number of threads to use.
@@ -12,13 +14,11 @@ If there is annotation file available, please use it in the genome index generat
 -7th argument is optional. Flag to keep alignments that contain non-canonical junctions. Available options: [true|false]. Default: "false", non-canonical junctions
 are removed by default.
 -8th argument is optional. Flag to output alginments in transcript coordinates compatible with eXpress software (allow indels and soft clippings in the
-alignments). Available options: [true|false]. Default: "false".
-'
-
+alignments). Available options: [true|false]. Default: "false".'
 }
 
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -< "$4" ]; then
-        printf "Please provide at least the 4 first arguments required for the script.\n\n"
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+        printf "ERROR:Please provide at least the 4 first arguments required for the script.\n\n"
         display_usage
         exit 1
 fi
@@ -31,7 +31,7 @@ THREADS="$3"
 if [ "$4" = "false" ]; then
     NO_ANNOTATION="--sjdbGTFfile -"
 elif [ "$4" != "true" ]; then
-    printf "Please set a valid value for the 4th argument."
+    printf "Please set a valid value for the 4th argument.\n"
     exit 1
 fi
 
@@ -41,7 +41,7 @@ if [ -z "$5" ] || [ "$5" = "false" ] ; then
 elif [ "$5" = "true" ]; then
     TWO_PASS_MAPPING="Basic"
 else
-    printf "Please set a valid value for the 5th argument."
+    printf "Please set a valid value for the 5th argument.\n"
     display_usage
     exit 1
 fi
@@ -52,7 +52,7 @@ if [ -z "$6" ] || [ "$6" = "false" ] ; then
 elif [ "$6" = "true" ]; then
     CUFFLINKS_COMPATIBLE="intronMotif"
 else
-    printf "Please set a valid value for the 6th argument."
+    printf "Please set a valid value for the 6th argument.\n"
     display_usage
     exit 1
 fi
@@ -63,7 +63,7 @@ if [ -z "$7" ] || [ "$7" = "false" ] ; then
 elif [ "$7" = "true" ]; then
     NON_CANONICAL_JUNCTIONS="None"
 else
-    printf "Please set a valid value for the 7th argument."
+    printf "Please set a valid value for the 7th argument.\n"
     display_usage
     exit 1
 fi
@@ -74,7 +74,7 @@ if [ -z "$8" ] || [ "$8" = "false" ] ; then
 elif [ "$8" = "true" ]; then
     EXPRESS_COMPATIBLE="Singleend"
 else
-    printf "Please set a valid value for the 8th argument."
+    printf "Please set a valid value for the 8th argument.\n"
     display_usage
     exit 1
 fi
