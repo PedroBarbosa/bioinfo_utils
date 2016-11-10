@@ -44,9 +44,9 @@ class countN():
                 totalGenomeLength += len(record.seq)
                 totalGenomeLenghNoN += len(record.seq) - countN
                 if record.id in self.finalDict.keys():
-                    self.finalDict[record.id].append((len(record.seq), countN,round((countN/len(record.seq))*100,2)))
+                    self.finalDict[record.id].append((len(record.seq), countN,round((countN/len(record.seq))*100,3)))
                 else:
-                    self.finalDict[record.id] = [(len(record.seq), countN,round((countN/len(record.seq))*100,2))]
+                    self.finalDict[record.id] = [(len(record.seq), countN,round((countN/len(record.seq))*100,3))]
         handle.close()
 
         Ns.extend((totalGenomeLength,totalGenomeLenghNoN))
@@ -76,19 +76,18 @@ class countN():
                     logging.error("%s found more than once in %s file.." % (record.id,inputFile))
                     #individualFinalDict[record.id].append((len(record.seq), countN,round((countN/len(record.seq))*100,2)))
                 else:
-                    individualFinalDict[record.id] = [len(record.seq), countN,round((countN/len(record.seq))*100,2)]
+                    individualFinalDict[record.id] = [len(record.seq), countN,round((countN/len(record.seq))*100,3)]
         handle.close()
 
-        outFile = os.getcwd() +'/' + str(os.path.basename(inputFile).rsplit('.')[0]) + "-indivNsInfo.txt"
+        outFile = os.getcwd() +'/' + str(os.path.basename(inputFile).rsplit('.')[0]) + "-indivNsInfo.tsv"
         with open(outFile,'w') as outfile:
             outfile.write("#Number of Ns in file:\t%i\n" % sum(Ns))
             outfile.write("#Length of genome with Ns:\t%i\n" % total_length)
             outfile.write("#Length of genome without Ns:\t%i\n" % total_length_noN)
-            outfile.write("#Fraction of Ns in genome:\t%f\n\n\n" % round((sum(Ns)/total_length)*100,2))
+            outfile.write("#Fraction of Ns in genome:\t%f\n\n\n" % round((sum(Ns)/total_length)*100,3))
             outfile.write("#scaffold_id\tlength\tNs\tfraction_Ns\n")
-            for k,v in sorted(individualFinalDict.values(),key = lambda x: x[0]):
-                print(v)
-                outfile.write(k + "\t" + '\t'.join(v))
+            for k,v in sorted(individualFinalDict.items(),key = lambda x: x[1][0],reverse=True):
+                outfile.write(k + "\t" + '\t'.join(str(v) for v in v) +"\n")
 
 
     def writeOutput(self):
@@ -98,16 +97,16 @@ class countN():
         with open(outputfile, "w") as outfile:
             outfile.write("#File\tNs in file\tlength of genome with Ns\tlength of genome without Ns\tfraction of Ns in genome\n")
             for k,v in self.dictSumNs.items():
-                outfile.write(k + "\t" + sum(v[-2:]) + "\t" + v[-2] + "\t" + v[-1] + "\t" + round((sum(int(v[-2:]))/int(v[-2]))*100,2))
+                outfile.write(k + "\t" + str(sum(v[:-2])) + "\t" + str(v[-2]) + "\t" + str(v[-1]) + "\t" + str(round((sum(v[:-2])/v[-2])*100,3)) + "\n")
 
             outfile.write("\n\n\n#scaffold_id\t")
             for file in self.dictSumNs.keys():
                 outfile.write("length\tnumber of Ns\tfraction of Ns\t")
             outfile.write("\n")
-            for key,value in sorted(self.finalDict.items(), key = lambda x: x[0]):
+            for key,value in sorted(self.finalDict.items(), key = lambda x: x[1][0], reverse = True):
                 outfile.write(key + "\t")
                 for stats in value:
-                    outfile.write("\t".join(stats) + "\t")
+                    outfile.write("\t".join(str(stats) for stats in stats) + "\t")
                 outfile.write("\n")
         outfile.close()
 
@@ -130,7 +129,7 @@ def main():
         else:
             countNobject.processFastaFiles(file)
 
-    if args.differentFasta is None:
+    if not args.differentFasta:
         countNobject.writeOutput()
     logging.info("Done.")
 
