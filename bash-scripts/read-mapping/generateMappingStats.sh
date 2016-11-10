@@ -70,22 +70,22 @@ do
     printf '\n%s\n' '####FINAL STATS####' >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of alignments:' $(samtools view -c $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of unmapped reads:' $(samtools view -cf4 $filename) >> $PWD/mappingStats.txt
-    printf '%s\t%s\n' 'Number of primary and linear aligments:' $(samtools view -cF2308 $filename) >> $PWD/mappingStats.txt
+    #printf '%s\t%s\n' 'Number of primary and linear aligments:' $(samtools view -cF2308 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of primary and linear aligments with mapping quality > 10:' $(samtools view -cF2308q10 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of secondary alignments:' $(samtools view -cf256 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of chimeric alignments:' $(samtools view -cf2048 $filename) >> $PWD/mappingStats.txt
     printf '%s\t%s\n' 'Number of alignments reported as proper pair:' $(samtools view -cf2 $filename) >> $PWD/mappingStats.txt
-    printf '\t%s\t%s\n' 'Number of proper pairs mapped as FR:' $(samtools view -cf99 $filename) >> $PWD/mappingStats.txt
-    printf '\t%s\t%s\n' 'Number of proper pairs mapped as RF:' $(samtools view -cf83 $filename) >> $PWD/mappingStats.txt
+    printf '\t%s\t%s\n' 'Number of reads in proper pair mapped as FR (x2):' $(samtools view -cf99 $filename) >> $PWD/mappingStats.txt
+    printf '\t%s\t%s\n' 'Number of reds in proper pair mapped as RF (x2):' $(samtools view -cf83 $filename) >> $PWD/mappingStats.txt
     if [ $MAPPER = "STAR" ];then
-	printf '%s\t%s\n' 'Number of alignments in STAR with the NH:i:1 tag (supposely represent unique mappers):' $(samtools view $filename | grep -wc "NH:i:1") >> $PWD/mappingStats.txt
+	    #printf '%s\t%s\n' 'Number of alignments in STAR with the NH:i:1 tag (supposely represent unique mappers):' $(samtools view $filename | grep -wc "NH:i:1") >> $PWD/mappingStats.txt
         printf '%s\t%s\n' 'Number of alignments in STAR with the mapping quality of 255 (supposely represent unique mappers, if you did not change this parameter when running star):' $(samtools view -cq255 $filename) >> $PWD/mappingStats.txt
-	printf '%s\t%s\n' 'Number of unique pairs using bitflag, tags and sort/uniq filtering :' $(samtools view -q255 -F 2308 $filename | grep -w "NH:i:1" | cut -f 1 | sort | uniq -c | sed -e 's/^[ \t]*//' | grep "^2" | cut -d ' ' -f 2 | wc -l) >> $PWD/mappingStats.txt
+	    #printf '%s\t%s\n' 'Number of unique pairs using bitflag, tags and sort/uniq filtering :' $(samtools view -q255 -F 2308 $filename | grep -w "NH:i:1" | cut -f 1 | sort | uniq -c | sed -e 's/^[ \t]*//' | grep "^2" | cut -d ' ' -f 2 | wc -l) >> $PWD/mappingStats.txt
     elif [ $MAPPER = "bowtie2" ];then
 #        printf '%s\t%s\n' 'Number of alignments in bowtie2 with the mapping quality of 255 (supposely represent unique mappers):' $(samtools view -cq255 $filename) >> $PWD/mappingStats.txt
-	printf '%s\t%s\n' 'Number of alignments in bowtie2 without the XS tag (supposely represent unique mappers):' $(samtools view -q10 -F2308 $filename | grep -cv "XS:") >> $PWD/mappingStats.txt    
+	    printf '%s\t%s\n' 'Number of alignments in bowtie2 without the XS tag (supposely represent unique mappers):' $(samtools view -q10 -F2308 $filename | grep -cv "XS:") >> $PWD/mappingStats.txt
     elif [ $MAPPER = "bwa-mem" ]; then
-	printf '%s\t%s\n' 'Number of alignments in bwa-mem without XA tag (supposely represent unique mappers):' $(samtools view -q10 -F2308 $filename | grep -cv "XA:") >> $PWD/mappingStats.txt 
+	    printf '%s\t%s\n' 'Number of alignments in bwa-mem without XA tag (supposely represent unique mappers):' $(samtools view -q10 -F2308 $filename | grep -cv "XA:") >> $PWD/mappingStats.txt
     fi
     printf "DONE!!\n\n\n" 2>&1 | tee -a $PWD/mappingStats.txt
 done <$1
