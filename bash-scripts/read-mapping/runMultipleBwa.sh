@@ -80,7 +80,7 @@ do
                 printf "Done!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
                 $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
                 $command_index ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
-                rm $bam_file
+#                rm $bam_file
 
         elif [ ! -f "$filename" -a "$matepairFlag" = "false"  ]; then
                 echo "$filename" is not a file
@@ -119,7 +119,7 @@ do
 	            printf "Done!! Sorting bam file..\n##CMD##\n$command_sort > ${bam_file/.bam/_sorted.bam}\n\n"
                 $command_sort > ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
                 $command_index ${bam_file/.bam/_sorted.bam} 2>> ./stderr.txt
-                rm $bam_file
+#                rm $bam_file
 
         elif [ ! -f "$filename" -a "$matepairFlag" = "true" ]; then
                 echo "$filename" is not a file
