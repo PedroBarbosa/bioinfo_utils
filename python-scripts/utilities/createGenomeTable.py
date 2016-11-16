@@ -1,6 +1,7 @@
 import argparse
 import os
-
+import collections
+from collections import OrderedDict
 def processFastaFiles(inputFile):
 
     contig_seq = ""
@@ -30,8 +31,11 @@ def processFastaFiles(inputFile):
 
 
 def writeOutput(final_dict,orderedFasta,outputFile, inputFileName):
-    sorted_dict = sorted(final_dict.keys(), key=lambda x: final_dict[x], reverse=True)
+
+    sorted_dict = OrderedDict(sorted(final_dict.items(),key = lambda x: x[1][0],reverse=True))
+    #print(type(sorted_dict))
     with open(outputFile, "w") as out:
+        #for k,v in sorted(final_dict.items(),key = lambda x: x[1][0],reverse=True):
         for k,v in iter(sorted_dict.items()):
             out.write(k + "\t" + str(v[0]) + "\n")
 
@@ -39,7 +43,7 @@ def writeOutput(final_dict,orderedFasta,outputFile, inputFileName):
         outFastaFile = os.getcwd() +'/' + str(os.path.basename(inputFileName).rsplit('.')[0]) + "-ordered.fasta"
         with open(outFastaFile, "w") as outFasta:
             for k,v in iter(sorted_dict.items()):
-                outFasta.write(k + "\n" + str(v[1]) + "\n")
+                outFasta.write('>' + k + "\n" + str(v[1]) + "\n")
 
 
 parser = argparse.ArgumentParser(description='Script to create genome table from fasta file. [chromossome_id length_bp].')
