@@ -11,6 +11,7 @@ def processFasta(original, redundands,outputfile):
     mapIds = {}
     for record in original_seq:
         mapIds[id] = (record.id,record.seq)
+        id +=1
     original_seq.close()
 
     handle2=open(redundands,"rU")
@@ -18,6 +19,7 @@ def processFasta(original, redundands,outputfile):
     output = open(outputfile,'w')
     for record in redundands_seq:
         if not record.id in mapIds:
+            print(record.id)
             print("Error. It seems redundands fasta file has more IDs than original. This can not be possible")
             exit(1)
         else:
