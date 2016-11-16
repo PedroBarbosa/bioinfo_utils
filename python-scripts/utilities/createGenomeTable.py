@@ -46,7 +46,7 @@ parser = argparse.ArgumentParser(description='Script to create genome table from
 parser.add_argument(dest='inputFile', metavar='input_files', nargs=1,
                     help='Fasta file to be processed.')
 parser.add_argument('-o', '--outputFile', metavar='', required = True, help='Output file')
-parser.add_argument('-f' '--fastaOrdered',action='store_true', help='Flag that writes new fasta ordered by legnth of sequences.' )
+parser.add_argument('-f', '--fastaOrdered',action='store_true', help='Flag that writes new fasta ordered by legnth of sequences.' )
 args = parser.parse_args()
 
 
