@@ -9,7 +9,7 @@ echo 'Script to run multiple StringTie for several bam files. Stringtie must be 
 -4th argument must be the output directory. If not exists, will create automatically.
 -5rd argument is optional. Flag if one wants to run StringTie with stringent settings for transcript identification. Available options: [true|false]. Default:false. If true, parameteres "-c", "-j", "-a", "-m", "-f" will be affected.
 -6th argument is optional. Output tables required for Ballgown downstream analysis. Requires reference annotation provided (2nd argument). Available options: [true|false]. Default:false.
--7th argument is optional. Output only assembled transcripts that match reference transcripts. Requires reference annotation provided (2nd argument.). Usefull for a 2nd round of StringTIe.
+-7th argument is optional. Output only assembled transcripts that match reference transcripts. Requires reference annotation provided (2nd argument.). Available options: [true|false]. Default:false. Usefull for a 2nd round of StringTIe.
 -8th argument is optional. Flag to activate TRANSCRIPT MERGE MODE. Available options: [true|false]. Default: false (normal transcriptome assembly). If set, it will merge a set of input GTF/GFF files provided in the 1st argument into a non redundant set of transcripts. If 2nd argument is set, merging will include the reference, otherwise (if "-" set), merge is done based only on the list of GTF/GFF provided.'
 
 }
@@ -23,17 +23,17 @@ fi
 STRINGTIE="stringtie"
 THREADS="-p $3"
 if [ -d "$4" ]; then
-    OUTPUT="-o $4"
+    OUTPUT="$4"
 else
     mkdir "$4"
-    OUTPUT="-o $4"
+    OUTPUT="$4"
 fi
 
 CMD="$STRINGTIE $THREADS"
 #####################
 if [ -f "$2" ]; then
     REFERENCE_ANNOTATION="-G $2"
-    CMD="$CMD $REFERENCE_ANNOTATION"
+    CMD+=" $REFERENCE_ANNOTATION"
 elif [ "$2" != "-" ]; then
     printf "Please provide a valid option for the 2nd argument.\n\n"
     display_usage
@@ -43,8 +43,8 @@ fi
 #####################
 if [ "$5" = "true" ]; then
     STRINGENT="-c 5 -j 1.5 -a 20 -m 400 -f 0.2"
-    CMD="$CMD $STRINGENT"
-elif [ "$5" != "false" ]; then
+    CMD+=" $STRINGENT"
+elif [ -n "$5" -a "$5" != "false" ]; then
     printf "Please provide a valid option for the 5th argument.\n\n"
     display_usage
     exit 1
@@ -56,8 +56,8 @@ if [ "$6" = "true" -a "$2" = "-" ]; then
     display_usage
     exit 1
 elif [ -f "$2" -a "$6" = "true" ]; then
-    CMD="$CMD -B"
-elif [ "$6" != "false" ]; then
+    CMD+=" -B"
+elif [ -n "$6" -a "$6" != "false" ]; then
     printf "Please provide a valid option for the 6th argument.\n\n"
     display_usage
     exit 1
@@ -69,8 +69,8 @@ if [ "$7" = "true" -a "$2" = "-" ]; then
     display_usage
     exit 1
 elif [ -f "$2" -a "$7" = "true" ]; then
-    CMD="$CMD -e"
-elif [ "$7" != "false" ]; then
+    CMD+=" -e"
+elif [ -n "$7" -a "$7" != "false" ]; then
     printf "Please provide a valid option for the 7th argument.\n\n"
     display_usage
     exit 1
@@ -78,10 +78,10 @@ fi
 #####################
 #####################
 if [ "$8" = "true" -a "$2" = "-" ]; then
-    CMD="$STRINGTIE --merge $THREADS "
+    CMD+="$STRINGTIE --merge $THREADS "
 elif [ -f "$2" -a "$8" = "true" ]; then
-    CMD="$STRINGTIE --merge $THREADS $REFERENCE_ANNOTATION"
-elif [ "$8" != "false" ]; then
+    CMD+="$STRINGTIE --merge $THREADS $REFERENCE_ANNOTATION"
+elif [ -n "$8" -a "$8" != "false" ]; then
     printf "Please provide a valid option for the 8th argument.\n\n"
     display_usage
     exit 1
@@ -103,7 +103,7 @@ if [ "$8" = "true" ]; then
         fi
     done < $1
 
-    $CMD="$CMD $OUTPUT/stringTie_merged.gtf $1"
+    CMD+=" -o $OUTPUT/stringTie_merged.gtf $1"
     printf "$CMD"
 
 else
@@ -116,16 +116,16 @@ else
 	    #STAR SPECIFIC
 	    BASENAME=$(basename ${FILENAME} .sortedByCoord.out.bam)
 	    printf "Started sample $BASENAME...\n"
-
 	    #Add coverage tables if annotation provided
 	    if [ -f "$2" ]; then
-	        $CMD="$CMD -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt -C $OUTPUT/$BASENAME-covRefs.txt $FILEMAME"
+	        $CMD="$CMD -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt -C $OUTPUT/$BASENAME-covRefs.txt $FILENAME"
+	        time $CMD
         else
-            $CMD="$CMD -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt $FILEMAME"
+            CMD+=" -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt $FILENAME"
+            time $CMD
         fi
 
-        printf "$CMD"
-        printf "Stringtie assembly for $BASENAME sample finished!!\n"
+        printf "Stringtie assembly for $BASENAME sample finished!!\n\n"
     done < $1
 fi
 
