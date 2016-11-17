@@ -14,25 +14,21 @@ def processLastal(lastOut):
                 (score, q, qstart, qalg, qstrand, qsize, t, tstart, talg, tstrand, tsize, blocks) = line.split()[:12]
                 (score, qstart, qalg, qsize, tstart, talg, tsize) = map(int, (score, qstart, qalg, qsize, tstart, talg, tsize))
 
-                #print(q,t)
-                if all(v == score for v in (score, qalg, qsize, talg, tsize)) and q != t:
 
+                #removed score as it seems even in perfect matches the score is not always the same
+                #if all(v == score for v in (score, qalg, qsize, talg, tsize)) and q != t:
+                if all(v == qalg for v in (qalg, qsize, talg, tsize)) and q != t:
                     if q.isdigit():
                         pairwiseAln.add(q,t)
                     elif t.isdigit():
                         pairwiseAln.add(t,q)
                     else:
-                 #       print(q,t)
                         print("None of fasta header seems to represent redundans output (integer values)")
                         exit(1)
 
     infile.close()
     outdict = dict((x, y) for x, y in pairwiseAln)
-    # for tup in pairwiseAln:
-    #     print(tup)
-    # print(len(outdict))
-    # for k,v in outdict.items():
-    #     print(k,v)
+    print("Number of perfect matches:\t%i" % len(outdict))
     return outdict
 
 
