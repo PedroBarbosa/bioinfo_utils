@@ -10,20 +10,20 @@ def processFasta(original, redundands,outputfile):
     id = 1
     mapIds = {}
     for record in original_seq:
-        mapIds[id] = (record.id,record.seq)
+        mapIds[id] = (record.id,str(record.seq))
         id +=1
     original_seq.close()
 
     handle2=open(redundands,"rU")
     redundands_seq = SeqIO.parse(handle2,'fasta')
     output = open(outputfile,'w')
-    for record in redundands_seq:
-        if not record.id in mapIds:
-            print(record.id)
-            print("Error. It seems redundands fasta file has more IDs than original. This can not be possible")
+
+    for record_red in redundands_seq:
+        if not int(record_red.id) in mapIds:
+            print("ERROR: %s redundans ID larger than number of scaffolds in original file." % record_red.id)
             exit(1)
         else:
-            output.write(">" + mapIds[record.id][0] + "\n" + mapIds[record.id][1] + "\n")
+            output.write(">" + mapIds[int(record_red.id)][0] + "_redundans-" + record_red.id + "\n" + mapIds[int(record_red.id)][1] + "\n")
     handle2.close()
     output.close()
 
