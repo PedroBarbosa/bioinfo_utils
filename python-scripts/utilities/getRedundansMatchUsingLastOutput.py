@@ -7,30 +7,45 @@ import argparse
 def processLastal(lastOut):
     with open(lastOut,"r") as infile:
 
+        problematicList=[]
         pairwiseAln =set()
-        for line in infile:
-            if not line.startswith("#"):
+        for l in infile:
+            line=l.rstrip()
+            if not line.startswith("#") and len(line.split()) > 10:
 
-                (score, q, qstart, qalg, qstrand, qsize, t, tstart, talg, tstrand, tsize, blocks) = line.split()[:12]
-                (score, qstart, qalg, qsize, tstart, talg, tsize) = map(int, (score, qstart, qalg, qsize, tstart, talg, tsize))
+                (score, query, qstart, qalgsize, qstrand, qsize, reference, refstart, refalgsize, rstrand, refsize, blocks) = line.split()[:12]
+                (score, qstart, qalgsize, qsize, refstart, refalgsize, refsize) = map(int, (score, qstart, qalgsize, qsize, refstart, refalgsize, refsize))
 
 
                 #removed score as it seems even in perfect matches the score is not always the same
-                #if all(v == score for v in (score, qalg, qsize, talg, tsize)) and q != t:
-                if all(v == qalg for v in (qalg, qsize, talg, tsize)) and q != t:
-                    if q.isdigit():
-                        pairwiseAln.add(q,t)
-                    elif t.isdigit():
-                        pairwiseAln.add(t,q)
+                if all(v == qalgsize for v in (qalgsize, qsize, refalgsize, refsize)) and query != reference:
+
+                    if query.isdigit():
+                        pairwiseAln.add((query,reference))
+                    elif reference.isdigit():
+                        pairwiseAln.add((reference,query))
                     else:
                         print("None of fasta header seems to represent redundans output (integer values)")
                         exit(1)
 
+                else:
+                    problematicList.append(query)
+                    #if refsize/qsize > 0.8:
+                    #    print(qsize,refsize)
+
+                    #    print(qsize)
+                    #    print(qalgsize,refalgsize)
+                    #    print(str(score) + "\n")
+                    #print(line)
+                    #print(qalgsize,qsize,refalgsize,refsize)
     infile.close()
     outdict = dict((x, y) for x, y in pairwiseAln)
     print("Number of perfect matches:\t%i" % len(outdict))
-    return outdict
+    return outdict, problematicList
 
+def writeFileProblematic(listq):
+    outfile=open("problematicQuery.txt", 'w')
+    outfile.write('\n'.join(listq))
 
 def processFasta(dicPairs, redundands,outputfile):
 
@@ -39,7 +54,7 @@ def processFasta(dicPairs, redundands,outputfile):
     output = open(outputfile,'w')
     for record in redundands_seq:
         if record.id in dicPairs:
-            output.write(">" + dicPairs[record.id] + "\n" + record.seq)
+            output.write(">" + dicPairs[record.id] + "\n" + str(record.seq))
         else:
             print("Redundans id %s not present in pairwise dictionary." % record.id)
             exit(1)
@@ -56,7 +71,8 @@ def main():
     args = parser.parse_args()
 
     print("Processing lastal output..")
-    validPairWise = processLastal(args.lastOutput)
+    validPairWise,listq = processLastal(args.lastOutput)
+    writeFileProblematic(listq)
     print("Writing new fasta..")
     processFasta(validPairWise,args.fasta_file,args.outputFile)
 
