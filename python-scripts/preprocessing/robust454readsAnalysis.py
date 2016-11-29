@@ -102,7 +102,7 @@ def drawHistograms(counter, dictNsReadLength, inputfile):
 
     ####Read length#####
     val, weight = zip(*[(k, v) for k,v in counter.items()])
-    plt.hist(val, bins= 20,weights=weight, range=[0,2000])
+    plt.hist(val, bins= 20,weights=weight, range=[0,50000])
     plt.xlabel('Read lenght bins')
     plt.ylabel('Counts')
     plt.savefig(outFileReadLength)
@@ -124,7 +124,7 @@ def drawScatterPlot(dictFor4QualScatterPlot,inputfile):
         plt.scatter(length,qual,color='grey',s=25,alpha=0.6)
     plt.xlabel("Read lenght")
     plt.ylabel("Average Phread Qualities")
-    plt.xlim(0,2000)
+    plt.xlim(0,50000)
     plt.savefig(outFileScatterQual)
     plt.close()
 
