@@ -1,4 +1,4 @@
-#!/bin/bash
+o#!/bin/bash
 
 display_usage() {
 echo 'Script to run multiple StringTie for several bam files. Stringtie must be in the system path. If not, please set full location within the script.
@@ -10,7 +10,8 @@ echo 'Script to run multiple StringTie for several bam files. Stringtie must be 
 -5rd argument is optional. Flag if one wants to run StringTie with stringent settings for transcript identification. Available options: [true|false]. Default:false. If true, parameteres "-c", "-j", "-a", "-m", "-f" will be affected.
 -6th argument is optional. Output tables required for Ballgown downstream analysis. Requires reference annotation provided (2nd argument). Available options: [true|false]. Default:false.
 -7th argument is optional. Output only assembled transcripts that match reference transcripts. Requires reference annotation provided (2nd argument.). Available options: [true|false]. Default:false. Usefull for a 2nd round of StringTIe.
--8th argument is optional. Flag to activate TRANSCRIPT MERGE MODE. Available options: [true|false]. Default: false (normal transcriptome assembly). If set, it will merge a set of input GTF/GFF files provided in the 1st argument into a non redundant set of transcripts. If 2nd argument is set, merging will include the reference, otherwise (if "-" set), merge is done based only on the list of GTF/GFF provided.'
+-8th argument is optional. Flag to activate TRANSCRIPT MERGE MODE. Available options: [true|false]. Default: false (normal transcriptome assembly). If set, it will merge a set of input GTF/GFF files provided in the 1st argument into a non redundant set of transcripts. If 2nd argument is set, merging will include the reference, otherwise (if "-" set), merge is done based only on the list of GTF/GFF provided.
+-9th argument is otpional. Flag to activate less stringency transcript merging settings. Only available when 8th argument is set to true. Available options: [true|false]. Default. false. If set, will influence -F, -T and -i arguments on stringtie merge.'
 
 }
 
@@ -29,7 +30,7 @@ else
     OUTPUT="$4"
 fi
 
-CMD="$STRINGTIE $THREADS"
+CMD="$STRINGTIE"
 #####################
 if [ -f "$2" ]; then
     REFERENCE_ANNOTATION="-G $2"
@@ -78,16 +79,27 @@ fi
 #####################
 #####################
 if [ "$8" = "true" -a "$2" = "-" ]; then
-    CMD+="$STRINGTIE --merge $THREADS "
+    CMD+=" --merge $THREADS "
 elif [ -f "$2" -a "$8" = "true" ]; then
-    CMD+="$STRINGTIE --merge $THREADS $REFERENCE_ANNOTATION"
+    CMD+=" --merge $THREADS $REFERENCE_ANNOTATION "
 elif [ -n "$8" -a "$8" != "false" ]; then
     printf "Please provide a valid option for the 8th argument.\n\n"
     display_usage
     exit 1
+elif [ -n "$9" -a "$8" = "false" ]; then
+    printf "Please only set 9th argument when you want to apply stringtie merge mode (8th argument true)\n\n"
+    display_usage
+    exit 1
 fi
 #####################
-
+if [ "$9" = "true" -a "$8" = "true" ]; then
+    CMD+=" -F 0.5 -T 0.5 -i "
+   # CMD+=" -i "
+elif [ -n "$9" -a "$9" != "false" ]; then
+    printf "Please provide a valid option for the 9th argument.\n\n"
+    display_usage
+    exit 1
+fi
 
 ########RUNNING################
 if [ "$8" = "true" ]; then
@@ -103,31 +115,33 @@ if [ "$8" = "true" ]; then
         fi
     done < $1
 
-    CMD+=" -o $OUTPUT/stringTie_merged.gtf $1"
-    printf "$CMD"
-
+    RUN="$CMD-v -o $OUTPUT/stringTie_merged.gtf $1"
+    #RUN="cuffmerge -p 10 -o mergedAssembly $1" 
+    time $RUN
 else
-    printf "Running StringTie to assemble transcript from BAM files..\n"
+    printf "Running StringTie to assemble transcript from BAM files.."
     while read line
     do
-	    FILENAME=$line
-	    #BASENAME=$(basename ${FILENAME} .bam)
-
-	    #STAR SPECIFIC
-	    BASENAME=$(basename ${FILENAME} .sortedByCoord.out.bam)
-	    printf "Started sample $BASENAME...\n"
-	    #Add coverage tables if annotation provided
-	    if [ -f "$2" ]; then
-	        $CMD="$CMD -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt -C $OUTPUT/$BASENAME-covRefs.txt $FILENAME"
-	        time $CMD
+	FILENAME=$line
+	#BASENAME=$(basename ${FILENAME} .bam)
+   	#STAR SPECIFIC
+	BASENAME=$(basename ${FILENAME} .sortedByCoord.out.bam)
+	printf "Started sample $BASENAME...\n"
+	#Add coverage tables if annotation provided
+	if [ -f "$2" ]; then
+	    RUN="$CMD -v $THREADS -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt -C $OUTPUT/$BASENAME-covRefs.txt $FILENAME"
+	    time $RUN
         else
-            CMD+=" -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt $FILENAME"
-            time $CMD
+            RUN="$CMD -v $THREADS -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt $FILENAME"
+            time $RUN
         fi
 
         printf "Stringtie assembly for $BASENAME sample finished!!\n\n"
+#	rm -rf $OUTPUT/tmp*
     done < $1
 fi
+
+
 
 #printf "Finished all stringtie assemblies!\n\n#####STEP 2####\nRunning merge of all individual assemblies with Cuffmerge..\n"
 #cuffmerge -g $REFERENCE_ANNOTATION -s $REFERENCE_GENOME -p 10 -o mergedAssembly individualAssemblies.txt &> log-cuffmerge.txt

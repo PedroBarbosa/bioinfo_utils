@@ -7,7 +7,7 @@ import argparse
 def processLastal(lastOut):
     with open(lastOut,"r") as infile:
 
-        problematicList=[]
+        problematicList=set()
         pairwiseAln =set()
         for l in infile:
             line=l.rstrip()
@@ -19,7 +19,6 @@ def processLastal(lastOut):
 
                 #removed score as it seems even in perfect matches the score is not always the same
                 if all(v == qalgsize for v in (qalgsize, qsize, refalgsize, refsize)) and query != reference:
-
                     if query.isdigit():
                         pairwiseAln.add((query,reference))
                     elif reference.isdigit():
@@ -29,7 +28,7 @@ def processLastal(lastOut):
                         exit(1)
 
                 else:
-                    problematicList.append(query)
+                    problematicList.add(query)
                     #if refsize/qsize > 0.8:
                     #    print(qsize,refsize)
 
@@ -41,7 +40,12 @@ def processLastal(lastOut):
     infile.close()
     outdict = dict((x, y) for x, y in pairwiseAln)
     print("Number of perfect matches:\t%i" % len(outdict))
-    return outdict, problematicList
+    
+    listq=set()
+    for id in problematicList:
+        if not id in outdict:
+            listq.add(id)
+    return outdict, listq
 
 def writeFileProblematic(listq):
     outfile=open("problematicQuery.txt", 'w')
@@ -54,10 +58,10 @@ def processFasta(dicPairs, redundands,outputfile):
     output = open(outputfile,'w')
     for record in redundands_seq:
         if record.id in dicPairs:
-            output.write(">" + dicPairs[record.id] + "\n" + str(record.seq))
+            output.write(">" + dicPairs[record.id] + "\n" + str(record.seq) + "\n")
         else:
             print("Redundans id %s not present in pairwise dictionary." % record.id)
-            exit(1)
+            #exit(1)
 
     handle.close()
     output.close()

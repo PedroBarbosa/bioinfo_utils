@@ -339,7 +339,7 @@ def createGffUtilsCufflinks(gtf_file,forceNewDB, isVerbose):
 
 def createGffUtilsStringtie(gtf_file,forceNewDB, isVerbose):
     dbname=os.path.abspath(gtf_file).split('.')[0] + "DB.sql"
-
+    logging.info("COMEÇOU")
     dialect=helpers.infer_dialect(['Potrx000002 StringTie	exon	8052	8625	1000	-	.	gene_id "STRG.2"; transcript_id "STRG.2.1";'
                                    ' exon_number "2"; reference_id "TCONS_00000004"; ref_gene_id "XLOC_000003"; ref_gene_name "Potrx000002g00030"; cov "2.764808";'])
 
