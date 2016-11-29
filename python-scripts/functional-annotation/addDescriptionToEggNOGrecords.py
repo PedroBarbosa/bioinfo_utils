@@ -238,7 +238,7 @@ def main():
     parser.add_argument(dest='nogs', metavar='nogsFile', help='File listing the NOGs to process. One perl line.')
     parser.add_argument(dest='output', metavar='outputFile', help='Output File will be a tab delimited file to open in excel or related programs.')
     parser.add_argument('-add' ,metavar ='-addNOGAnnotationFile', help='Additional file with information about each NOG, particularly COG categories and descriptions. Downloadable from eggNOG website.')
-    parser.add_argument('-hmmer', metavar = '--hmmerFile',action='store_true', help="NOGs file is a hmmer table output file. If set '-tab' and '-col' should not be set.")
+    parser.add_argument('-hmmer','--hmmerFile',action='store_true', help="NOGs file is a hmmer table output file. If set '-tab' and '-col' should not be set.")
     parser.add_argument('-tab', '--tabSeparated', action='store_true', help="Flag indicating that NOGs file is tab separated. If set, requires '-col' to be set too.")
     parser.add_argument('-col', metavar = '-column', type=int, nargs=1, help="Column number in the tab separated file in which NOG records are displayed.")
     args = parser.parse_args()
@@ -250,17 +250,18 @@ def main():
         logging.error("Please set '-col' argument only if input file in tab separated. Either remove '-col' or add '-tab' to the command.")
         exit(1)
 
-    if args.hmmer and args.tabSeparated or args.hmmer and args.col:
+    if args.hmmerFile and args.tabSeparated or args.hmmerFile and args.col:
         logging.error("-tab or -col arguments not available when -hmmer flag is set")
         exit(1)
 
 
-    if args.hmmer:
+    if args.hmmerFile:
         listNOGs, nog2geneDict = processFromHmmer(args.nogs)
         api_dict = getAnnotationFromAPI(listNOGs)
         if args.add:
             if os.path.isfile(args.add):
                 out_dict = addCOGcategoriesFromFile(args.add,api_dict)
+                writeOutputFromHmmer(args.output,out_dict,args.add,nog2geneDict)
             else:
                 logging.error("Please provide a valid file in the '-add' argument.")
                 exit(1)
