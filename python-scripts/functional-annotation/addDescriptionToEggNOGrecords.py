@@ -5,6 +5,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %
 import urllib.request
 import json
 import collections
+from collections import defaultdict
 import os.path
 
 def nogs2list(nogsFile, tab, col):
@@ -185,14 +186,59 @@ def writeOutputFromTabSeparatedFile(outFile, out_dict, addAnn, inputFile,col):
                         else:
                             out_file.write(line.rstrip() + "\n")
 
+def writeOutputFromHmmer(outFile, out_dict, addAnn, nog2genedict):
+    logging.info("Writing to output file..")
+    with open(outFile, 'w') as out_file:
+        if addAnn:
+            out_file.write("#Feature" + "\t" + "NOG" + "\t" + "SMART domains" + "\t" + "PFAM_domains" + "\t" + "GOs Cellular Componet" + "\t" + "GOs Molecular Function" + "\t" +
+        "GOs Biological Process" + "\t" + "COG category" + "\t" + "COG description" + "\n")
+        else:
+            out_file.write("#Feature" + "\t" + "NOG" + "\t" + "SMART domains" + "\t" + "PFAM_domains" + "\t" + "GOs Cellular Componet" + "\t" + "GOs Molecular Function" + "\t" +
+        "GOs Biological Process" + "\n")
+        for nog, annotations in iter(out_dict.items()):
+            #print(nog,annotations)
+            if nog in nog2genedict:
+                if len(nog2genedict[nog]) > 1 :
+                    logging.info("Multiple genes are assigned to %s NOG" % nog)
+                    val = nog2genedict[nog]
+                    for v in val:
+                        out_file.write(v + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
+                 else:
+                      out_file.write(str(nog2genedict[nog]) + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
+            else:
+                logging.error("Some weird error happened. Contact Pedro.")
+                exit(1)
 
 
+def processFromHmmer(nogs):
+
+    listNogs=set()
+    dict=defaultdict(list)
+    with open(nogs,'r') as infile:
+        annotated_genes = 0
+        for line in infile:
+
+            previous_query = ""
+            print("Processing hmmer parsable file " + nogs + "..")
+
+            if not line.startswith('#') and line.rstrip():
+                query = line.split()[2]
+                if query != previous_query:
+                    annotated_genes += 1
+                    hit = line.split("\t")[0].split(".")[1] #eggnog ortholog group in an hmmscan hits file
+                    previous_query = query
+                    listNogs.add(hit)
+                    dict[hit].append(query)
+
+        print("%s annotated genes." % (annotated_genes))
+    return listNogs,dict
 
 def main():
     parser = argparse.ArgumentParser(description='Script add annotation information of an eggNOG record. Uses eggNOG API to retrieve data. Outputs a tab separarted file.')
     parser.add_argument(dest='nogs', metavar='nogsFile', help='File listing the NOGs to process. One perl line.')
     parser.add_argument(dest='output', metavar='outputFile', help='Output File will be a tab delimited file to open in excel or related programs.')
     parser.add_argument('-add' ,metavar ='-addNOGAnnotationFile', help='Additional file with information about each NOG, particularly COG categories and descriptions. Downloadable from eggNOG website.')
+    parser.add_argument('-hmmer', metavar = '--hmmerFile',action='store_true', help="NOGs file is a hmmer table output file. If set '-tab' and '-col' should not be set.")
     parser.add_argument('-tab', '--tabSeparated', action='store_true', help="Flag indicating that NOGs file is tab separated. If set, requires '-col' to be set too.")
     parser.add_argument('-col', metavar = '-column', type=int, nargs=1, help="Column number in the tab separated file in which NOG records are displayed.")
     args = parser.parse_args()
@@ -204,18 +250,38 @@ def main():
         logging.error("Please set '-col' argument only if input file in tab separated. Either remove '-col' or add '-tab' to the command.")
         exit(1)
 
-    listNOGs = nogs2list(args.nogs, args.tabSeparated, args.col[0])
-    out_dict = getAnnotationFromAPI(listNOGs)
-    if args.add:
-        if os.path.isfile(args.add):
-            out_dict = addCOGcategoriesFromFile(args.add,out_dict)
-        else:
-            logging.error("Please provide a valid file in the '-add' argument.")
-            exit(1)
-    if args.tabSeparated:
-        writeOutputFromTabSeparatedFile(args.output,out_dict, args.add, args.nogs,args.col[0])
+    if args.hmmer and args.tabSeparated or args.hmmer and args.col:
+        logging.error("-tab or -col arguments not available when -hmmer flag is set")
+        exit(1)
+
+
+    if args.hmmer:
+        listNOGs, nog2geneDict = processFromHmmer(args.nogs)
+        api_dict = getAnnotationFromAPI(listNOGs)
+        if args.add:
+            if os.path.isfile(args.add):
+                out_dict = addCOGcategoriesFromFile(args.add,api_dict)
+            else:
+                logging.error("Please provide a valid file in the '-add' argument.")
+                exit(1)
+        writeOutputFromHmmer(args.output,api_dict,args.add,nog2geneDict)
+
+
     else:
-        writeOutput(args.output,out_dict, args.add)
+        listNOGs = nogs2list(args.nogs, args.tabSeparated, args.col[0])
+        out_dict = getAnnotationFromAPI(listNOGs)
+        if args.add:
+            if os.path.isfile(args.add):
+                out_dict = addCOGcategoriesFromFile(args.add,out_dict)
+            else:
+                logging.error("Please provide a valid file in the '-add' argument.")
+                exit(1)
+        if args.tabSeparated:
+            writeOutputFromTabSeparatedFile(args.output,out_dict, args.add, args.nogs,args.col[0])
+        else:
+            writeOutput(args.output,out_dict, args.add)
+
+
 
 if __name__ == "__main__":
     main()
