@@ -196,15 +196,15 @@ def writeOutputFromHmmer(outFile, out_dict, addAnn, nog2genedict):
             out_file.write("#Feature" + "\t" + "NOG" + "\t" + "SMART domains" + "\t" + "PFAM_domains" + "\t" + "GOs Cellular Componet" + "\t" + "GOs Molecular Function" + "\t" +
         "GOs Biological Process" + "\n")
         for nog, annotations in iter(out_dict.items()):
-            #print(nog,annotations)
+
             if nog in nog2genedict:
                 if len(nog2genedict[nog]) > 1 :
-                    logging.info("Multiple genes are assigned to %s NOG" % nog)
+                    logging.info("Multiple genes are assigned to %s NOG:\t%s" % (nog,','.join(nog2genedict[nog])))
                     val = nog2genedict[nog]
                     for v in val:
                         out_file.write(v + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
                 else:
-                    out_file.write(str(nog2genedict[nog]) + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
+                    out_file.write(''.join(nog2genedict[nog]) + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
             else:
                 logging.error("Some weird error happened. Contact Pedro.")
                 exit(1)
@@ -216,12 +216,11 @@ def processFromHmmer(nogs):
     dict=defaultdict(list)
     with open(nogs,'r') as infile:
         annotated_genes = 0
+        previous_query = ""
+        print("Processing hmmer parsable file " + nogs + "..")
         for line in infile:
-
-            previous_query = ""
-            print("Processing hmmer parsable file " + nogs + "..")
-
             if not line.startswith('#') and line.rstrip():
+
                 query = line.split()[2]
                 if query != previous_query:
                     annotated_genes += 1
@@ -229,8 +228,7 @@ def processFromHmmer(nogs):
                     previous_query = query
                     listNogs.add(hit)
                     dict[hit].append(query)
-                else:
-                    previous_query = query
+
         print("%s annotated genes." % (annotated_genes))
     return listNogs,dict
 
@@ -258,6 +256,7 @@ def main():
 
     if args.hmmerFile:
         listNOGs, nog2geneDict = processFromHmmer(args.nogs)
+        logging.info("A total of %i nogs will fed to the EggNOG api" % len(listNOGs))
         api_dict = getAnnotationFromAPI(listNOGs)
         if args.add:
             if os.path.isfile(args.add):
@@ -266,7 +265,8 @@ def main():
             else:
                 logging.error("Please provide a valid file in the '-add' argument.")
                 exit(1)
-        writeOutputFromHmmer(args.output,api_dict,args.add,nog2geneDict)
+        else:
+            writeOutputFromHmmer(args.output,api_dict,args.add,nog2geneDict)
 
 
     else:
