@@ -229,7 +229,8 @@ def processFromHmmer(nogs):
                     previous_query = query
                     listNogs.add(hit)
                     dict[hit].append(query)
-
+                else:
+                    previous_query = query
         print("%s annotated genes." % (annotated_genes))
     return listNogs,dict
 
