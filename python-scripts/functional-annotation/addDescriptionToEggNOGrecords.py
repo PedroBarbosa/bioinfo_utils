@@ -203,8 +203,8 @@ def writeOutputFromHmmer(outFile, out_dict, addAnn, nog2genedict):
                     val = nog2genedict[nog]
                     for v in val:
                         out_file.write(v + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
-                 else:
-                      out_file.write(str(nog2genedict[nog]) + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
+                else:
+                    out_file.write(str(nog2genedict[nog]) + "\t" + nog + "\t" + "\t".join(i for i in annotations) + "\n")
             else:
                 logging.error("Some weird error happened. Contact Pedro.")
                 exit(1)
