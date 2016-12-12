@@ -102,7 +102,7 @@ def drawHistograms(counter, dictNsReadLength, inputfile):
 
     ####Read length#####
     val, weight = zip(*[(k, v) for k,v in counter.items()])
-    plt.hist(val, bins= 20,weights=weight, range=[0,50000])
+    plt.hist(val, bins= 50,weights=weight, range=[0,50000])
     plt.xlabel('Read lenght bins')
     plt.ylabel('Counts')
     plt.savefig(outFileReadLength)

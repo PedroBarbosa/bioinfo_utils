@@ -1,28 +1,29 @@
 #!/bin/bash
 #Script to run bwa for each library with default parameters. One sorted and indexed bam per library will be produced.
 display_usage() {
-echo '1st argument must be the file. In this file the Paired end libraries need to be first
+echo '1st argument must be a file with the path to the fastq files, one per line. In this file the Paired end libraries need to be first
 2nd argument must be a flag true/false to use paired end reads to generate the command
 3rd argument must be a flag true/false to use mate pair reads to generate the command
 4th argument must be the prefix for the reference indexed database
 5th argument must be the number of threads to use
-6th argument is optional. Must be string to add to the read group parameter.Add the LB, PL and PU fields, respectively,comma separated. Ex: LB:lib,PL:instrument,PU:plataformUnit. The SM and ID fields will be automatically added based on the sample basename.'
+6th argument must be the temporal folder for the bam sorting process. Make sure that the this folder exist.
+7th argument is optional. Must be string to add to the read group parameter.Add the LB, PL and PU fields, respectively,comma separated. Ex: LB:lib,PL:instrument,PU:plataformUnit. The SM and ID fields will be automatically added based on the sample basename.'
 }
 
 
 exec="bwa mem"
 #check if required arguments are there and display usage message
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ]; then
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
         printf "Please provide the arguments required for the script.\n\n"
         display_usage
         exit 1
 fi
 
-if [ -z "$6" ]; then
+if [ -z "$7" ]; then
         readGroup="false"
 else
         readGroup="true"
-        read_group_general=$(echo "${6//,/\t}")
+        read_group_general=$(echo "${7//,/\t}")
 fi
 
 index_database="$4"
@@ -32,7 +33,7 @@ first_pair=true
 second_pair=false
 matepairFlag=false
 base_command="$exec $threads $index_database "
-
+tmpFolder="-T $6"
 
 while read line
 do
@@ -73,7 +74,7 @@ do
                         command="$base_command $pair1 $pair2"
                 fi
                 command_view="samtools view -Sbh -"
-                command_sort="samtools sort ${bam_file}"
+                command_sort="samtools sort $tmpFolder ${bam_file}"
                 command_index="samtools index"
 		        printf "##CMD##:\n$command | $command_view > ${bam_file}\n"
       		    $command | $command_view > ${bam_file} 2>> ./stderr.txt
@@ -112,7 +113,7 @@ do
                 fi
 
                 command_view="samtools view -Sbh -"
-                command_sort="samtools sort ${bam_file}"
+                command_sort="samtools sort $tmpFolder ${bam_file}"
                 command_index="samtools index"
                 printf "##CMD##:\n$command | $command_view > ${bam_file}\n"
                 $command | $command_view > ${bam_file} 2>> ./stderr.txt
