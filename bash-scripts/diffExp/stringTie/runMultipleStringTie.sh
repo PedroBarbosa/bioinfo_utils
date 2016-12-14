@@ -1,4 +1,4 @@
-o#!/bin/bash
+#!/bin/bash
 
 display_usage() {
 echo 'Script to run multiple StringTie for several bam files. Stringtie must be in the system path. If not, please set full location within the script.
@@ -8,8 +8,8 @@ echo 'Script to run multiple StringTie for several bam files. Stringtie must be 
 -3nd argument must be the number of threads to run StringTie.
 -4th argument must be the output directory. If not exists, will create automatically.
 -5rd argument is optional. Flag if one wants to run StringTie with stringent settings for transcript identification. Available options: [true|false]. Default:false. If true, parameteres "-c", "-j", "-a", "-m", "-f" will be affected.
--6th argument is optional. Output tables required for Ballgown downstream analysis. Requires reference annotation provided (2nd argument). Available options: [true|false]. Default:false.
--7th argument is optional. Output only assembled transcripts that match reference transcripts. Requires reference annotation provided (2nd argument.). Available options: [true|false]. Default:false. Usefull for a 2nd round of StringTIe.
+-6th argument is optional. Output only assembled transcripts that match reference transcripts. Requires reference annotation provided (2nd argument.). Available options: [true|false]. Default:false. Usefull for a 2nd round of StringTIe.
+-7th argument is optional. Output tables required for Ballgown downstream analysis. Requires reference annotation provided (2nd agument). Available options: [true|false]. Default:false.
 -8th argument is optional. Flag to activate TRANSCRIPT MERGE MODE. Available options: [true|false]. Default: false (normal transcriptome assembly). If set, it will merge a set of input GTF/GFF files provided in the 1st argument into a non redundant set of transcripts. If 2nd argument is set, merging will include the reference, otherwise (if "-" set), merge is done based only on the list of GTF/GFF provided.
 -9th argument is otpional. Flag to activate less stringency transcript merging settings. Only available when 8th argument is set to true. Available options: [true|false]. Default. false. If set, will influence -F, -T and -i arguments on stringtie merge.'
 
@@ -53,11 +53,11 @@ fi
 ######################
 ######################
 if [ "$6" = "true" -a "$2" = "-" ]; then
-    printf "Ballgown tables can only be outputed when reference annotation is provided (2nd argument). Please set false for this 6h argument or provide a valid file in the 2nd argument.\n\n"
+    printf "6th argument is only valid when reference annotation is provided (2nd argument).  Please set false for this 6h argument or provide a valid file in the 2nd argument.\n\n"
     display_usage
     exit 1
 elif [ -f "$2" -a "$6" = "true" ]; then
-    CMD+=" -B"
+    CMD+=" -e"
 elif [ -n "$6" -a "$6" != "false" ]; then
     printf "Please provide a valid option for the 6th argument.\n\n"
     display_usage
@@ -66,11 +66,11 @@ fi
 ######################
 ######################
 if [ "$7" = "true" -a "$2" = "-" ]; then
-    printf "7th argument is only valid when reference annotation is provided (2nd argument).  Please set false for this 7h argument or provide a valid file in the 2nd argument.\n\n"
+    printf "Ballgown tables can only be outputed when reference annotation is provided (2nd argument). Please set false for this 7h argument or provide a valid file in the 2nd argument.\n\n"
     display_usage
     exit 1
 elif [ -f "$2" -a "$7" = "true" ]; then
-    CMD+=" -e"
+    CMD+=" -b"
 elif [ -n "$7" -a "$7" != "false" ]; then
     printf "Please provide a valid option for the 7th argument.\n\n"
     display_usage
@@ -129,10 +129,18 @@ else
 	printf "Started sample $BASENAME...\n"
 	#Add coverage tables if annotation provided
 	if [ -f "$2" ]; then
-	    RUN="$CMD -v $THREADS -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt -C $OUTPUT/$BASENAME-covRefs.txt $FILENAME"
-	    time $RUN
+	    if [ "$7" = "true" ]; then #add path to write ballgown tables for each sample
+	        RUN="$CMD ballgown-$BASENAME -v $THREADS -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt -C $OUTPUT/$BASENAME-covRefs.txt $FILENAME"
+		printf "$RUN"
+	        time $RUN
+            else
+                RUN="$CMD -v $THREADS -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt -C $OUTPUT/$BASENAME-covRefs.txt $FILENAME"
+                printf "$RUN"
+		time $RUN
+            fi
         else
             RUN="$CMD -v $THREADS -o $OUTPUT/$BASENAME-transcripts.gtf -A $OUTPUT/$BASENAME-geneAbundances.txt $FILENAME"
+            printf "$RUN"
             time $RUN
         fi
 

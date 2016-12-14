@@ -81,14 +81,14 @@ def drawScatterPlot(lengthVSnumber, outbasename):
 
     #draw subplot
     print("Drawing subplot..")
-    axins = zoomed_inset_axes(ax, 2.5, loc=2) # zoom-factor: 2.5, location: upper-left
+    axins = zoomed_inset_axes(ax, 7.5, loc=2) # zoom-factor: 2.5, location: upper-left
     for length,gene_number in lengthVSnumber.items():
         if gene_number == 0:
             gene_false = axins.scatter(length,gene_number,color='red',s=25,alpha=0.6)
         else:
             gene_true = axins.scatter(length,gene_number,color='grey',s=25,alpha=0.6)
 
-    x1, x2, y1, y2 = 1000,100000 , -1, 20
+    x1, x2, y1, y2 = 1000,100000 , -1, 30
     axins.set_xlim(x1, x2)
     axins.set_ylim(y1, y2)
 
