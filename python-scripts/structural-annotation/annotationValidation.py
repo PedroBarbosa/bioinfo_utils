@@ -27,7 +27,7 @@ class validateAnnotation():
         self.genesFullyCovered = set() #set of genes fully covered by RNA-seq reads (availalbe only when cov ref files are provided)
         self.transcriptsFullyCovered = set() #set of trasncripts fully covered by RNA-seq reads (availalbe only when cov ref files are provided)
         self.setStrands = set()
-
+        self.indexDict = OrderedDict()
     def processReferenceAnnotGff(self,gff):
         logging.info("Processing reference annotation file..")
         with open(gff,'r') as infile:
@@ -49,10 +49,12 @@ class validateAnnotation():
         indivtranscript = set()
         indivnewtranscript = set()
         with open(gtf, 'r') as infile:
+            self.indexDict[index] = os.path.basename(gtf).split(self.splitstring)[0]
             logging.info("Updating global variables..")
             for line in infile:
                 if not line.startswith("#"):
                     if line.split("\t")[2] == "transcript" or line.split("\t")[2] == "mRNA":
+
                         gene,new_gene,transcript,new_transcript,g_id,t_id="","","","","",""
                         tmpline = line.rstrip().split("\t")
                         scaffold_id = tmpline[0]
@@ -123,7 +125,7 @@ class validateAnnotation():
 
     def writeIndividualStats(self,gtf,scaff,genes,newgenes,transcripts,newtranscripts):
         logging.info("Writing individual stats..")
-        print("\n####################%s##############" % gtf.split(self.splitstring)[0])
+        print("\n####################%s##############" % os.path.basename(gtf).split(self.splitstring)[0])
         print("Total number of scaffolds with genes predicted in the reference\t%i" % len(self.scaffolds))
         print("Number of scaffolds in the transcriptome with expressed transcripts\t%i (%s%%)\n" % (len(scaff), round(len(scaff)/len(self.scaffolds)*100,2)))
         print("Total number of genes in reference\t%i" % len(self.genes))
@@ -131,8 +133,8 @@ class validateAnnotation():
 
         gene_frac_match = round(len(genes)/(len(genes)+len(newgenes))*100,2)
         trans_frac_match = round(len(transcripts)/(len(transcripts)+len(newtranscripts))*100,2)
-        self.individualGeneMatchingRate[gtf.split(self.splitstring)[0]] = gene_frac_match
-        self.individualTranscriptMatchingRate[gtf.split(self.splitstring)[0]] = trans_frac_match
+        self.individualGeneMatchingRate[os.path.basename(gtf).split(self.splitstring)[0]] = gene_frac_match
+        self.individualTranscriptMatchingRate[os.path.basename(gtf).split(self.splitstring)[0]] = trans_frac_match
 
         print("Number of genes in the transcriptome matching the reference\t%i (%s%%)" % (len(genes),gene_frac_match))
         print("Number of unknown new genes\t%i (%s%%)\n" % (len(newgenes),round(len(newgenes)/(len(genes) + len(newgenes))*100,2)))
