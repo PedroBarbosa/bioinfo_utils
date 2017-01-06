@@ -14,21 +14,27 @@ if args.a and args.r:
 elif args.a:
 
     handle = open(args.fastaFile,"rU")
+    handle2 = open("correspondingScaffoldsNames.tsv","w")
 
     for seq_record in SeqIO.parse(handle,"fasta"):
         old_header = seq_record.id
         seq_record.id = old_header + args.a
         print('>' + seq_record.id + '\n' + seq_record.seq)
+        handle2.write(old_header+ '\t' + seq_record.id +'\n')
     handle.close()
+    handle2.close()
 
 elif args.r:
     i=1
     handle = open(args.fastaFile,"rU")
+    handle2 = open("correspondingScaffoldsNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
+        old_header = seq_record.id
         seq_record.id = args.r + '_' + str(i)
         print('>' + seq_record.id + '\n' + seq_record.seq)
+        handle2.write(old_header+ '\t' + seq_record.id +'\n')
         i+=1
     handle.close()
-
+    handle2.close()
 else:
     raise ValueError("Please set one of the options: add [-a] or replace [-r]")
