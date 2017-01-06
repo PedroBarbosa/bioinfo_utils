@@ -1,6 +1,8 @@
 import argparse
 import logging
 import sys
+import collections
+import operator
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
 
 def processGff(gff):
@@ -8,11 +10,13 @@ def processGff(gff):
     dict_utr = {}
     dict_gene_coord_strand = {}
     dict_numberOfStartStop = {}
+    dict_gene_transcript ={}
     nostart,nostop,notstartstop,oneone, several=[],[],[],[],[]
     firstStart=False
     firstStop=False
     existStart=True
     existStop=True
+    i=0
     with open(gff, 'r') as infile:
         previou_g_id = ""
         for line in infile:
@@ -50,6 +54,7 @@ def processGff(gff):
                     dict_gene_coord_strand[features[8]] = [features[3],features[4],features[6]]
                     dict_utr[features[8]] = ["",""]
                     dict_numberOfStartStop[features[8]] = [0,0]
+                    dict_gene_transcript[features[8]] = []
                     previou_g_id = features[8]
                     firstStart=True
                     firstStop=True
@@ -147,7 +152,9 @@ def processGff(gff):
                             if feature[3] == dict_gene_coord_strand[g_id][0]:
                                 dict_utr[g_id][1] = "no_3primeUTR"
 
+                elif line.split("\t")[2] == "transcript":
 
+                    dict_gene_transcript[previou_g_id].append(line.split("\t")[8].rstrip())
 
 
         #last gene
@@ -194,7 +201,7 @@ def processGff(gff):
                 noStart+=1
             else:
                 utr5prime+=1
-                print(k)
+                #print(k)
             if "no_3prime" in v[1]:
                 noutr3+=1
 
@@ -211,6 +218,19 @@ def processGff(gff):
         logging.info("Genes with unknown 5prime UTR prediction (no start codon)\t%i" % noStart)
         logging.info("Genes with unknown 3prime UTR prediction (no stop codon)\t%i" % noStop)
 
+        with open("gene_information.txt", 'w') as outfile:
+            outfile.write("#gene_id\tstart_codon\tstop_codon\tnumber_start\tnumber_stop\tnumber_transcripts\ttranscripts_name\n")
+            for k,v in sorted(dict_gene_transcript.items(), key = lambda item : len(item[1]), reverse=True):
+                start=["no" if k in nostart or k in notstartstop else "yes"]
+                stop=["no" if k in nostop or k in notstartstop else "yes"]
+                outfile.write(k + "\t" + start[0] + "\t" + stop[0] + "\t" + str(dict_numberOfStartStop[k][0]) + "\t" + str(dict_numberOfStartStop[k][1])
+                              + "\t" + str(len(v)) + "\t" + ';'.join(v) + "\n")
+
+        for k,v in dict_gene_transcript.items():
+            i+=len(dict_gene_transcript[k])
+        #print(i)
+        Count = collections.Counter([len(v) for k,v in dict_gene_transcript.items()])
+        print(Count)
 def main():
     parser = argparse.ArgumentParser(description='Script to look for start, stop and UTR region in gff3 files.')
     parser.add_argument(dest='gff_file', metavar='gff', help='Annotation file to be analyzed.')
