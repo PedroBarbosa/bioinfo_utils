@@ -237,9 +237,12 @@ def processGff(gff):
 
         logging.info("Writing potential transcripts to remove from annotation (no stop, no start, not stop and start)..")
         with open("incomplete_transcripts.txt", "w") as outfile2:
-            outfile2.write("\n".join(notstartstop) + "\n")
-            outfile2.write("\n".join(nostart) + "\n")
-            outfile2.write("\n".join(nostop) + "\n")
+            if notstartstop:
+                outfile2.write("\n".join(notstartstop) + "\n")
+            if nostart:
+                outfile2.write("\n".join(nostart) + "\n")
+            if nostop:
+                outfile2.write("\n".join(nostop) + "\n")
 
 def main():
     parser = argparse.ArgumentParser(description='Script to look for start, stop and UTR region in gff3 files.')
