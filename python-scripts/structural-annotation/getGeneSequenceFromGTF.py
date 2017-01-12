@@ -87,45 +87,51 @@ def createDicGenesPerScaffold(db):
     return dict_plus,dict_minus, dict_unknown
 
 
-
-def createGffUtilsCuffmerge(gtf_file):
-
-
+def createGffUtilsGffread(gtf_file):
     dbname=os.path.basename(gtf_file).split('.')[0] + "DB.sql"
-
-
     try:
         db=gffutils.FeatureDB(dbname)
-        logging.info("Previously generated database succesfully loaded.")
+        logging.info("Previously generated database successfully loaded")
+    except:
+        logging.info("Creating new gffutils database..")
+        dialect=helpers.infer_dialect(['PE100bp.genome1_contig-1000002  AUGUSTUS        CDS     7072    7639    0.47    +       0       transcript_id "PE100bp.genome1_contig-1000002.g78050.t1"; gene_id "PE100bp.genome1_contig-1000002.g78050";'])
+        db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_number'},
+                          merge_strategy="create_unique",keep_order=True, sort_attribute_values=True, disable_infer_transcripts=False, disable_infer_genes=False,
+                          dialect=dialect, checklines=50 ,verbose=False,force=True)
+        logging.info("Database " + dbname + " sucessfully generated.")
+        return db
 
+def createGffUtilsCuffmerge(gtf_file):
+    dbname=os.path.basename(gtf_file).split('.')[0] + "DB.sql"
+    try:
+        db=gffutils.FeatureDB(dbname)
+        logging.info("Previously generated database successfully loaded.")
     except:
         logging.info("Creating new gffutils database...")
         dialect=helpers.infer_dialect(['Potrx000002 Cufflinks       exon    8052    8625    .       -       .       gene_id "XLOC_000003"; transcript_id "TCONS_00000005"; exon_number "2"; '
                                    'gene_name "Potrx000002g00030"; oId "Potrx000002g00030.1"; nearest_ref "Potrx000002g00030.1"; class_code "="; tss_id "TSS3"; p_id "P3";'])
-
         db=gffutils.create_db(gtf_file, dbfn=dbname, id_spec={'gene': ['gene_id', 'gene_name', 'nearest_ref'],'transcript' : ['transcript_id', 'oId'], 'exon': 'exon_number'},
                           merge_strategy="create_unique",keep_order=True, sort_attribute_values=True, disable_infer_transcripts=False, disable_infer_genes=False,
                           dialect=dialect, checklines=50 ,verbose=False,force=True)
-
         logging.info("Database " + dbname + " successfuly generated.")
-
     return db
-
 
 def main():
     parser = argparse.ArgumentParser(description='Script to extract the gene sequences from a genome reference file and its corresponding GTF. Requires gffutils and Biopython modules to be installed.')
     parser.add_argument(dest='gtf_file', metavar='gtf_file', nargs=1, help='GTF file to be processed.')
     parser.add_argument(dest='reference_fasta', metavar='reference_fasta', nargs=1, type=str,help='FASTA file representing the genome sequence.')
     parser.add_argument(dest='output_basename', metavar='output_basename', nargs=1, help='Basename to which the output files will be written.')
-    parser.add_argument(dest='software', metavar='software', nargs=1, type=str, choices=['cuffmerge'],help='Tool that produced the input gtf file.')
+    parser.add_argument(dest='software', metavar='software', nargs=1, type=str, choices=['cuffmerge','gffread'],help='Tool that produced the input gtf file.')
 
     args = parser.parse_args()
 
     if "cuffmerge" in args.software:
-
         db = createGffUtilsCuffmerge(args.gtf_file[0])
-        dicScaffGenes_plus, dicScaffGenes_minus, dicScaffGenes_unknown =  createDicGenesPerScaffold(db)
-        extractFromFasta(args.reference_fasta[0], dicScaffGenes_plus, dicScaffGenes_minus, dicScaffGenes_unknown, args.output_basename[0])
-
+    elif "gffread" in args.software:
+        db = createGffUtilsGffread(args.gtf_file[0])
+    dicScaffGenes_plus, dicScaffGenes_minus, dicScaffGenes_unknown =  createDicGenesPerScaffold(db)
+    extractFromFasta(args.reference_fasta[0], dicScaffGenes_plus, dicScaffGenes_minus, dicScaffGenes_unknown, args.output_basename[0])
+    
+     
 if __name__ == "__main__":
     main()
