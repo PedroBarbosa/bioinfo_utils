@@ -213,10 +213,16 @@ class validateAnnotation():
             self.writeGlobal(self.outputprefix)
             self.scatterGene2ScaffoldLenght()
 
-            logging.info("Writing set of validated genes to file..")
+            logging.info("Writing set of validated genes and transcripts to file..")
             with open(self.outputprefix + "_validatedGenes.txt", 'w') as outfile:
-                for k,v in self.geneInterception.items():
+                for k in self.geneInterception.keys():
                     outfile.write(k + "\n")
+            outfile.close()
+            with open(self.outputprefix + "_validatedTranscripts.txt", 'w') as outfile:
+                for k in self.abundance.keys():
+                    outfile.write(k + "\n")
+            outfile.close()
+
         else:
             self.writeGlobal(self.outputprefix)
             self.scatterGene2ScaffoldLenght()
@@ -229,12 +235,17 @@ class validateAnnotation():
             logging.info("Writing whole gene interception set to file..")
             with open(self.outputprefix + "_perSampleGeneComparison.tsv", 'w') as outfile1:
                 with open(self.outputprefix + "_validatedGenes.txt", 'w') as outfile2:
-                    outfile1.write("#gene_id" + "\t" + '\t'.join(self.indexDict.values()) + "\n")
-                    for k,v in self.geneInterception.items():
-                        outfile1.write(k + "\t" + '\t'.join(str(i) for i in v) + "\n")
-                        outfile2.write(k + "\n")
+                    with open(self.outputprefix + "_validatedTranscripts.txt", 'w') as outfile3:
+                        outfile1.write("#gene_id" + "\t" + '\t'.join(self.indexDict.values()) + "\n")
+                        for k,v in self.geneInterception.items():
+                            outfile1.write(k + "\t" + '\t'.join(str(i) for i in v) + "\n")
+                            outfile2.write(k + "\n")
+                        for k in self.abundance.keys():
+                            outfile3.write(k + "\n")
             outfile1.close()
             outfile2.close()
+            outfile3.close()
+
             logging.info("Writing transcripts abundance interception to file..")
             with open(self.outputprefix + "_transcriptAbundance.tsv", 'w') as outfile:
                 outfile.write("#transcript_id" + "\t" + '\t'.join(self.indexDict.values()) + "\n")
