@@ -57,8 +57,8 @@ def getAnnotationFromAPI(listNOGs):
     lessFreqDom = 0
     out_dict = collections.OrderedDict()
 
-    f = urllib.request.urlopen('http://eggnogapi.embl.de/nog_data/json/domains,go_terms/ENOG41010CW').read()
-    data = json.loads(f.decode('utf-8'))
+    #f = urllib.request.urlopen('http://eggnogapi.embl.de/nog_data/json/domains,go_terms/ENOG41010CW').read()
+    #data = json.loads(f.decode('utf-8'))
 
     i=1
     ##Assumes that domain dict comes first in the iteration
