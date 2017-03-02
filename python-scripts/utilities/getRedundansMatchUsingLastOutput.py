@@ -40,7 +40,7 @@ def processLastal(lastOut):
     infile.close()
     outdict = dict((x, y) for x, y in pairwiseAln)
     print("Number of perfect matches:\t%i" % len(outdict))
-    
+
     listq=set()
     for id in problematicList:
         if not id in outdict:
@@ -82,3 +82,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
