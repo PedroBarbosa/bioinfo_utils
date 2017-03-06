@@ -156,7 +156,7 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
                 outstats.write("%s\t%i%s%f%s\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
                 outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in the forward strand:", len(forwdAlnScaf)))
                 outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in the reverse strand:", len(revAlnScaf)))
-                outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in both strands:", len(mixAlnScaf)))
+                outstats.write("%s\t%i\n" % ("Number of query scaffolds with aligned blocks in both strands:", len(mixAlnScaf)))
 
     outstats.close()
     for tup in forwdAlnScaf:
