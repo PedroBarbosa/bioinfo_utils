@@ -120,7 +120,7 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
 
     finalREF=defaultdict(list)
     finalQUERY=defaultdict(list)
-
+    unl_query,unl_ref=[],[]
     with open(outBasename + "_stats.txt", 'w') as outstats:
         for line in it_ref:
             attr=str(line).rstrip().split("\t")
@@ -136,6 +136,7 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
                 for k in refGenTable.keys():
                     if not k in refDict.keys():
                         unl_len+=int(refGenTable[k])
+                        unl_ref.append((k,refGenTable[k]))
                 outstats.write("%s\t%i%s%f%s\n\n\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
 
         for line in it_query:
@@ -151,6 +152,7 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
                 for k in querGenTable.keys():
                     if not k in queryDict:
                         unl_len+=int(querGenTable[k])
+                        unl_query.append((k,querGenTable[k]))
                 outstats.write("%s\t%i%s%f%s\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
                 outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in the forward strand:", len(forwdAlnScaf)))
                 outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in the reverse strand:", len(revAlnScaf)))
@@ -180,6 +182,15 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
             outfilequery.write("%s\t%s\n" % (k,'\t'.join(v)))
     outfilequery.close()
 
+    with open(outBasename + "_unalignedScaffolds_reference.txt", 'w') as out:
+        for elem in unl_ref:
+            out.write(elem[0] + "\t" + elem[1] + "\n")
+    out.close()
+
+    with open(outBasename + "_unalignedScaffolds_query.txt", 'w') as out:
+        for elem in unl_query:
+            out.write(elem[0] + "\t" + elem[1] + "\n")
+    out.close()
 
 def main():
     parser = argparse.ArgumentParser(description='Script to analyse lastal tab output file.')
