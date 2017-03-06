@@ -88,7 +88,7 @@ def transformNegativeStrandCoordinates(alignedQuery,dictQueryGenomeTable):
     return transformedQuerydict,totallyAlnForwd,totallyAlnRev, mixedAlnFraction
 
 
-def createtmpBedFiles(alnRef,alntasnformedQuery,referenceGenomeTable, alignedGenomeTable):
+def createtmpBedFiles(alnRef,alntasnformedQuery,referenceGenomeTable,alignedGenomeTable):
     tmpfileRef = NamedTemporaryFile(delete=True)
     tmpfileQuery = NamedTemporaryFile(delete=True)
     i,j=1,1
@@ -112,17 +112,74 @@ def createtmpBedFiles(alnRef,alntasnformedQuery,referenceGenomeTable, alignedGen
     print("Merging sets of intervals and calculating genome coverage for reference genome..")
     iterable_ref = a.merge().genome_coverage(g=referenceGenomeTable)
     print("Merging sets of intervals and calculating genome coverage for aligned genome..")
-    iterable_query = b.merge()#.genome_coverage(g=alignedGenomeTable)
+    iterable_query = b.merge().genome_coverage(g=alignedGenomeTable)
 
-    #with open("test3.txt",'w') as out:
-    #    for k in iterable_ref:
-    #        out.write(str(k))
     return iterable_ref,iterable_query
 
 def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,forwdAlnScaf,revAlnScaf,mixAlnScaf, outBasename):
-    with open(outBasename,'w') as outfile:
+
+    finalREF=defaultdict(list)
+    finalQUERY=defaultdict(list)
+
+    with open(outBasename + "_stats.txt", 'w') as outstats:
         for line in it_ref:
-            outfile.write(str(line))
+            attr=str(line).rstrip().split("\t")
+
+            if attr[0] != 'genome' and attr[1] == "1":
+                finalREF[attr[0]] = [attr[3],attr[2],attr[4],str(len(refDict[attr[0]]))]
+            elif attr[0] == 'genome' and attr[1] == "1":
+                outstats.write("%s\t%i\n" % ("Total length of reference genome:",int(attr[3])))
+                outstats.write("%s\t%i%s%f%s\n" % ("Fracion of reference genome aligned:",int(attr[2])," [",float(attr[4]),"]"))
+                outstats.write("%s\t%i\n" % ("Number of scaffolds in reference:", len(refGenTable)))
+                outstats.write("%s\t%i\n" % ("Number of reference scaffolds with alignments:", len(refDict)))
+                unl_len=0
+                for k in refGenTable.keys():
+                    if not k in refDict.keys():
+                        unl_len+=int(refGenTable[k])
+                outstats.write("%s\t%i%s%f%s\n\n\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
+
+        for line in it_query:
+            attr=str(line).rstrip().split("\t")
+            if attr[0] != 'genome' and attr[1] == "1":
+                finalQUERY[attr[0]] = [attr[3],attr[2],attr[4],str(len(queryDict[attr[0]]))]
+            elif attr[0] == 'genome' and attr[1] == "1":
+                outstats.write("%s\t%i\n" % ("Total length of query genome:",int(attr[3])))
+                outstats.write("%s\t%i%s%f%s\n" % ("Fracion of query genome aligned:",int(attr[2])," [",float(attr[4]),"]"))
+                outstats.write("%s\t%i\n" % ("Number of scaffolds in query:", len(querGenTable)))
+                outstats.write("%s\t%i\n" % ("Number of query scaffolds with alignments:", len(queryDict)))
+                unl_len=0
+                for k in querGenTable.keys():
+                    if not k in queryDict:
+                        unl_len+=int(querGenTable[k])
+                outstats.write("%s\t%i%s%f%s\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
+                outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in the forward strand:", len(forwdAlnScaf)))
+                outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in the reverse strand:", len(revAlnScaf)))
+                outstats.write("%s\t%i\n" % ("Number of query scaffolds with all aligned blocks in both strands:", len(mixAlnScaf)))
+
+    outstats.close()
+    for tup in forwdAlnScaf:
+        finalQUERY[tup[0]].append(str(tup[1]))
+        finalQUERY[tup[0]].append("0")
+    for tup in revAlnScaf:
+        finalQUERY[tup[0]].append("0")
+        finalQUERY[tup[0]].append(str(tup[1]))
+    for k, v in mixAlnScaf.items():
+        finalQUERY[k].append(str(v[0]))
+        finalQUERY[k].append(str(v[1]))
+
+    with open(outBasename + "_referenceGenome.tsv",'w') as outfileref:
+        outfileref.write("#%s\t%s\t%s\t%s\t%s\n" % ('scaffold_id','scaffold_length','aligned_bases','fraction_covered','last_blocksAligned'))
+        for k,v in finalREF.items():
+            outfileref.write("%s\t%s\n" % (k,'\t'.join(v)))
+    outfileref.close()
+
+    with open(outBasename + "_queryGenome.tsv", 'w') as outfilequery:
+        outfilequery.write("#%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % ('scaffold_id','scaffold_length','aligned_bases','fraction_covered','last_blocksAligned',
+                                                              'forwardAligned_blocks','reverseAligned_blocks'))
+        for k,v in finalQUERY.items():
+            outfilequery.write("%s\t%s\n" % (k,'\t'.join(v)))
+    outfilequery.close()
+
 
 def main():
     parser = argparse.ArgumentParser(description='Script to analyse lastal tab output file.')
@@ -138,10 +195,10 @@ def main():
     print("Transforming negative strand alignments")
     transformedQueryDic,totallyAlnForwd,totallyAlnRev,mixedAlnFraction= transformNegativeStrandCoordinates(alignQuery,dictQuery)
     print("Creating tmp bed files ..")
-    it_ref,it_query = createtmpBedFiles(alignRef,transformedQueryDic,args.referenceGenomeTable, args.alignedGenomeTable)
+    it_ref,it_query = createtmpBedFiles(alignRef,transformedQueryDic, args.referenceGenomeTable, args.alignedGenomeTable)
     print("Generating stats..")
     generateStats(it_ref,it_query,alignRef,transformedQueryDic,dictRef,dictQuery,totallyAlnForwd,totallyAlnRev,mixedAlnFraction,args.outputBasemame)
-
+    print("Done!")
 
 
 if __name__ == "__main__":
