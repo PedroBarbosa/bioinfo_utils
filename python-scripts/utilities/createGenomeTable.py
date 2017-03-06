@@ -2,7 +2,7 @@ import argparse
 import os
 import collections
 from collections import OrderedDict
-def processFastaFiles(inputFile):
+def processFastaFiles(inputFile,removeSpaces):
 
     contig_seq = ""
     contig_id = ""
@@ -14,8 +14,14 @@ def processFastaFiles(inputFile):
             if line.startswith('>'):
 
                 if contig_id:
+                    if removeSpaces:
+                        if len(contig_id.split(" ")[0]) == 1:
+                            previous_id = "> " + contig_id.split(" ")[1]
+                        else:
+                            previous_id = contig_id.split(" ")[0]
 
-                    previous_id = contig_id
+                    else:
+                        previous_id = contig_id
                     final_dict[previous_id[1:]] = (len(contig_seq),contig_seq)
                 contig_id = line
                 contig_seq = ""
@@ -24,7 +30,14 @@ def processFastaFiles(inputFile):
                 contig_seq += line
 
         ###process last contig (after last >) ###
-        final_dict[contig_id[1:]] = (len(contig_seq),contig_seq)
+        if removeSpaces:
+            if len(contig_id.split(" ")[0]) == 1:
+                newId = "> " + contig_id.split(" ")[1]
+            else:
+                newId = contig_id.split(" ")[0]
+            final_dict[newId[1:]] = (len(contig_seq),contig_seq)
+        else:
+            final_dict[contig_id[1:]] = (len(contig_seq),contig_seq)
 
     file.close()
     return  final_dict
@@ -51,8 +64,9 @@ parser.add_argument(dest='inputFile', metavar='input_files', nargs=1,
                     help='Fasta file to be processed.')
 parser.add_argument('-o', '--outputFile', metavar='', required = True, help='Output file')
 parser.add_argument('-f', '--fastaOrdered',action='store_true', help='Flag that writes new fasta ordered by legnth of sequences.' )
+parser.add_argument('-r', '--removeSpaces',action='store_true', help='Flag that writes output file with headers truncated up to the first space found.' )
 args = parser.parse_args()
 
 
-dict_out = processFastaFiles(args.inputFile[0])
+dict_out = processFastaFiles(args.inputFile[0], args.removeSpaces)
 writeOutput(dict_out,args.fastaOrdered,args.outputFile,args.inputFile[0])
