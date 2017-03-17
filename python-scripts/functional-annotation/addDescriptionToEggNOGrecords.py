@@ -115,7 +115,7 @@ def getAnnotationFromAPI(listNOGs):
 
                     go_value = ""
                     for go in gosListPerCategory:
-                        if float(go[4]) > 90: #if frequency of this GO in the sequences used to produced this NOG is higher than 90%
+                        if float(go[4]) > 65: #if frequency of this GO in the sequences used to produced this NOG is higher than 90%
                             go_value = go_value + go[0] + " [" + go[1] + "]" + "; "
                         else:
                             lessFreqGO += 1
