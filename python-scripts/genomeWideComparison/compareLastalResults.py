@@ -35,8 +35,7 @@ def createGenomeTableDict(refGenomeTable,queryGenomeTable):
     return refLenghtsDict,queryLengthDict
 
 def processLastal(lastOut, isAllvsAll, removeIsoformAln):
-    alignedRef,alignedQuery = defaultdict(list), defaultdict(list)
-    selfMatch,allIsoforms=0,0
+    alignedRef,alignedQuery, idsMatchDict = defaultdict(list), defaultdict(list), defaultdict(set)
     with open(lastOut,"r") as infile:
 
         for l in infile:
@@ -44,25 +43,34 @@ def processLastal(lastOut, isAllvsAll, removeIsoformAln):
             if not line.startswith("#") and len(line.split()) > 10:
                 (score, scaff_reference, refstart, refAlignSize, refstrand, scaffSize, scaff_query, qstart, qAlignSize, qstrand, qScaffSize, blocks, mismatch) = line.split()[:13]
 
-                if isAllvsAll and removeIsoformAln and scaff_reference.rsplit('.',1) == scaff_query.rsplit('.',1):
-                    allIsoforms+=1
+   #             if isAllvsAll and removeIsoformAln and scaff_reference.rsplit('.',1)[0] == scaff_query.rsplit('.',1)[0]:
+   #                 allType+=1
 
-                elif isAllvsAll and removeIsoformAln:
+                if isAllvsAll and removeIsoformAln and scaff_reference.rsplit('.',1)[0] != scaff_query.rsplit('.',1)[0]:
+                    alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
+                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
+                    idsMatchDict[scaff_reference].add(scaff_query)
+   #             elif isAllvsAll  and scaff_reference != scaff_query and scaff_reference.rsplit('.',1)[0] == scaff_query.rsplit('.',1)[0]:
+   #                 isoformFault+=1
+
+   #             elif isAllvsAll and scaff_reference == scaff_query:
+   #                 selfMatch+=1
+
+                elif isAllvsAll and not removeIsoformAln and scaff_reference != scaff_query:
+                    alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
+                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
+                    idsMatchDict[scaff_reference].add(scaff_query)
+
+                elif not isAllvsAll:
                     alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
                     alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
 
-                elif isAllvsAll and scaff_reference ==scaff_query:
-                    selfMatch+=1
+    return alignedRef,alignedQuery,idsMatchDict
 
-                elif isAllvsAll:
-                    alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
-                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
-                else:
-                    alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
-                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
-
-        print(selfMatch,allIsoforms)
-    return alignedRef,alignedQuery
+def writeMatchesIDs(idsMatch,basename):
+    with open(basename + "_IDsAligned.txt", 'w') as out:
+        for k,v in idsMatch.items():
+            out.write('%s\t%s\t%i\n' % (k, ','.join(str(s) for s in v), len(v)))
 
 def transformNegativeStrandCoordinates(alignedQuery,dictQueryGenomeTable):
     #Lastal reports matches in the negative strand of the query by displaying reverse completements coordinates of it.
@@ -228,7 +236,9 @@ def main():
 
     dictRef,dictQuery=createGenomeTableDict(args.referenceGenomeTable, args.alignedGenomeTable)
     print("Processing lastal output..")
-    alignRef,alignQuery=processLastal(args.lastOutput,args.all2all,args.isoformsRemoval)
+    alignRef,alignQuery,idsMatchDict=processLastal(args.lastOutput,args.all2all,args.isoformsRemoval)
+    print("Reporting alignments IDs")
+    writeMatchesIDs(idsMatchDict, args.outputBasemame)
     print("Transforming negative strand alignments")
     transformedQueryDic,totallyAlnForwd,totallyAlnRev,mixedAlnFraction= transformNegativeStrandCoordinates(alignQuery,dictQuery)
     print("Creating tmp bed files ..")
