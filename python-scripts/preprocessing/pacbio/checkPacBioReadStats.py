@@ -1,13 +1,19 @@
 import argparse
 import matplotlib
 matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 from Bio import SeqIO
 from collections import OrderedDict
 import os
-
+import numpy as np
+from matplotlib import colors as mcolors
+import matplotlib.patches as mpatches
+import matplotlib.ticker as mticker
+import seaborn as sns
+import pandas as pd
 def declareGLobal():
     global dataStruct
-    dataStruct=OrderedDict(dict)
+    dataStruct=OrderedDict()
 
 def processFastaFiles(inputFile):
 
@@ -17,19 +23,20 @@ def processFastaFiles(inputFile):
         print("Processing another file of existing %s smrtcell" % smrtcell_id)
         indivSmrtcellDic = dataStruct[smrtcell_id]
     else:
-        print("Processing first file of %s smrtcell" % smrtcell_id)
-        indivSmrtcellDic = OrderedDict(list)
+        print("\nProcessing first file of %s smrtcell" % smrtcell_id)
+        indivSmrtcellDic = OrderedDict()
     rq = 0
 
     handle = open(inputFile,'rU')
     sequences = SeqIO.parse(handle,'fasta')
     for record in sequences:
 
-        hole_number=record.id.split("/")[2]
-        if not "RQ=" in record.id:
-            print("read quality tag may not be present in fasta headers.")
+        hole_number=record.description.split("/")[1]
+        if not "RQ=" in record.description:
+            print("read quality tag may not be present in fasta headers. [%s]" % record.description)
+            exit(1)
         else:
-            rq=record.id.split("RQ=")[1]
+            rq=record.description.split("RQ=")[1]
 
         if not hole_number in indivSmrtcellDic:
             indivSmrtcellDic[hole_number] = [rq]
@@ -39,6 +46,72 @@ def processFastaFiles(inputFile):
 
     dataStruct[smrtcell_id] = indivSmrtcellDic
     handle.close()
+
+def generateStats(outbasename):
+    print("Generating stats..")
+    zmw_perSmrtcell,subread_quality=[],[]
+    throuhtput_persmrtcell,singlepassSubreads,passes_perZMW= {},{},{}
+
+
+    with open(outbasename + "_stats.txt", 'w') as out1:
+        out1.write("Total number of smrt cells:\t%i\n" % len(dataStruct))
+        for smrtcell, dict_zmw in dataStruct.items():
+            zmw_perSmrtcell.append(len(dict_zmw))
+            throughput=0
+
+            for zmw in dict_zmw:
+                id = smrtcell + "_" + zmw
+                passes_perZMW[id] = (len(dict_zmw[zmw]) - 1)
+                if len(dict_zmw[zmw]) - 1 == 1:
+                    singlepassSubreads[id] = dict_zmw[zmw][1]
+
+                for subread in dict_zmw[zmw][1:]:
+
+                    subread_quality.append((int(subread),float(dict_zmw[zmw][0])))
+                    throughput+=subread
+
+            throuhtput_persmrtcell[smrtcell] = throughput
+
+        out1.write("Average number of ZMW per smrtcell:\t%.2f\n" % np.mean(zmw_perSmrtcell))
+        out1.write("Sequence throughput (Gb):\t%.4f\n" % (sum(throuhtput_persmrtcell.values())/1000000000))
+        out1.write("Total number of subreads:\t%i\n" % len(subread_quality))
+        out1.write("Average subread length (bp):\t%.2f\n" % (sum([ln[0] for ln in subread_quality])/len(subread_quality)))
+        out1.write("Average subread quality:\t%.4f\n" % (sum(rq[1] for rq in subread_quality)/len(subread_quality)))
+        out1.write("Average number of passes represented in subreads:\t%.2f\n" % np.mean(list(passes_perZMW.values())))
+        out1.write("Number of subreads coming from single pass ZMW:\t%i\n" % len(singlepassSubreads))
+        out1.write("Maximum number of passes observed in a polymerase read:\t%i [%s]\n" % (np.max(list(passes_perZMW.values())),max(passes_perZMW, key=passes_perZMW.get)))
+
+    out1.close()
+    with(open(outbasename + "_smrtcellsThroughput.tsv",'w')) as out2:
+        out2.write("#smrtcell_id\tthroughput(Gb)\n")
+        for k,v in throuhtput_persmrtcell.items():
+            out2.write("%s\t%.4f\n" % (k,v/1000000000))
+
+    print("Drawing plots..")
+    ###subread length hist
+    lengths=[i[0] for i in subread_quality]
+    plt.hist(lengths, bins= 200, color='#cdb79e', range=[0,50000],histtype='stepfilled')
+    plt.xlabel('Read lenght (bp)')
+    plt.ylabel('Counts')
+    #plt.axvline(np.mean(lengths), color='#838b83', linestyle='dashed', linewidth=1)
+    #plt.axvline(np.median(lengths), color='#cd853f', linestyle='dashed', linewidth=1)
+    plt.savefig(outbasename + "_readLenDistribution.png")
+    plt.close()
+
+
+    #scatter plot
+    df = pd.DataFrame(subread_quality,columns=("subread_length","subread_quality"))
+    sns.jointplot(x='subread_length', y='subread_quality',data=df,kind='kde')
+    plt.savefig(outbasename + "_scatterQualities.png")
+    plt.close()
+
+    #single pass subreads plot
+    single_subread_len=list(singlepassSubreads.values())
+    sns.kdeplot(np.array(single_subread_len), bw=0.5)
+    plt.title("Density of single pass subreads length")
+    plt.savefig(outbasename + "_single.png")
+    plt.close()
+
 
 
 def main():
@@ -62,6 +135,6 @@ def main():
     else:
         for file in args.fasta_file:
             processFastaFiles(file)
-
+        generateStats(args.o)
 if __name__ == "__main__":
     main()
