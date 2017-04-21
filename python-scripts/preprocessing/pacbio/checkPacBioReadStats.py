@@ -6,9 +6,6 @@ from Bio import SeqIO
 from collections import OrderedDict
 import os
 import numpy as np
-from matplotlib import colors as mcolors
-import matplotlib.patches as mpatches
-import matplotlib.ticker as mticker
 import seaborn as sns
 import pandas as pd
 def declareGLobal():
@@ -131,7 +128,7 @@ def main():
         with open(args.fasta_file[0], 'r') as listFasta:
             for line in listFasta:
                 processFastaFiles(line)
-
+            generateStats(args.o)
     else:
         for file in args.fasta_file:
             processFastaFiles(file)
