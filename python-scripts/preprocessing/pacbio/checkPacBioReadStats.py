@@ -127,7 +127,8 @@ def main():
     elif args.list:
         with open(args.fasta_file[0], 'r') as listFasta:
             for line in listFasta:
-                processFastaFiles(line)
+                l=line.rstrip()
+                processFastaFiles(l)
             generateStats(args.o)
     else:
         for file in args.fasta_file:
