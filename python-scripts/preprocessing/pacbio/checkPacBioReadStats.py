@@ -8,6 +8,10 @@ import os
 import numpy as np
 import seaborn as sns
 import pandas as pd
+import logging
+import sys
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
+
 def declareGLobal():
     global dataStruct
     dataStruct=OrderedDict()
@@ -17,10 +21,10 @@ def processFastaFiles(inputFile):
     smrtcell_id = os.path.basename(inputFile).split("_")[3]
 
     if smrtcell_id in dataStruct:
-        print("Processing another file of existing %s smrtcell" % smrtcell_id)
+        logging.info("Processing another file of existing %s smrtcell" % smrtcell_id)
         indivSmrtcellDic = dataStruct[smrtcell_id]
     else:
-        print("\nProcessing first file of %s smrtcell" % smrtcell_id)
+        logging.info("Processing first file of %s smrtcell" % smrtcell_id)
         indivSmrtcellDic = OrderedDict()
     rq = 0
 
@@ -30,7 +34,7 @@ def processFastaFiles(inputFile):
 
         hole_number=record.description.split("/")[1]
         if not "RQ=" in record.description:
-            print("read quality tag may not be present in fasta headers. [%s]" % record.description)
+            logging.info("read quality tag may not be present in fasta headers. [%s]" % record.description)
             exit(1)
         else:
             rq=record.description.split("RQ=")[1]
@@ -45,7 +49,7 @@ def processFastaFiles(inputFile):
     handle.close()
 
 def generateStats(outbasename):
-    print("Generating stats..")
+    logging.info("Generating stats..")
     zmw_perSmrtcell,subread_quality=[],[]
     throuhtput_persmrtcell,singlepassSubreads,passes_perZMW= {},{},{}
 
@@ -78,14 +82,23 @@ def generateStats(outbasename):
         out1.write("Number of subreads coming from single pass ZMW:\t%i\n" % len(singlepassSubreads))
         out1.write("Maximum number of passes observed in a polymerase read:\t%i [%s]\n" % (np.max(list(passes_perZMW.values())),max(passes_perZMW, key=passes_perZMW.get)))
 
+
+        len_list= np.asarray([int(i[0]) for i in subread_quality])
+        hist,bin_edges = np.histogram(len_list,50,(0,100000))
+
+        out1.write("Number of reads per bin:\n")
+        for i in range(0,len(hist)):
+            out1.write("n >= %i\t%i\n" % (bin_edges[i],np.sum(list((hist[i:])))))
+
     out1.close()
     with(open(outbasename + "_smrtcellsThroughput.tsv",'w')) as out2:
         out2.write("#smrtcell_id\tthroughput(Gb)\n")
         for k,v in throuhtput_persmrtcell.items():
             out2.write("%s\t%.4f\n" % (k,v/1000000000))
 
-    print("Drawing plots..")
+    logging.info("Drawing plots..")
     ###subread length hist
+    logging.info("\tHistogram..")
     lengths=[i[0] for i in subread_quality]
     plt.hist(lengths, bins= 200, color='#cdb79e', range=[0,50000],histtype='stepfilled')
     plt.xlabel('Read lenght (bp)')
@@ -96,12 +109,17 @@ def generateStats(outbasename):
     plt.close()
 
 
+    logging.info("\tScatter plot..")
     #scatter plot
     df = pd.DataFrame(subread_quality,columns=("subread_length","subread_quality"))
+    if df.shape[0] > 500000:
+        logging.info("Number of subreads is higher than 500,000, random subsampling will be performed.")
+        df = df.sample(n=500000)
     sns.jointplot(x='subread_length', y='subread_quality',data=df,kind='kde')
     plt.savefig(outbasename + "_scatterQualities.png")
     plt.close()
 
+    logging.info("\tSingle pass density plot..")
     #single pass subreads plot
     single_subread_len=list(singlepassSubreads.values())
     sns.kdeplot(np.array(single_subread_len), bw=0.5)
@@ -121,7 +139,7 @@ def main():
 
     declareGLobal()
     if len(args.fasta_file) > 1 and args.list:
-        print("When '-l' set, please don't provide more than 1 file in the positional arguments." )
+        logging.info("When '-l' set, please don't provide more than 1 file in the positional arguments." )
         exit(1)
 
     elif args.list:
