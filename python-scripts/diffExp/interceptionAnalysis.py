@@ -223,11 +223,15 @@ def printFinalWithAnnotation(final_dict,annotationFile, softwareUsed):
 
     print('\n\n#Table displaying the comparisons in which the features have differential expression.')
     header = output_dict['#FeatureID']
-    header.extend(['Annotation ID','Description'])
+    if softwareUsed == "tabFile":
+        header.extend(['Description'])
+    else:
+        header.extend(['Annotation ID','Description'])
     output_dict['#FeatureID'] = header
-
     for k,v in iter(output_dict.items()):
-        if len(v) > 2:
+        if len(v) > 2 and softwareUsed == "tabFile":
+            print(k + '\t' + v[0] + '\t' + v[1].rstrip() + '\t' + v[2])
+        elif len(v) > 2:
             print(k + '\t' + v[0] + '\t' + v[1].rstrip() + '\t' + v[2] + '\t' + v[3])
         else:
             print(k + '\t' + v[0] + '\t' + v[1].rstrip())
@@ -249,7 +253,7 @@ def processFromBlastTab(dict_final, annotationFile, softwareUsed):
     annotated_features = 0
     previous_query = ""
     swissprot = False
-    ncbi_nr = True
+    ncbi_nr = False
     database_id,description = "",""
     print(annotationFile)
     with open(annotationFile, 'r') as annotFile:
@@ -290,11 +294,25 @@ def processFromBlastTab(dict_final, annotationFile, softwareUsed):
                                     database_id = "NCBI_id:" + protein_id + ",RefSeq_id:" + refseq_id
                                     description = line.split("\t")[2].split("]")[0]
                                     description = description + "]"
+                               
+                                elif softwareUsed == "tabFile": 
+                                    description= line.split("\t")[2]
+
+                        else:
+                            hit= line.split('\t')[0]
+                            description= line.split('\t')[2].rstrip()
+			
+                        if not softwareUsed == "tabFile":
                         #update dict
-                        new_list = dict_final[query]
-                        new_list.extend([database_id, description])
-                        dict_final[query] = new_list
-                        previous_query = query
+                            new_list = dict_final[query]
+                            new_list.extend([database_id, description])
+                            dict_final[query] = new_list
+                            previous_query = query
+                        else:
+                            new_list = dict_final[query]
+                            new_list.extend([description])
+                            dict_final[query] = new_list
+                            previous_query = query
           #      else:
           #          logging.info("%s ID present in annotation file is not concordant with any differential expressed feature.")
             elif 'nr' in line:
@@ -302,7 +320,7 @@ def processFromBlastTab(dict_final, annotationFile, softwareUsed):
 
             elif 'swissprot' in line:
                 swissprot = True
-                ncbi_nr = False
+                
 
     if annotated_features == 0:
         logging.error("No features found in the annotation file are present in the list of differential expressed genes. Please check if the feature IDs are concordant.")
@@ -325,14 +343,13 @@ def main():
     parser.add_argument('-l', '--list', action='store_true', help='Process feature identifiers (one per line) rather than txt tab separated output files.')
     parser.add_argument('-a', '--all', action='store_true', help='Include log fold changes in the ouptut. Tab separated files are required. By default (edgeR), logFC values appear in the second column.')
     parser.add_argument('-f', dest='annotationFile', help='Add annotations to the output. Please add a file with the annotations in the blastTAB format. If blastp used, it will be assumed that NCBI-nr was the database searched. Otherwise, database will be accessed by the commented lines that rapsearch2 outputs.')
-    parser.add_argument('-s', dest ='softwareUsed', type=str, choices=['rapsearch2', 'blastp'],help='Tool used to run similarity searches. Available choices [rapsearch2, blastp]. When blastp used, it is assumed that the description comes in the 3rd columns of the annotation file.')
+    parser.add_argument('-s', dest ='softwareUsed', type=str, default='tabFile', choices=['rapsearch2', 'blastp'],help='Tool used to run similarity searches. Available choices [rapsearch2, blastp]. When blastp used, it is assumed that the description comes in the 3rd columns of the annotation file. Default: "tabFile", this file does not obey any software specific output format.')
     args = parser.parse_args()
 
 
 ###############################################################################
 ########################## COMMAND LINE PARSING ###############################
 ###############################################################################
-
     if len(args.input_files) < 2 :
         logging.fatal('Error: %s\n' % 'You should specify at least two files to compare.')
 

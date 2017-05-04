@@ -1,7 +1,10 @@
 import argparse
 import os
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib_venn import venn2, venn3,venn2_unweighted,venn3_unweighted
+
 
 parser = argparse.ArgumentParser(description='Script to generate venn diagrams given 2 or 3 sets of files.')
 parser.add_argument(dest='inputfiles', metavar='inputfiles', nargs='+', help='Each one representing one set. [2 or 3 files].')
