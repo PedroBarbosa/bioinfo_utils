@@ -20,18 +20,17 @@ def createGenomeTableDict(refGenomeTable,queryGenomeTable,queryIsRead):
                 refLenghtsDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
     infile1.close()
 
-    if not queryIsRead:
-        with open(queryGenomeTable, 'r') as infile2:
-            for line in infile2:
-                if len(line.split("\t")) != 2:
-                    print("Error, genome table files must have exactly 2 columns.")
-                    exit(1)
-                elif line.split("\t")[0] in queryLengthDict:
-                    print("Error, repeated scaffold id in genome table file %s" % queryGenomeTable)
+    with open(queryGenomeTable, 'r') as infile2:
+        for line in infile2:
+            if len(line.split("\t")) != 2:
+                print("Error, genome table files must have exactly 2 columns.")
+                exit(1)
+            elif line.split("\t")[0] in queryLengthDict:
+                print("Error, repeated scaffold id in genome table file %s" % queryGenomeTable)
 
-                else:
-                    queryLengthDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
-        infile2.close()
+            else:
+                queryLengthDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
+    infile2.close()
     return refLenghtsDict,queryLengthDict
 
 def processLastal(lastOut, isAllvsAll, removeIsoformAln):
@@ -48,7 +47,7 @@ def processLastal(lastOut, isAllvsAll, removeIsoformAln):
 
                 if isAllvsAll and removeIsoformAln and scaff_reference.rsplit('.',1)[0] != scaff_query.rsplit('.',1)[0]:
                     alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
-                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
+                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand,scaff_reference))
                     idsMatchDict[scaff_reference].add(scaff_query)
    #             elif isAllvsAll  and scaff_reference != scaff_query and scaff_reference.rsplit('.',1)[0] == scaff_query.rsplit('.',1)[0]:
    #                 isoformFault+=1
@@ -58,12 +57,12 @@ def processLastal(lastOut, isAllvsAll, removeIsoformAln):
 
                 elif isAllvsAll and not removeIsoformAln and scaff_reference != scaff_query:
                     alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
-                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
+                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand,scaff_reference))
                     idsMatchDict[scaff_reference].add(scaff_query)
 
                 elif not isAllvsAll:
                     alignedRef[scaff_reference].append((int(refstart),int(refstart)+int(refAlignSize)-1))
-                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand))
+                    alignedQuery[scaff_query].append((int(qstart),int(qstart)+int(qAlignSize)-1,qstrand,scaff_reference))
 
     return alignedRef,alignedQuery,idsMatchDict
 
@@ -218,7 +217,7 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
             out.write(elem[0] + "\t" + elem[1] + "\n")
     out.close()
 
-def generateStatsQueriesAreReads(it_ref,refDict, queryDict,refGenTable,outputBasemame):
+def generateStatsQueriesAreReads(it_ref,refDict, queryDict,refGenTable,queryGenTable,outputBasemame):
     finalREF=defaultdict(list)
     unl_query,unl_ref=[],[]
     with open(outputBasemame + "_stats.txt", 'w') as outstats:
@@ -239,6 +238,13 @@ def generateStatsQueriesAreReads(it_ref,refDict, queryDict,refGenTable,outputBas
                         unl_ref.append((k,refGenTable[k]))
                 outstats.write("%s\t%i%s%f%s\n\n\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
 
+        alignedReads=set()
+        for k, v in queryDict.items():
+            alignedReads.add(k)
+            if not k in queryDict.keys():
+                unl_query.append((k,queryGenTable[k]))
+        outstats.write("%s\t%i\n" % ("Total number of reads in the query:",len(queryDict)))
+        outstats.write("%s\t%i%s%f%s\n" % ("Number of reads with alignments:",len(alignedReads)," [",round(len(alignedReads)/len(queryDict)*100,2), "]"))
 
     with open(outputBasemame + "_referenceGenome.tsv",'w') as outfileref:
         outfileref.write("#%s\t%s\t%s\t%s\t%s\n" % ('scaffold_id','scaffold_length','aligned_bases','fraction_covered','last_blocksAligned'))
@@ -260,8 +266,7 @@ def main():
     parser = argparse.ArgumentParser(description='Script to analyse lastal tab output file.')
     parser.add_argument(dest='lastOutput', metavar='lastTabOut', help='Lastal output file in TAB format mapping the reference inputted to the query.')
     parser.add_argument(dest='referenceGenomeTable', metavar='refGenomeTable', help='Tab delimited file displaying reference sequences and their length.')
-    parser.add_argument(dest='alignedGenomeTable', metavar='alnGenomeTable',  help='Tab delimited file dsiplaying query sequences and their length. If query sequences are reads (-r argument), '
-                                                                                   'you can set this argument as you want, it will not be used at all.')
+    parser.add_argument(dest='alignedGenomeTable', metavar='alnGenomeTable',  help='Tab delimited file dsiplaying query sequences and their length.')
     parser.add_argument(dest='outputBasemame', metavar='outputBasename', help='Basename to write output files.')
     parser.add_argument('-a','--all2all', action = 'store_true', help='Lastal run refers to an all vs all alignment of the reference sequences. If so, self sequence '
                                                                       'matches will not be processed.')
@@ -272,7 +277,7 @@ def main():
     parser.add_argument('-r', '--queryIsRead',action = 'store_true', help='Lastal run refers to a reference vs reads alignment. If so, query (reads) coverage will not be calculated.')
     args = parser.parse_args()
 
-    if args.isoformsRemoval and args.all2all is None:
+    if args.isoformsRemoval and not args.all2all:
         parser.error("-i argument requires '-a'.")
         exit(1)
 
@@ -298,7 +303,7 @@ def main():
         print("Creating tmp bed files ..")
         it_ref,it_query = createtmpBedFiles(alignRef,alignQuery, args.referenceGenomeTable, args.alignedGenomeTable,args.queryIsRead)
         print("Generating stats..")
-        generateStatsQueriesAreReads(it_ref,alignRef,alignQuery,dictRef,args.outputBasemame)
+        generateStatsQueriesAreReads(it_ref,alignRef,alignQuery,dictRef,dictQuery,args.outputBasemame)
     print("Done!")
 
 
