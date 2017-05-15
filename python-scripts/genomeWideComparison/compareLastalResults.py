@@ -6,7 +6,7 @@ import codecs
 from pybedtools import BedTool
 from collections import Counter
 
-def createGenomeTableDict(refGenomeTable,queryGenomeTable):
+def createGenomeTableDict(refGenomeTable,queryGenomeTable,queryIsRead):
     refLenghtsDict,queryLengthDict=OrderedDict(), OrderedDict()
     with open(refGenomeTable, 'r') as infile1:
         for line in infile1:
@@ -20,18 +20,18 @@ def createGenomeTableDict(refGenomeTable,queryGenomeTable):
                 refLenghtsDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
     infile1.close()
 
+    if not queryIsRead:
+        with open(queryGenomeTable, 'r') as infile2:
+            for line in infile2:
+                if len(line.split("\t")) != 2:
+                    print("Error, genome table files must have exactly 2 columns.")
+                    exit(1)
+                elif line.split("\t")[0] in queryLengthDict:
+                    print("Error, repeated scaffold id in genome table file %s" % queryGenomeTable)
 
-    with open(queryGenomeTable, 'r') as infile2:
-        for line in infile2:
-            if len(line.split("\t")) != 2:
-                print("Error, genome table files must have exactly 2 columns.")
-                exit(1)
-            elif line.split("\t")[0] in queryLengthDict:
-                print("Error, repeated scaffold id in genome table file %s" % queryGenomeTable)
-
-            else:
-                queryLengthDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
-    infile2.close()
+                else:
+                    queryLengthDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
+        infile2.close()
     return refLenghtsDict,queryLengthDict
 
 def processLastal(lastOut, isAllvsAll, removeIsoformAln):
@@ -112,7 +112,7 @@ def transformNegativeStrandCoordinates(alignedQuery,dictQueryGenomeTable):
     return transformedQuerydict,totallyAlnForwd,totallyAlnRev, mixedAlnFraction
 
 
-def createtmpBedFiles(alnRef,alntasnformedQuery,referenceGenomeTable,alignedGenomeTable):
+def createtmpBedFiles(alnRef,alntasnformedQuery,referenceGenomeTable,alignedGenomeTable,queryIsRead):
     tmpfileRef = NamedTemporaryFile(delete=True)
     tmpfileQuery = NamedTemporaryFile(delete=True)
     i,j=1,1
@@ -123,24 +123,26 @@ def createtmpBedFiles(alnRef,alntasnformedQuery,referenceGenomeTable,alignedGeno
                     name='line'+str(i)
                     tmp1.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (key,tuple[0],tuple[1],name,0,'+'))
                     i+=1
-
-            for key,val in alntasnformedQuery.items():
-                for tuple in sorted(val, key=lambda x: x[0]):
-                    name='line'+str(j)
-                    tmp2.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (key,tuple[0],tuple[1],name,0,'+'))
-                    j+=1
+            if queryIsRead:
+                for key,val in alntasnformedQuery.items():
+                    for tuple in sorted(val, key=lambda x: x[0]):
+                        name='line'+str(j)
+                        tmp2.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (key,tuple[0],tuple[1],name,0,'+'))
+                        j+=1
     tmp1.close()
     tmp2.close()
     a=BedTool(tmpfileRef.name)
     b=BedTool(tmpfileQuery.name)
     print("Merging sets of intervals and calculating genome coverage for reference genome..")
     iterable_ref = a.merge().genome_coverage(g=referenceGenomeTable)
-    print("Merging sets of intervals and calculating genome coverage for aligned genome..")
-    iterable_query = b.merge().genome_coverage(g=alignedGenomeTable)
+    iterable_query=""
+    if not queryIsRead:
+        print("Merging sets of intervals and calculating genome coverage for aligned genome..")
+        iterable_query = b.merge().genome_coverage(g=alignedGenomeTable)
 
     return iterable_ref,iterable_query
 
-def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,forwdAlnScaf,revAlnScaf,mixAlnScaf, outBasename):
+def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,forwdAlnScaf,revAlnScaf,mixAlnScaf, outBasename,queryIsRead):
 
     finalREF=defaultdict(list)
     finalQUERY=defaultdict(list)
@@ -216,11 +218,50 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
             out.write(elem[0] + "\t" + elem[1] + "\n")
     out.close()
 
+def generateStatsQueriesAreReads(it_ref,refDict, queryDict,refGenTable,outputBasemame):
+    finalREF=defaultdict(list)
+    unl_query,unl_ref=[],[]
+    with open(outputBasemame + "_stats.txt", 'w') as outstats:
+        for line in it_ref:
+            attr=str(line).rstrip().split("\t")
+
+            if attr[0] != 'genome' and attr[1] == "1":
+                finalREF[attr[0]] = [attr[3],attr[2],attr[4],str(len(refDict[attr[0]]))]
+            elif attr[0] == 'genome' and attr[1] == "1":
+                outstats.write("%s\t%i\n" % ("Total length of reference genome:",int(attr[3])))
+                outstats.write("%s\t%i%s%f%s\n" % ("Fracion of reference genome aligned:",int(attr[2])," [",float(attr[4]),"]"))
+                outstats.write("%s\t%i\n" % ("Number of scaffolds in reference:", len(refGenTable)))
+                outstats.write("%s\t%i\n" % ("Number of reference scaffolds with alignments:", len(refDict)))
+                unl_len=0
+                for k in refGenTable.keys():
+                    if not k in refDict.keys():
+                        unl_len+=int(refGenTable[k])
+                        unl_ref.append((k,refGenTable[k]))
+                outstats.write("%s\t%i%s%f%s\n\n\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
+
+
+    with open(outputBasemame + "_referenceGenome.tsv",'w') as outfileref:
+        outfileref.write("#%s\t%s\t%s\t%s\t%s\n" % ('scaffold_id','scaffold_length','aligned_bases','fraction_covered','last_blocksAligned'))
+        for k,v in finalREF.items():
+            outfileref.write("%s\t%s\n" % (k,'\t'.join(v)))
+    outfileref.close()
+
+    with open(outputBasemame + "_unalignedScaffolds_reference.txt", 'w') as out:
+        for elem in unl_ref:
+            out.write(elem[0] + "\t" + elem[1] + "\n")
+    out.close()
+
+    with open(outputBasemame + "_unalignedReads_query.txt", 'w') as out:
+        for elem in unl_query:
+            out.write(elem[0] + "\t" + elem[1] + "\n")
+    out.close()
+
 def main():
     parser = argparse.ArgumentParser(description='Script to analyse lastal tab output file.')
     parser.add_argument(dest='lastOutput', metavar='lastTabOut', help='Lastal output file in TAB format mapping the reference inputted to the query.')
     parser.add_argument(dest='referenceGenomeTable', metavar='refGenomeTable', help='Tab delimited file displaying reference sequences and their length.')
-    parser.add_argument(dest='alignedGenomeTable', metavar='alnGenomeTable',  help='Tab delimited file dsiplaying query sequences and their length.')
+    parser.add_argument(dest='alignedGenomeTable', metavar='alnGenomeTable',  help='Tab delimited file dsiplaying query sequences and their length. If query sequences are reads (-r argument), '
+                                                                                   'you can set this argument as you want, it will not be used at all.')
     parser.add_argument(dest='outputBasemame', metavar='outputBasename', help='Basename to write output files.')
     parser.add_argument('-a','--all2all', action = 'store_true', help='Lastal run refers to an all vs all alignment of the reference sequences. If so, self sequence '
                                                                       'matches will not be processed.')
@@ -228,23 +269,36 @@ def main():
                                                                               'will also not process matches of different isoforms of the same gene. Script detects a different '
                                                                               'isoform when reference and query names share the same string up to the last \'.\'. E.g gene1.t1;'
                                                                               'gene1.t2 will be treated as a different isoform for the same gene.')
+    parser.add_argument(dest='-r', metavar='--queryIsRead', help='Lastal run refers to a reference vs reads alignment. If so, query (reads) coverage will not be calculated.')
     args = parser.parse_args()
 
     if args.isoformsRemoval and args.all2all is None:
         parser.error("-i argument requires '-a'.")
         exit(1)
 
-    dictRef,dictQuery=createGenomeTableDict(args.referenceGenomeTable, args.alignedGenomeTable)
+    if args.all2all and args.isoformsRemoval and args.queryIsRead or args.all2all and args.queryIsRead:
+        parser.error("Alignments either represent all vs all alignment or a reference vs reads alignment. Please remove '-r' or both '-a' and '-i' arguments.")
+        exit(1)
+
+
+    dictRef,dictQuery=createGenomeTableDict(args.referenceGenomeTable, args.alignedGenomeTable, args.queryIsRead)
     print("Processing lastal output..")
     alignRef,alignQuery,idsMatchDict=processLastal(args.lastOutput,args.all2all,args.isoformsRemoval)
-    print("Reporting alignments IDs")
-    writeMatchesIDs(idsMatchDict, args.outputBasemame)
-    print("Transforming negative strand alignments")
-    transformedQueryDic,totallyAlnForwd,totallyAlnRev,mixedAlnFraction= transformNegativeStrandCoordinates(alignQuery,dictQuery)
-    print("Creating tmp bed files ..")
-    it_ref,it_query = createtmpBedFiles(alignRef,transformedQueryDic, args.referenceGenomeTable, args.alignedGenomeTable)
-    print("Generating stats..")
-    generateStats(it_ref,it_query,alignRef,transformedQueryDic,dictRef,dictQuery,totallyAlnForwd,totallyAlnRev,mixedAlnFraction,args.outputBasemame)
+    if args.all2all:
+        print("Reporting alignments IDs")
+        writeMatchesIDs(idsMatchDict, args.outputBasemame)
+    if not args.queryIsRead:
+        print("Transforming negative strand alignments")
+        transformedQueryDic,totallyAlnForwd,totallyAlnRev,mixedAlnFraction= transformNegativeStrandCoordinates(alignQuery,dictQuery)
+        print("Creating tmp bed files ..")
+        it_ref,it_query = createtmpBedFiles(alignRef,transformedQueryDic, args.referenceGenomeTable, args.alignedGenomeTable,args.queryIsRead)
+        print("Generating stats..")
+        generateStats(it_ref,it_query,alignRef,transformedQueryDic,dictRef,dictQuery,totallyAlnForwd,totallyAlnRev,mixedAlnFraction,args.outputBasemame,args.queryIsRead)
+    else:
+        print("Creating tmp bed files ..")
+        it_ref,it_query = createtmpBedFiles(alignRef,alignQuery, args.referenceGenomeTable, args.alignedGenomeTable,args.queryIsRead)
+        print("Generating stats..")
+        generateStatsQueriesAreReads(it_ref,alignRef,alignQuery,dictRef,args.outputBasemame)
     print("Done!")
 
 
