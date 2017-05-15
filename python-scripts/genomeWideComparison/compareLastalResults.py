@@ -242,10 +242,11 @@ def generateStatsQueriesAreReads(it_ref,refDict, queryDict,refGenTable,queryGenT
                 outstats.write("%s\t%i%s%f%s\n\n\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
 
         alignedReads=set()
-        for k, v in queryDict.items():
-            alignedReads.add(k)
+        for k, v in queryGenTable.items():
             if not k in queryDict.keys():
                 unl_query.append((k,queryGenTable[k]))
+            else:
+                alignedReads.add(k)
         outstats.write("%s\t%i\n" % ("Total number of reads in the query:",len(queryDict)))
         outstats.write("%s\t%i%s%f%s\n" % ("Number of reads with alignments:",len(alignedReads)," [",round(len(alignedReads)/len(queryDict)*100,2), "]"))
 
