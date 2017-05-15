@@ -1,13 +1,14 @@
 from Bio import SeqIO
 import argparse
-import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib import mlab
 import matplotlib.cm as cmx
 import matplotlib.colors as colors
 import sys
 import os
 import logging
+import numpy as np
 logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
 from collections import OrderedDict
 from collections import defaultdict
@@ -64,7 +65,7 @@ def getCumLength(genomeSize,stepSize):
 
 def drawplot(finaldict,genomeFractions):
     logging.info("Drawing plot..")
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(8,6))
     lists=sorted(finaldict.items())
     assemblienames,y = zip(*lists)
 
@@ -96,7 +97,7 @@ def drawplot(finaldict,genomeFractions):
         plt.xticks(genomeFractions,ticks)
 
         lines=plt.plot(genomeFractions, [j for j in y[i]], label=assemblienames[i])
-        plt.setp(lines, color=col, linewidth=1.0)
+        plt.setp(lines, color=col, linewidth=2.0)
 
     handles, labels = ax.get_legend_handles_labels()
     lgd=ax.legend(handles, labels,loc='upper center', ncol=2,bbox_to_anchor=(0.5,-0.1) )
@@ -114,7 +115,7 @@ def drawplot(finaldict,genomeFractions):
 
 def get_cmap(N):
     color_norm  = colors.Normalize(vmin=0, vmax=N-1)
-    scalar_map = cmx.ScalarMappable(norm=color_norm, cmap='PiYG')
+    scalar_map = cmx.ScalarMappable(norm=color_norm, cmap='Paired')
     def map_index_to_rgb_color(index):
         return scalar_map.to_rgba(index)
     return map_index_to_rgb_color
