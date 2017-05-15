@@ -269,7 +269,7 @@ def main():
                                                                               'will also not process matches of different isoforms of the same gene. Script detects a different '
                                                                               'isoform when reference and query names share the same string up to the last \'.\'. E.g gene1.t1;'
                                                                               'gene1.t2 will be treated as a different isoform for the same gene.')
-    parser.add_argument(dest='-r', metavar='--queryIsRead', help='Lastal run refers to a reference vs reads alignment. If so, query (reads) coverage will not be calculated.')
+    parser.add_argument('-r', '--queryIsRead',action = 'store_true', help='Lastal run refers to a reference vs reads alignment. If so, query (reads) coverage will not be calculated.')
     args = parser.parse_args()
 
     if args.isoformsRemoval and args.all2all is None:
