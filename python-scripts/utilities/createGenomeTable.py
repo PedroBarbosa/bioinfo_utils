@@ -5,17 +5,24 @@ from collections import OrderedDict
 from Bio import SeqIO
 def processFastaFiles(inputFile,removeSpaces):
 
-    contig_seq = ""
-    contig_id = ""
+    dup=0
     final_dict = {}
     handle=open(inputFile, "rU")
     sequences = SeqIO.parse(handle,'fasta')
     for record in sequences:
         if removeSpaces:
-            final_dict[record.description.split()[0]] = len(record.seq)
+            if not record.description.split()[0] in final_dict:
+                final_dict[record.description.split()[0]] = [len(record.seq),record.seq]
+            else:
+                print("Duplicated sequence id:\t %s" % record.description.split()[0])
+                dup+=1
         else:
-            final_dict[record.description] = len(record.seq)
-
+            if not record.description in final_dict:
+                final_dict[record.description] = [len(record.seq),record.seq]
+            else:
+                print("Duplicated sequence id:\t %s" % record.description.split()[0])
+                du=+1
+    print("%i read IDs duplicated. Only the first ocurrence was saved." % dup)
     handle.close()
     return  final_dict
 
@@ -23,9 +30,7 @@ def processFastaFiles(inputFile,removeSpaces):
 def writeOutput(final_dict,orderedFasta,outputFile, inputFileName):
 
     sorted_dict = OrderedDict(sorted(final_dict.items(),key = lambda x: x[1][0],reverse=True))
-    #print(type(sorted_dict))
     with open(outputFile, "w") as out:
-        #for k,v in sorted(final_dict.items(),key = lambda x: x[1][0],reverse=True):
         for k,v in iter(sorted_dict.items()):
             out.write(k + "\t" + str(v[0]) + "\n")
 
