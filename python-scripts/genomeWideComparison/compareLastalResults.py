@@ -7,6 +7,7 @@ from pybedtools import BedTool
 from collections import Counter
 
 def createGenomeTableDict(refGenomeTable,queryGenomeTable,queryIsRead):
+    print("Creating hash tables for reference and query sequences..")
     refLenghtsDict,queryLengthDict=OrderedDict(), OrderedDict()
     with open(refGenomeTable, 'r') as infile1:
         for line in infile1:
@@ -18,6 +19,7 @@ def createGenomeTableDict(refGenomeTable,queryGenomeTable,queryIsRead):
 
             else:
                 refLenghtsDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
+        print("%i reference sequences processed" % len(refLenghtsDict))
     infile1.close()
 
     with open(queryGenomeTable, 'r') as infile2:
@@ -30,6 +32,7 @@ def createGenomeTableDict(refGenomeTable,queryGenomeTable,queryIsRead):
 
             else:
                 queryLengthDict[line.split("\t")[0]] = line.split("\t")[1].rstrip()
+        print("%i query sequences processed" % len(queryLengthDict))
     infile2.close()
     return refLenghtsDict,queryLengthDict
 

@@ -2,44 +2,21 @@ import argparse
 import os
 import collections
 from collections import OrderedDict
+from Bio import SeqIO
 def processFastaFiles(inputFile,removeSpaces):
 
     contig_seq = ""
     contig_id = ""
     final_dict = {}
-    ordered_fasta = {}
-    with open(inputFile) as file:
-        for line in file:
-            line=line.rstrip()
-            if line.startswith('>'):
-
-                if contig_id:
-                    if removeSpaces:
-                        if len(contig_id.split(" ")[0]) == 1:
-                            previous_id = "> " + contig_id.split(" ")[1]
-                        else:
-                            previous_id = contig_id.split(" ")[0]
-
-                    else:
-                        previous_id = contig_id
-                    final_dict[previous_id[1:]] = (len(contig_seq),contig_seq)
-                contig_id = line
-                contig_seq = ""
-
-            else:
-                contig_seq += line
-
-        ###process last contig (after last >) ###
+    handle=open(inputFile, "rU")
+    sequences = SeqIO.parse(handle,'fasta')
+    for record in sequences:
         if removeSpaces:
-            if len(contig_id.split(" ")[0]) == 1:
-                newId = "> " + contig_id.split(" ")[1]
-            else:
-                newId = contig_id.split(" ")[0]
-            final_dict[newId[1:]] = (len(contig_seq),contig_seq)
+            final_dict[record.description.split()[0]] = len(record.seq)
         else:
-            final_dict[contig_id[1:]] = (len(contig_seq),contig_seq)
+            final_dict[record.description] = len(record.seq)
 
-    file.close()
+    handle.close()
     return  final_dict
 
 
