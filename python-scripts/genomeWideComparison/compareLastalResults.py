@@ -247,8 +247,8 @@ def generateStatsQueriesAreReads(it_ref,refDict, queryDict,refGenTable,queryGenT
                 unl_query.append((k,queryGenTable[k]))
             else:
                 alignedReads.add(k)
-        outstats.write("%s\t%i\n" % ("Total number of reads in the query:",len(queryDict)))
-        outstats.write("%s\t%i%s%f%s\n" % ("Number of reads with alignments:",len(alignedReads)," [",round(len(alignedReads)/len(queryDict)*100,2), "]"))
+        outstats.write("%s\t%i\n" % ("Total number of reads in the query:",len(queryGenTable)))
+        outstats.write("%s\t%i%s%f%s\n" % ("Number of reads with alignments:",len(alignedReads)," [",round(len(alignedReads)/len(queryGenTable)*100,2), "]"))
 
     with open(outputBasemame + "_referenceGenome.tsv",'w') as outfileref:
         outfileref.write("#%s\t%s\t%s\t%s\t%s\n" % ('scaffold_id','scaffold_length','aligned_bases','fraction_covered','last_blocksAligned'))

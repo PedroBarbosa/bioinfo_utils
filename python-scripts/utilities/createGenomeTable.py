@@ -9,22 +9,28 @@ def processFastaFiles(inputFile,removeSpaces):
     final_dict = {}
     handle=open(inputFile, "rU")
     sequences = SeqIO.parse(handle,'fasta')
-    for record in sequences:
-        if removeSpaces:
-            if not record.description.split()[0] in final_dict:
-                final_dict[record.description.split()[0]] = [len(record.seq),record.seq]
+    with open("duplicatedReadIds.txt", 'w') as outfile:
+        for record in sequences:
+            if removeSpaces:
+                if not record.description.split()[0] in final_dict:
+                    final_dict[record.description.split()[0]] = [len(record.seq),record.seq]
+                else:
+                    if dup==0:
+                        print("Duplicated sequence ids found!!")
+                    outfile.write(record.description.split()[0] + "\n")
+                    dup+=1
             else:
-                print("Duplicated sequence id:\t %s" % record.description.split()[0])
-                dup+=1
-        else:
-            if not record.description in final_dict:
-                final_dict[record.description] = [len(record.seq),record.seq]
-            else:
-                print("Duplicated sequence id:\t %s" % record.description.split()[0])
-                du=+1
-    print("%i read IDs duplicated. Only the first ocurrence was saved." % dup)
-    handle.close()
-    return  final_dict
+                if not record.description in final_dict:
+                    final_dict[record.description] = [len(record.seq),record.seq]
+                else:
+                    if dup==0:
+                        print("Duplicated sequence ids found!!")
+                    du=+1
+                    outfile.write(record.description + "\n")
+
+        print("%i read IDs duplicated. Only the first ocurrence was saved." % dup)
+        handle.close()
+        return  final_dict
 
 
 def writeOutput(final_dict,orderedFasta,outputFile, inputFileName):
