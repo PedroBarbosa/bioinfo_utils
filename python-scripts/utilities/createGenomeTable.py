@@ -25,10 +25,10 @@ def processFastaFiles(inputFile,removeSpaces):
                 else:
                     if dup==0:
                         print("Duplicated sequence ids found!!")
-                    du=+1
+                    dup=+1
                     outfile.write(record.description + "\n")
-
-        print("%i read IDs duplicated. Only the first ocurrence was saved." % dup)
+        if dup > 0:
+            print("%i read IDs duplicated. Only the first ocurrence was written to the output." % dup)
         handle.close()
         return  final_dict
 
