@@ -40,7 +40,8 @@ def processM4(file):
                 mapQ=int(mapQStr)
                 if "|" in refcontig:
                     ref_contig = refcontig.split("|")[0]
-
+                else:
+                    ref_contig=refcontig	
                 if qstrand == 1: #reverse, qstrand field will be kept the same to distinguish from original reverse alignments
                     qnewstart=qlength-qalignend
                     qneweend=qlength-qnewstart
@@ -66,7 +67,9 @@ def getStats(queryDict,refDict,refLength,basename,noCoverage,genomeTblFile):
     logging.info("Processing queries..")
     for query,align in queryDict.items():
         for al in align:
-            alnFraction=round((al[4]+al[5])/al[6]*100,2)
+            alnFraction=round((al[5]-al[4])/al[6]*100,2)
+            if alnFraction > 100:
+                print(query, align)
             if len(align) > 1:#multiple alignment
 
                 uniqReadLen=set([e[6] for e in align]) #get set of unique sequences lengths
@@ -156,7 +159,7 @@ def getGenomeCov(iterable_ref,refDict,refGeneTable,outbasename):
                         unl_ref.append((k,refGeneTable[k]))
                 outfile.write("%s\t%i%s%f%s\n" % ("Total length considering the fully unaligned scaffolds:",unl_len," [",round(unl_len/int(attr[3]),4), "]"))
     outfile.close()
-    with open(outbasename + "_referenceGenome.tsv",'w') as outfileref:
+    with open(outbasename + "_referenceGenomeCov.tsv",'w') as outfileref:
         outfileref.write("#%s\t%s\t%s\t%s\n" % ('scaffold_id','scaffold_length','aligned_bases','fraction_covered'))
         for k,v in finalREF.items():
             outfileref.write("%s\t%s\n" % (k,'\t'.join(v)))

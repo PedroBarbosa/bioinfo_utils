@@ -59,18 +59,21 @@ def generateStats(outbasename):
         for smrtcell, dict_zmw in dataStruct.items():
             zmw_perSmrtcell.append(len(dict_zmw))
             throughput=0
+            with open(outbasename + "_" + smrtcell + "_individualZMW.info", "w") as out2:
+                out2.write("#zmw_id\tsubreads\tthroughput\n") 
+                for zmw in dict_zmw:
+                    id = smrtcell + "_" + zmw
+                    passes_perZMW[id] = (len(dict_zmw[zmw]) - 1)
+                    if len(dict_zmw[zmw]) - 1 == 1:
+                        singlepassSubreads[id] = dict_zmw[zmw][1]
+                    throughput_perZMW=0
+                    for subread in dict_zmw[zmw][1:]:
+                        subread_quality.append((int(subread),float(dict_zmw[zmw][0])))
+                        throughput+=subread
+                        throughput_perZMW+=subread
+                    out2.write("%s\t%i\t%i\n" % (zmw,len(dict_zmw[zmw]) - 1, throughput_perZMW))
 
-            for zmw in dict_zmw:
-                id = smrtcell + "_" + zmw
-                passes_perZMW[id] = (len(dict_zmw[zmw]) - 1)
-                if len(dict_zmw[zmw]) - 1 == 1:
-                    singlepassSubreads[id] = dict_zmw[zmw][1]
-
-                for subread in dict_zmw[zmw][1:]:
-
-                    subread_quality.append((int(subread),float(dict_zmw[zmw][0])))
-                    throughput+=subread
-
+            out2.close()               
             throuhtput_persmrtcell[smrtcell] = throughput
 
         out1.write("Average number of ZMW per smrtcell:\t%.2f\n" % np.mean(zmw_perSmrtcell))

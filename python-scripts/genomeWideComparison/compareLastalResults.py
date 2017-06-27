@@ -125,7 +125,7 @@ def createtmpBedFiles(alnRef,alntasnformedQuery,referenceGenomeTable,alignedGeno
                     name='line'+str(i)
                     tmp1.write("%s\t%s\t%s\t%s\t%s\t%s\n" % (key,tuple[0],tuple[1],name,0,'+'))
                     i+=1
-            if queryIsRead:
+            if not queryIsRead:
                 for key,val in alntasnformedQuery.items():
                     for tuple in sorted(val, key=lambda x: x[0]):
                         name='line'+str(j)
@@ -149,6 +149,7 @@ def generateStats(it_ref,it_query,refDict, queryDict,refGenTable,querGenTable,fo
     finalREF=defaultdict(list)
     finalQUERY=defaultdict(list)
     unl_query,unl_ref=[],[]
+
     with open(outBasename + "_stats.txt", 'w') as outstats:
         for line in it_ref:
             attr=str(line).rstrip().split("\t")
@@ -313,3 +314,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
