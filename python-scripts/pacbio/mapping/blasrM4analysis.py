@@ -163,6 +163,9 @@ def getGenomeCov(iterable_ref,refDict,refGeneTable,outbasename):
         outfileref.write("#%s\t%s\t%s\t%s\n" % ('scaffold_id','scaffold_length','aligned_bases','fraction_covered'))
         for k,v in finalREF.items():
             outfileref.write("%s\t%s\n" % (k,'\t'.join(v)))
+
+        for k,v in sorted(unl_ref, reverse=True):
+            outfileref.write("%s\t%i\t%i\t%i\n" % (k,v,0,0))
     outfileref.close()
 
 
