@@ -235,27 +235,30 @@ def genomeCoverageFromBed(bedfile,genome,stranded,outdir,alnType,noCovAnalysis,n
     dicCov={}
     if type(bedfile) is list:#when input is bed
         for file in bedfile:
+
             if noCovAnalysis == False:
                 logging.info("[Genome coverage analysis started]: Calculating genome coverage of %s file directly from a bed input." % file)
-                dicCov=bedtoolsCMD(file,genome,stranded,genome_size)
+                dicCov=bedtoolsCMD(file,genome,stranded,genome_size,outdir)
             if noAlignmentAnalysis == False:
                 ob=AlignmentsAnalysis(file,outdir,alnType,noCovAnalysis,dicCov)
                 ob.processGenomeTable(genome)
                 ob.bedAnalysis()
     else:#when input is bam
         if noCovAnalysis == False:
-            dicCov=bedtoolsCMD(bedfile,genome,stranded,genome_size)
+            dicCov=bedtoolsCMD(bedfile,genome,stranded,genome_size,outdir)
         if noAlignmentAnalysis == False:
             ob=AlignmentsAnalysis(bedfile,outdir,alnType,noCovAnalysis,dicCov)
             ob.processGenomeTable(genome)
             ob.bedAnalysis()
 
-def bedtoolsCMD(file,genome,stranded,genome_size):
+
+
+def bedtoolsCMD(file,genome,stranded,genome_size,outdir):
 
     subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", file, "-g", genome])
     stdout = subTotal.decode("utf-8").split("\n")
     logging.info("\tGenerating stats for coverage..")
-    dicCov=generateStatsAndCoverageFiles(stdout,file,-1,genome_size)
+    dicCov=generateStatsAndCoverageFiles(stdout,file,-1,genome_size,outdir)
 
     if stranded:
         logging.info("\tCalculating genome coverage in each strand independently..")
@@ -264,15 +267,15 @@ def bedtoolsCMD(file,genome,stranded,genome_size):
                 subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", file, "-g", genome, "-strand", "+"])
                 stdout = subTotal.decode("utf-8").split("\n")
                 logging.info("\tGenerating stats for coverage in the positive strand..")
-                generateStatsAndCoverageFiles(stdout,file,i,genome_size)
+                generateStatsAndCoverageFiles(stdout,file,i,genome_size,outdir)
             elif i == 1:
                 subTotal = subprocess.check_output(["bedtools", "genomecov", "-i", file, "-g", genome, "-strand", "-"])
                 stdout = subTotal.decode("utf-8").split("\n")
                 logging.info("\tGenerating stats for coverage in the  negative strand..")
-                generateStatsAndCoverageFiles(stdout,file,i,genome_size)
+                generateStatsAndCoverageFiles(stdout,file,i,genome_size,outdir)
     return dicCov
 
-def generateStatsAndCoverageFiles(std_out,bedfile,i,genomeSize):
+def generateStatsAndCoverageFiles(std_out,bedfile,i,genomeSize,outdir):
     dictGenomeCoverageBedtools = defaultdict(list)
     dictWholeGenomeCovLarger0 = OrderedDict()
     dictPerScaffoldCovLarger0 = OrderedDict()
@@ -346,14 +349,15 @@ def generateStatsAndCoverageFiles(std_out,bedfile,i,genomeSize):
     logging.info("\tFinal: Genome fraction with coverage larger than 50:\t%s" % sum([float(v) for k,v in dictWholeGenomeCovLarger0.items() if int(k) >50 ]))
     #for k,v in iter(dictWholeGenomeCovLarger0.items()):
     #    logging.info("Genome fraction with coverage %s\t%s" % (k,v))
-    writeDict(dictGenomeCoverageBedtools, bedfile,i)
+    writeDict(dictGenomeCoverageBedtools, bedfile,i,outdir)
     return dictGenomeCoverageBedtools
 
 
-def writeDict(dict,bedfile, i):
+def writeDict(dict,bedfile, i,outdir):
     out_file = ""
     if i == 0:
-        out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-plusStrand.txt')
+        out_file = os.path.join(outdir, os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-plusStrand.txt')
+        #out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-plusStrand.txt')
     elif i == 1:
         out_file = os.path.join(os.path.dirname(os.path.realpath(bedfile)), os.path.basename(bedfile).split('.bed')[0] + '-indScaffCov-minusStrand.txt' )
     else:
@@ -564,7 +568,10 @@ class AlignmentsAnalysis(object):
 
 def main():
 
-    parser = argparse.ArgumentParser(description='Script to analyse the genome coverage and orientation of the scaffolds. Requires samtools and bedtools to be on the system path. BAM files must be sorted.')
+    parser = argparse.ArgumentParser(description='Script to analyse the genome coverage and report individual scaffold information about its mappings. Requires samtools and bedtools to be on the system path. '
+                                                 'BAM files must be sorted. Right now, and by default, secondary alignments are discarded, therefore stats related with'
+                                                 ' multiple mapped reads are not displayed. Nevertheless, those can be easily added. Some issues found on the first line of some'
+                                                 ' bed files, which are space delimited, instead of tab character, required by bedtools.')
     parser.add_argument(dest='bam_files', metavar='bamFiles', nargs='+', help='Bam files to process.')
     parser.add_argument('-m', metavar='mapper', required = True, choices=['bwa_aln','bwa_mem','star','bowtie2'], help='Mapper used in the alignments. Available choices: [bwa_aln,bwa_mem,star,bowtie2].')
     parser.add_argument('-gn', metavar='genomeTable', required = True, help='Tab delimited genome file. Ex:chrom_name    size(bp). Required by bedtools.')
