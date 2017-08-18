@@ -134,7 +134,7 @@ def filterBamAlignments(bamfile,outDir,mapper):
         tmp_file_bitflag.close()
         logging.info("\tConverting bam to bed using BEDtools..")
         with open(os.path.join(outDir,os.path.basename(bamfile).replace('.bam', '.bed')), 'w+') as out_file:
-            bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-split","-cigar", "-i", "stdin"], stdin=q255bam.stdout, stdout=out_file)
+            bam2bed = subprocess.Popen(["bedtools", "bamtobed", "-split", "-i", "stdin"], stdin=q255bam.stdout, stdout=out_file)
 
             bam2bed.wait()
             out_file.seek(0)
@@ -228,7 +228,7 @@ def replaceBedScoreToBitFlag(bedFile,bitflag_tmp):
         subprocess.Popen(["mv", out, bedFile])
 
 
-def genomeCoverageFromBed(bedfile,genome,stranded,outdir,alnType,noCovAnalysis,noAlignmentAnalysis):
+def genomeCoverageFromBed(bedfile,genome,stranded,outdir,alnType,noCovAnalysis,noAlignmentAnalysis,mapper):
     with open(genome) as fin:
         genome_size = sum(int(r[1]) for r in csv.reader(fin, delimiter = "\t"))
     fin.close()
@@ -240,14 +240,14 @@ def genomeCoverageFromBed(bedfile,genome,stranded,outdir,alnType,noCovAnalysis,n
                 logging.info("[Genome coverage analysis started]: Calculating genome coverage of %s file directly from a bed input." % file)
                 dicCov=bedtoolsCMD(file,genome,stranded,genome_size,outdir)
             if noAlignmentAnalysis == False:
-                ob=AlignmentsAnalysis(file,outdir,alnType,noCovAnalysis,dicCov)
+                ob=AlignmentsAnalysis(file,outdir,alnType,noCovAnalysis,dicCov,mapper)
                 ob.processGenomeTable(genome)
                 ob.bedAnalysis()
     else:#when input is bam
         if noCovAnalysis == False:
             dicCov=bedtoolsCMD(bedfile,genome,stranded,genome_size,outdir)
         if noAlignmentAnalysis == False:
-            ob=AlignmentsAnalysis(bedfile,outdir,alnType,noCovAnalysis,dicCov)
+            ob=AlignmentsAnalysis(bedfile,outdir,alnType,noCovAnalysis,dicCov,mapper)
             ob.processGenomeTable(genome)
             ob.bedAnalysis()
 
@@ -371,7 +371,8 @@ def writeDict(dict,bedfile, i,outdir):
 
 
 class AlignmentsAnalysis(object):
-    def __init__(self, bedFiles,outdir,alnType,noCovAnalysis,dicCov):
+    def __init__(self, bedFiles,outdir,alnType,noCovAnalysis,dicCov,mapper):
+        self.mapper=mapper
         self.bedfiles = bedFiles
         self.noCovAnalysis=noCovAnalysis
         self.gnTableDict = {}
@@ -428,11 +429,14 @@ class AlignmentsAnalysis(object):
         with open(bed,'r') as infile:
             for line in infile:
                 attr=line.rstrip().split()
+                print(attr[4])
                 if int(attr[4]) in self.wrongInsertDistProperOrientation or int(attr[4]) in self.wrongInsertDistWrongOrientation or int(attr[4]) in self.chimeric:
                     unique_readID=attr[3].split("/")
                     conflictAlignReadInfo[unique_readID[0]].append((attr[0],unique_readID[1],attr[4],attr[6]))
-
-                hash[attr[0]].append((int(attr[1]),int(attr[2]),attr[3],int(attr[4]), attr[6]))
+                if self.mapper == "star":
+                    hash[attr[0]].append((int(attr[1]),int(attr[2]),attr[3],int(attr[4]), "NA"))#rna seq alignments should be splitted, thus cigar string is not included
+                else:
+                    hash[attr[0]].append((int(attr[1]),int(attr[2]),attr[3],int(attr[4]), attr[6]))
         infile.close()
         logging.info("Processing data..")
         outfile=os.path.join(self.outDir, os.path.basename(bed).replace('.bed','_alignmentInfo.txt'))
@@ -478,6 +482,7 @@ class AlignmentsAnalysis(object):
                         corrected, corrected_orientation,potential_correct,potential_correct_wrongOrientation,potential_correct_unmappedMate,wrong_distance, \
                         wrong_orientation,unknown_fate,chimeric,clipped,clippedScafEnd,clippedWithin,clippedChim,clippedNonChim=0,0,0,0,0,0,0,0,0,0,0,0,0,0
                         for i in alignments:
+                            print(i)
                             if "H" in i[4] or "S" in i[4]:
                                 self.totalClipped+=1
                                 clipped+=1
@@ -611,13 +616,13 @@ def main():
                     logging.info("\tAdding bitFlags to the score column in BED file..")
                     replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
                     logging.info("Calculating genome coverage..")
-                    genomeCoverageFromBed(outBed, args.gn, args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment)
+                    genomeCoverageFromBed(outBed, args.gn, args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment,args.m)
                 else:
                     bitflag_tmp = filterBamAlignments(file,args.o,args.m)
                     logging.info("\tAdding bitFlags to the score column in BED file..")
                     replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
                     logging.info("Calculating genome coverage..")
-                    genomeCoverageFromBed(outBed, args.gn,args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment)
+                    genomeCoverageFromBed(outBed, args.gn,args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment,args.m)
 
             else:
                 logging.info("No filtering of BAM files will be done.")
@@ -625,11 +630,11 @@ def main():
                 logging.info("Adding bitFlags to the score column in BED file..")
                 replaceBedScoreToBitFlag(outBed,bitflag_tmp.name)
                 logging.info("Calculating genome coverage..")
-                genomeCoverageFromBed(outBed, args.gn, args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment)
+                genomeCoverageFromBed(outBed, args.gn, args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment,args.m)
 
             logging.info("DONE!!")
     else:
-        genomeCoverageFromBed(args.bam_files,args.gn,args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment)
+        genomeCoverageFromBed(args.bam_files,args.gn,args.stranded,args.o, args.alnType,args.noCoverage,args.noAlignment,args.m)
 
 
 if __name__ == "__main__":
