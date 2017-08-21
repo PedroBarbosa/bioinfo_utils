@@ -18,24 +18,28 @@ def createGenomeTableDict(refGenomeTable):
                 gnmTbl[line.split("\t")[0]] = line.split("\t")[1].rstrip()
         #print("%i reference sequences processed" % len(gnmTbl))
     infile.close()
-    return dict
+    return gnmTbl
 
 
-def readAugustusGff(infile,outfile,dict):
+def readAugustusGff(infile,outfile,dictin):
     with open(infile,'r') as infl:
         with open(outfile,'w') as outfl:
             outfl.write("##gff-version 3\n##Output generated with Pedro script to convert IDs nomenclature in the 9th attributes field.\n")
             geneID=""
             transcriptID=""
+            previous_refid=""
             for line in infl:
                 if not line.startswith("#"):
                     fields=line.split("\t")
-                    if fields[2] == "gene":
-                        geneID=fields[8].rstrip()
-                        if fields[0] in dict:
-                            outfl.write("##sequence-region " + fields[0] + " 1 " + dict[fields[0]])
+                    refid=fields[0]
+                    if refid != previous_refid:
+                        if refid in dictin:
+                            outfl.write("##sequence-region " + refid + " 1 " + dictin[refid] + "\n")
                         else:
                             print("%s seq id not in genome table. Sequence region will not be present for this reference sequence." % fields[0])
+
+                    if fields[2] == "gene":
+                        geneID=fields[8].rstrip()
                         outfl.write('\t'.join(fields[:-1]) + '\tID=' + geneID + "\n")
                     elif fields[2] == "transcript":
                         transcriptID=fields[8].rstrip()
@@ -44,7 +48,7 @@ def readAugustusGff(infile,outfile,dict):
                          outfl.write('\t'.join(fields[:-1]) + '\tParent=' + transcriptID + "\n")
                     elif fields[2] == "intron":
                         continue
-
+                    previous_refid=refid
     infl.close()
     outfl.close()
 
@@ -54,7 +58,7 @@ def main():
     parser = argparse.ArgumentParser(description='Script to convert native non gff3 augustus format into a readable gff3.')
     parser.add_argument(dest='inputgff', metavar='augustusGff', help='Input file.')
     parser.add_argument(dest='outputfgff', metavar='outgff3', help='Name of the output file.')
-    parser.add_argument("-g", metavar='-genomeTable', require=True,help="Genome table file to ouptut ##sequence-region in the gff. Advised by genome validation tools.")
+    parser.add_argument("-g", metavar='-genomeTable', required=True,help="Genome table file to ouptut ##sequence-region in the gff. Advised by genome validation tools.")
     args = parser.parse_args()
 
     outdict = createGenomeTableDict(args.g)
