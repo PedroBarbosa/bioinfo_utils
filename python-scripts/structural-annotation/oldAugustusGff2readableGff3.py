@@ -28,6 +28,7 @@ def readAugustusGff(infile,outfile,dictin):
             geneID=""
             transcriptID=""
             previous_refid=""
+            i=0
             for line in infl:
                 if not line.startswith("#"):
                     fields=line.split("\t")
@@ -43,9 +44,17 @@ def readAugustusGff(infile,outfile,dictin):
                         outfl.write('\t'.join(fields[:-1]) + '\tID=' + geneID + "\n")
                     elif fields[2] == "transcript":
                         transcriptID=fields[8].rstrip()
+                        fields[2] = "mRNA"
                         outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ";Parent=" + geneID + "\n")
-                    elif fields[2] == "start_codon" or fields[2] == "stop_codon" or fields[2] == "exon" or fields[2] == "CDS":
-                         outfl.write('\t'.join(fields[:-1]) + '\tParent=' + transcriptID + "\n")
+                        i=1
+                    elif fields[2] == "start_codon":
+                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ":start" + ';Parent=' + transcriptID + "\n")
+                    elif fields[2] == "stop_codon":
+                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ":stop" + ';Parent=' + transcriptID + "\n")
+                    elif fields[2] == "exon" or fields[2] == "CDS":
+                        fields[2] = "exon"
+                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ":exon" + str(i) + ';Parent=' + transcriptID + "\n")
+                        i+=1
                     elif fields[2] == "intron":
                         continue
                     previous_refid=refid
