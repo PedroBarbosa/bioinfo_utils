@@ -26,7 +26,7 @@ elif args.a:
     handle2 = open("correspondingSequenceNames.tsv","w")
 
     for seq_record in SeqIO.parse(handle,"fasta"):
-        old_header = seq_record.id
+        old_header = seq_record.description
         seq_record.id = old_header + args.a
         if len(subsetList) > 0:
             if old_header in subsetList:
@@ -44,7 +44,7 @@ elif args.r:
     handle = open(args.fastaFile,"rU")
     handle2 = open("correspondingSequenceNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
-        old_header = seq_record.id
+        old_header = seq_record.description
         seq_record.id = args.r + '_' + str(i)
         if len(subsetList) > 0:
             if old_header in subsetList:
@@ -61,7 +61,7 @@ elif args.s:
     handle=open(args.fastaFile,"rU")
     handle2 = open("correspondingSequenceNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
-        old_header = seq_record.id
+        old_header = seq_record.description
         seq_record.id = old_header.rsplit(args.s,1)[0]
         if len(subsetList) > 0:
             if old_header in subsetList:
@@ -84,7 +84,7 @@ elif args.removeSpace:
     handle=open(args.fastaFile,"rU")
     handle2 = open("correspondingSequenceNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
-        old_header = seq_record.id
+        old_header = seq_record.description
         seq_record.id = old_header.split(" ")[0]
         if len(subsetList) > 0:
             if old_header in subsetList:
