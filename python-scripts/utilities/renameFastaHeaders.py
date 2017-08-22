@@ -8,7 +8,14 @@ parser.add_argument('-a', metavar='add', help='String to add to the end of each 
 parser.add_argument('-r', metavar='replace', help='Base string to replace all headers completely. For each record a "_i" number will be incremented.')
 parser.add_argument('-w', '--removeSpace', action='store_true',help='Flag to select first string up to the first whitespace.')
 parser.add_argument('-s', metavar='split', help='Split headers by the last ocurrence of given char and select leading substring. If char to split not found, old header will be kept.')
+parser.add_argument('-f', metavar='subsetFile', help='Only rename and output headers present in this file [One per line].' )
 args = parser.parse_args()
+
+subsetList=[]
+if args.f:
+    with open(args.f, 'r') as infile:
+        for line in infile:
+            subsetList.append(line.rstrip())
 
 if args.a and args.r and args.s and args.removeSpace:
     raise ValueError("Choose only one of the options: add [-a], replace [-r], split [-s] or  remove [-w]")
@@ -16,46 +23,76 @@ if args.a and args.r and args.s and args.removeSpace:
 elif args.a:
 
     handle = open(args.fastaFile,"rU")
-    handle2 = open("correspondingScaffoldsNames.tsv","w")
+    handle2 = open("correspondingSequenceNames.tsv","w")
 
     for seq_record in SeqIO.parse(handle,"fasta"):
         old_header = seq_record.id
         seq_record.id = old_header + args.a
-        print('>' + seq_record.id + '\n' + seq_record.seq)
-        handle2.write(old_header+ '\t' + seq_record.id +'\n')
+        if len(subsetList) > 0:
+            if old_header in subsetList:
+                print('>' + seq_record.id + '\n' + seq_record.seq)
+                handle2.write(old_header+ '\t' + seq_record.id +'\n')
+        else:
+            print('>' + seq_record.id + '\n' + seq_record.seq)
+            handle2.write(old_header+ '\t' + seq_record.id +'\n')
+
     handle.close()
     handle2.close()
 
 elif args.r:
     i=1
     handle = open(args.fastaFile,"rU")
-    handle2 = open("correspondingScaffoldsNames.tsv","w")
+    handle2 = open("correspondingSequenceNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
         old_header = seq_record.id
         seq_record.id = args.r + '_' + str(i)
-        print('>' + seq_record.id + '\n' + seq_record.seq)
-        handle2.write(old_header+ '\t' + seq_record.id +'\n')
+        if len(subsetList) > 0:
+            if old_header in subsetList:
+                print('>' + seq_record.id + '\n' + seq_record.seq)
+                handle2.write(old_header+ '\t' + seq_record.id +'\n')
+        else:
+            print('>' + seq_record.id + '\n' + seq_record.seq)
+            handle2.write(old_header+ '\t' + seq_record.id +'\n')
         i+=1
     handle.close()
     handle2.close()
 
 elif args.s:
     handle=open(args.fastaFile,"rU")
+    handle2 = open("correspondingSequenceNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
         old_header = seq_record.id
         seq_record.id = old_header.rsplit(args.s,1)[0]
-        if seq_record.id:
-             print('>' + seq_record.id + '\n' + seq_record.seq)
+        if len(subsetList) > 0:
+            if old_header in subsetList:
+                if seq_record.id:
+                     print('>' + seq_record.id + '\n' + seq_record.seq)
+                     handle2.write(old_header+ '\t' + seq_record.id +'\n')
+                else:
+                     print('>' + old_header + '\n' + seq_record.seq)
+                     handle2.write(old_header+ '\t' + old_header +'\n')
         else:
-             print('>' + old_header + '\n' + seq_record.seq)
+            if seq_record.id:
+                print('>' + seq_record.id + '\n' + seq_record.seq)
+                handle2.write(old_header+ '\t' + seq_record.id +'\n')
+            else:
+                print('>' + old_header + '\n' + seq_record.seq)
+                handle2.write(old_header+ '\t' + old_header +'\n')
     handle.close()
 
 elif args.removeSpace:
     handle=open(args.fastaFile,"rU")
+    handle2 = open("correspondingSequenceNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
         old_header = seq_record.id
         seq_record.id = old_header.split(" ")[0]
-        print('>' + seq_record.id + '\n' + seq_record.seq)
+        if len(subsetList) > 0:
+            if old_header in subsetList:
+                print('>' + seq_record.id + '\n' + seq_record.seq)
+                handle2.write(old_header+ '\t' + seq_record.id +'\n')
+        else:
+            print('>' + seq_record.id + '\n' + seq_record.seq)
+            handle2.write(old_header+ '\t' + seq_record.id +'\n')
     handle.close()
 
 else:
