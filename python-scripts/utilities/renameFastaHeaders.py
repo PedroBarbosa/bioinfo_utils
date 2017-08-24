@@ -50,10 +50,11 @@ elif args.r:
             if old_header in subsetList:
                 print('>' + seq_record.id + '\n' + seq_record.seq)
                 handle2.write(old_header+ '\t' + seq_record.id +'\n')
+                i+=1
         else:
             print('>' + seq_record.id + '\n' + seq_record.seq)
             handle2.write(old_header+ '\t' + seq_record.id +'\n')
-        i+=1
+            i+=1
     handle.close()
     handle2.close()
 
