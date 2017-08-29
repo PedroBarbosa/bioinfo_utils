@@ -59,6 +59,7 @@ def adjustGffFromBedCoordinates(gff,bed,outgff,dictin):
                                     fields[3] = str(int(fields[3]) - dict_bed[fields[0]][1])
                                     fields[4] = str(int(fields[4]) - dict_bed[fields[0]][1])
                                     outfl.write("\t".join(fields) + "\n")
+                                    print("%s gene ID coordinates updated (as well as its child)" % fields[8])
                             elif dict_bed[fields[0]][1] == int(dictin[fields[0]]):
                                 if gene_interval[1] > dict_bed[fields[0]][0]: #if end of gene is larger than begiining bed coordinat, we have an issue
                                     print("Serious WARNING: %s gene is located downstream of the region trimmed in the scaffold %s. Perhaps you want to remove "
@@ -113,7 +114,9 @@ def readAugustusGff(infile,outfile,dictin):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Script to convert native non gff3 augustus format into a readable gff3.')
+    parser = argparse.ArgumentParser(description='Script to convert native non gff3 augustus format into a readable gff3. If -bed option is set, script'
+                                                 'will just perform the adjustment of gff coordinates. In such cases, you need to run again the script'
+                                                 'on the update gff to get a new one with the gff3 format')
     parser.add_argument(dest='inputgff', metavar='augustusGff', help='Input file.')
     parser.add_argument(dest='outputfgff', metavar='outgff3', help='Name of the output file.')
     parser.add_argument("-g", metavar='-genomeTable', required=True,help="Genome table file to ouptut ##sequence-region in the gff. Advised by genome validation tools.")
