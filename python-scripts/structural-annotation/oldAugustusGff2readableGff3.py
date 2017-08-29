@@ -1,9 +1,4 @@
 import argparse
-import logging
-import sys
-import collections
-import operator
-logging.basicConfig(stream=sys.stdout, level=logging.INFO, format='%(asctime)s %(message)s')
 
 def createGenomeTableDict(refGenomeTable):
     gnmTbl={}
