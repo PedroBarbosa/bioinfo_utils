@@ -33,7 +33,7 @@ def replaceFasta(infasta,inbed,outfasta):
                     noNs+=1
 
                 print("".join((header, "     ",str(seq_record.seq[upstream:adaptor[0]]), "     ",Ns, "     ", str(seq_record.seq[adaptor[1]:downstream]))))
-                handleout.write(">" + edited + "\n")
+                handleout.write(">" + "\n" + edited + "\n")
 
     print("%s:%i\n%s:%i\n%s:%i" % ("Regions with 5 continuous Ns before the region replaced",before,"Regions with 5 continuous Ns after the region replaced",
                                    after, "Regions with no 5 Ns surrounding the replaced region",noNs))
