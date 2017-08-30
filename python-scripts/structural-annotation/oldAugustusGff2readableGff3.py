@@ -34,6 +34,7 @@ def adjustGffFromBedCoordinates(gff,bed,outgff,dictin):
                         " regions of some sequences.\n")
             interval=(0,0)
             toAdjust=False
+            genesInEndScaffolds=False
             geneID=""
             for line in gffin:
                 if not line.startswith("#"):
@@ -43,6 +44,7 @@ def adjustGffFromBedCoordinates(gff,bed,outgff,dictin):
                     else:
                         if fields[2] == "gene":
                             toAdjust=False
+                            genesInEndScaffolds=False
                             geneID=fields[8]
                             gene_interval=(int(fields[3]),int(fields[4]))
                             if dict_bed[fields[0]][0] == 0:
@@ -59,12 +61,18 @@ def adjustGffFromBedCoordinates(gff,bed,outgff,dictin):
                                 if gene_interval[1] > dict_bed[fields[0]][0]: #if end of gene is larger than begiining bed coordinat, we have an issue
                                     print("Serious WARNING: %s gene is located downstream of the region trimmed in the scaffold %s. Perhaps you want to remove "
                                           "this gene??" % (fields[8],fields[0]))
-
+                                else:
+                                    genesInEndScaffolds=True
+                                    outfl.write(line)
 
                         elif toAdjust == True and geneID in fields[8]:
                             fields[3] = str(int(fields[3]) - dict_bed[fields[0]][1])
                             fields[4] = str(int(fields[4]) - dict_bed[fields[0]][1])
                             outfl.write("\t".join(fields) + "\n")
+
+                        elif genesInEndScaffolds == True:
+                            outfl.write(line)
+
 
 def readAugustusGff(infile,outfile,dictin):
     with open(infile,'r') as infl:
