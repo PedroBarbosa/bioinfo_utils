@@ -74,14 +74,14 @@ def adjustGffFromBedCoordinates(gff,bed,outgff,dictin):
                             outfl.write(line)
 
 
-def readAugustusGff(infile,outfile,dictin):
+def readAugustusGff(infile,outfile,dictin,locusTag):
     with open(infile,'r') as infl:
         with open(outfile,'w') as outfl:
             outfl.write("##gff-version 3\n##Output generated with Pedro script to convert IDs nomenclature in the 9th attributes field.\n")
-            geneID=""
-            transcriptID=""
+            geneID,newLocusTag="",""
+            transcriptID,ntrascripts,nexons="",0,0
             previous_refid=""
-            i=0
+            index_locusTag = "00000"
             for line in infl:
                 if not line.startswith("#"):
                     fields=line.split("\t")
@@ -93,21 +93,26 @@ def readAugustusGff(infile,outfile,dictin):
                             print("%s seq id not in genome table. Sequence region will not be present for this reference sequence." % fields[0])
 
                     if fields[2] == "gene":
+                        ntrascripts=0
                         geneID=fields[8].rstrip()
-                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + geneID + "\n")
-                    elif fields[2] == "transcript":
+                        index_locusTag=str(int(index_locusTag) + 1).zfill(len(index_locusTag))
+                        newLocusTag=locusTag + "_" + str(int(index_locusTag)).zfill(len(index_locusTag))
+                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + geneID + ";locus_tag=" + newLocusTag + "\n")
+                    elif fields[2] == "transcript" or fields[2] == "mRNA":
+                        ntrascripts+=1
+                        nexons=0
                         transcriptID=fields[8].rstrip()
                         fields[2] = "mRNA"
-                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ";Parent=" + geneID + "\n")
-                        i=1
+                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ";Parent=" + geneID + ";transcript_id=gnl|" + locusTag + "|t" + str(ntrascripts) + "\n")
                     elif fields[2] == "start_codon":
                         outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ":start" + ';Parent=' + transcriptID + "\n")
                     elif fields[2] == "stop_codon":
                         outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ":stop" + ';Parent=' + transcriptID + "\n")
                     elif fields[2] == "exon" or fields[2] == "CDS":
-                        fields[2] = "exon"
-                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ":exon" + str(i) + ';Parent=' + transcriptID + "\n")
-                        i+=1
+                        nexons+=1
+                        fields[2] = "CDS"
+                        outfl.write('\t'.join(fields[:-1]) + '\tID=' + transcriptID + ":CDS" + str(nexons) + ';Parent=' + transcriptID + ";protein_id=gnl|" + locusTag + "|" + transcriptID + "\n")
+
                     elif fields[2] == "intron":
                         continue
                     previous_refid=refid
@@ -117,21 +122,24 @@ def readAugustusGff(infile,outfile,dictin):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Script to convert native non gff3 augustus format into a readable gff3. If -bed option is set, script'
+    parser = argparse.ArgumentParser(description='Script to convert native non gff3 augustus format into a readable gff3 following some of the NCBI submission guidelines'
+                                                 '. If -bed option is set, script'
                                                  'will just perform the adjustment of gff coordinates. In such cases, you need to run again the script'
                                                  'on the update gff to get a new one with the gff3 format')
     parser.add_argument(dest='inputgff', metavar='augustusGff', help='Input file.')
     parser.add_argument(dest='outputfgff', metavar='outgff3', help='Name of the output file.')
     parser.add_argument("-g", metavar='-genomeTable', required=True,help="Genome table file to ouptut ##sequence-region in the gff. Advised by genome validation tools.")
     parser.add_argument("-b", metavar='--bed', help="Bed file representing genome regions that were trimmed from the assembly , whick raises the need to adjust also the gff.")
+    parser.add_argument("-l", metavar='--locusTag', required=True, help="String to represent locus tag prefix to add to gene features and update child feaures accordingly")
     args = parser.parse_args()
 
     outdict = createGenomeTableDict(args.g)
     if args.b:
         adjustGffFromBedCoordinates(args.inputgff,args.b,args.outputfgff,outdict)
     else:
-        readAugustusGff(args.inputgff,args.outputfgff,outdict)
+        readAugustusGff(args.inputgff,args.outputfgff,outdict,args.l)
 
 
 if __name__ == "__main__":
     main()
+

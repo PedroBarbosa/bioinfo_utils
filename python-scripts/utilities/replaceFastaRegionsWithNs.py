@@ -17,9 +17,11 @@ def replaceFasta(infasta,inbed,outfasta):
     noNs=0
     for seq_record in SeqIO.parse(handle,"fasta"):
         header = seq_record.description
+        ed=""
         if header not in dict_bed.keys():
             handleout.write(">" + header + "\n" + str(seq_record.seq) + "\n")
         else:
+            i=1
             for adaptor in dict_bed[header]:
                 Ns = "N" * (adaptor[1]- adaptor[0])
                 edited = "".join((str(seq_record.seq[:adaptor[0]]),Ns,str(seq_record.seq[adaptor[1]:])))
@@ -31,9 +33,20 @@ def replaceFasta(infasta,inbed,outfasta):
                     after+=1
                 else:
                     noNs+=1
-
                 print("".join((header, "     ",str(seq_record.seq[upstream:adaptor[0]]), "     ",Ns, "     ", str(seq_record.seq[adaptor[1]:downstream]))))
-                handleout.write(">" + "\n" + edited + "\n")
+
+                #Process sequences for which there are multiple bed regions to replace
+                if len(dict_bed[header]) > 1 and i==1:
+                    i+=1
+                    ed="".join((edited[:adaptor[0]],Ns,edited[adaptor[1]:]))
+                elif len(dict_bed[header]) > 1 and len(dict_bed[header]) == i:
+                    ed="".join((ed[:adaptor[0]],Ns,ed[adaptor[1]:]))
+                    handleout.write(">" + header + "\n" + ed + "\n")
+                elif len(dict_bed[header]) > 1 and i < len(dict_bed[header]):
+                    i+=1
+                    ed = "".join((ed[:adaptor[0]],Ns,ed[adaptor[1]:]))
+                elif len(dict_bed[header]) == 1:
+                    handleout.write(">" + header + "\n" + edited + "\n")
 
     print("%s:%i\n%s:%i\n%s:%i" % ("Regions with 5 continuous Ns before the region replaced",before,"Regions with 5 continuous Ns after the region replaced",
                                    after, "Regions with no 5 Ns surrounding the replaced region",noNs))
@@ -49,3 +62,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
