@@ -1,54 +1,19 @@
 #!/bin/bash
-usage="$(basename "$0") input_file mapper outdir [-h] [-s] [-o]. Script to generate an automated sbatch file to run a mapping stats analysis in a slurm-based cluster environment.
- where:
-    input_file	Text file where each line represents the path for the SAM/BAM files to be processed.
-    mapper	Aligner used to generate the alignments. Available options: Tophat2, Hisat2, STAR, bowtie2, bwa-mem.
-    outdir      Directory to write the output file. 
-    Optional arguments:
-    -h  show this help text
-    -o  name of the output file. Default:'mappingStats.txt'
-    -s  flag to indicate that the reads are single-end. (default paired-end)"
 
+display_usage(){
+ printf "Script to automatically count alignments in a list of BAM files.\n
+ Usage:.
+    -1st argument must be the file containing the files sequences to count.
+    -2nd argument must be the name of the ouptut directory.
+    -3rd argument is optional. You may write here additional flags to pass on to samtools. Multiple flags may by setting the ';' delimiter.\n" 
+}
 
-while getopts ':hso:' option; do
-  case "$option" in
-    "h") echo "$usage"
-       exit
-       ;;
-    "s") printf "Single end flag (-${option}) handling is not ready to be used for now. Exiting\n"
-       echo "$usage"
-       exit 1
-       ;;
-    "o") echo "-$option detected. Output file will be named $OPTARG"
-         output_file=$OPTARG
-       ;;
-    ":")
-       echo "Missing argument for -%s\n" "$OPTARG"
-       echo "$usage"
-       exit 1
-       ;;
-    "?") printf "illegal option: -%s\n" "$OPTARG" 
-       echo "$usage" 
-       exit 1
-       ;;
-  esac
-#  echo "$OPTIND"
-#  shift $((OPTIND - 1)) 
-
-done
-
-ARG1=${@:$OPTIND:1}
-ARG2=${@:$OPTIND+1:1}
-ARG3=${@:$OPTIND+1+1:1}
-echo "first: $ARG1"
-echo "second: $ARG2"
-echo "third: $ARG3"
-if [[ $# -ne 3 ]]; then
-    printf "$0: ERROR Three arguments are required.\n\n"
-    echo "$usage"
+if [ -z "$1" ] || [ -z "$2" ]; then
+    printf "Error. Please set the required parameters of the script\n"
+    display_usage
     exit 1
 fi
-exit 1
+
 ####CHECK BAM INPUT####
 while read line
 do
@@ -70,28 +35,49 @@ if [ ! -d $OUTDIR ];then
     mkdir $OUTDIR
 fi
 
-
+OUT_FILE="mappingStats.tsv"
+MAPPER="bwa-mem"
 cat > $WORKDIR/generateBamStats.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=getStatsFromBAM
-#SBATCH --time=24:00:00
-#SBATCH --mem=100G
+#SBATCH --time=72:00:00
+#SBATCH --mem=120G
 #SBATCH --nodes=1
-#SBATCH --ntasks=4
-#SBATCH --cpus-per-task=10
+#SBATCH --ntasks=5
+#SBATCH --cpus-per-task=8
 #SBATCH --image=ummidock/bowtie2_samtools:latest
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/%j_getStats.log
-#SBATCH --exclusive
 
-srun="srun --exclusive -N1 -n1"
-parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --joblog parallel.log --resume"
-time cat "$BAM_DATA" | \$parallel '\$srun shifter samtools view -bhF4 -@\$SLURM_CPUS_PER_TASK {} > $WORKDIR/{/.}.bam' 
-
-#_stats.txt'
-
+timestamp() {
+    date +"%Y-%m-%d  %T"
+}
+export -f timestamp
+scratch_out=$WORKDIR/\$SLURM_JOB_ID
+mkdir \$scratch_out
+cd \$scratch_out
+srun="srun -N1 -n1"
+parallel="parallel -k --delay 0.2 -j \$SLURM_NTASKS  --env timestamp --joblog parallel.log --resume-failed"
+echo "\$(timestamp) -> Analysis started!"
+header="sample\t#alignments\t#unmapped_reads\t#duplicate_reads\t#primary_linear_q10\t#proper_pair\t#secondary\t#chimeric\t#unique"
+echo -e "\$header" > $OUT_FILE
+time cat "$BAM_DATA" | \$parallel 'case "${MAPPER}" in "bwa-mem") unique=\$(\$srun shifter samtools view -F2308q10 -@\$SLURM_CPUS_PER_TASK {} | grep -cv "XA:") ;; "bowtie2") unique=\$(\$srun shifter samtools view -F2308q10 -@\$SLURM_CPUS_PER_TASK {} | grep -cv "XS:") ;; "STAR") unique=\$(\$srun shifter samtools view -cq255 -@\$SLURM_CPUS_PER_TASK {}) ;; "hisat2") unique=\$(\$srun shifter samtools view -@\$SLURM_CPUS_PER_TASK {} | grep -c "NH:i:1") ;; esac && \
+aln=\$(\$srun shifter samtools view -cF4 -@\$SLURM_CPUS_PER_TASK {}) && \
+unmapped=\$(\$srun shifter samtools view -cf4 -@\$SLURM_CPUS_PER_TASK {}) && \
+duplicates=\$(\$srun shifter samtools view -cf1024 -@\$SLURM_CPUS_PER_TASK {}) && \
+primary_q10=\$(\$srun shifter samtools view -cF2308q10 -@\$SLURM_CPUS_PER_TASK {}) && \
+proper=\$(\$srun shifter samtools view -cf2 -@\$SLURM_CPUS_PER_TASK {}) && \
+secondary=\$(\$srun shifter samtools view -cf256 -@\$SLURM_CPUS_PER_TASK {}) && \
+chimeric=\$(\$srun shifter samtools view -cf2048 -@\$SLURM_CPUS_PER_TASK {}) && \
+metrics="{=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//=}\t\$aln\t\$unmapped\t\$duplicates\t\$primary_q10\t\$proper\t\$secondary\t\$chimeric\t\$unique"; \
+echo -e "\$metrics" >> $OUT_FILE && \
+echo -e "\$(timestamp) -> Finished parallel job number {#} (sample {=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//=})"'
+mv $OUT_FILE $OUTDIR
 echo "Statistics for job \$SLURM_JOB_ID:"
-sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID 
-#mv $WORKDIR/* $OUTDIR
+sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
+echo -e "\$(timestamp) -> All done!"
 EOL
 sbatch $WORKDIR/generateBamStats.sbatch
+sleep 1 
+cd $WORKDIR
+mv generateBamStats.sbatch $(ls -td -- */ | head -n 1) 
