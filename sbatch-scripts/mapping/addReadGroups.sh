@@ -82,9 +82,9 @@ elif [[ !  " ${sort_values[@]} " =~ " ${4} " ]]; then
     display_usage
     exit 1
 else
-    SORT_ORDER="-SO ${4}"
+    SORT_ORDER="-SO ${4} "
 fi
-CMD="/gatk/gatk-launch AddOrReplaceReadGroups $SORT_ORDER $READGROUP"
+CMD="/gatk/gatk-launch AddOrReplaceReadGroups ${SORT_ORDER}--CREATE_INDEX true $READGROUP"
 cat > $WORKDIR/addReadGroups.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=gatk_rg
@@ -110,7 +110,7 @@ export -f timestamp
 srun="srun -N1 -n1 -c2"
 parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --env timestamp --joblog parallel.log --resume-failed"
 echo "\$(timestamp) -> Analysis started!"
-cat $BAM_DATA | \$parallel '\$srun shifter $CMD -SM {=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//;s/\_[^_]+$//;=} -ID {=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//;s/\_[^_]+$//;=}_id -I {} -O {/.}_RG.bam && shifter --image=ummidock/bowtie2_samtools:latest samtools index {/.}_RG.bam ; mv {/.}_RG.bam* $OUTDIR; echo -e "\$(timestamp) -> Finished parallel job number {#} (sample {/.})"'
+cat $BAM_DATA | \$parallel '\$srun shifter $CMD -SM {=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//;s/\_[^_]+$//;=} -ID {=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//;s/\_[^_]+$//;=}_id -I {} -O {/.}_RG.bam ; mv {/.}_RG.bam* $OUTDIR; echo -e "\$(timestamp) -> Finished parallel job number {#} (sample {/.})"'
 echo -e "\$(timestamp) -> All done!"
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID

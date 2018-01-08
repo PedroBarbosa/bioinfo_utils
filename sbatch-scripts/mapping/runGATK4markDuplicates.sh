@@ -80,7 +80,7 @@ cat > $WORKDIR/runGATKmarkDup.sbatch <<EOL
 #SBATCH --cpus-per-task=$CPUS
 #SBATCH --image=docker:broadinstitute/gatk:latest
 #SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_bwa.log
+#SBATCH --output=$WORKDIR/%j_markDup.log
 
 SCRATCH_OUTDIR="$WORKDIR/\$SLURM_JOB_ID"
 mkdir \$SCRATCH_OUTDIR

@@ -99,10 +99,10 @@ cat > $workdir/runTrimGalore.sbatch <<EOL
 #SBATCH --job-name=trimGalore
 #SBATCH --output=/home/pedro.barbosa/scratch/trim_galore/%j_trim_galore.out
 #SBATCH --mail-user=pedro.barbosa@medicina.ulisboa.pt
-#SBATCH --time=24:00:00
-#SBATCH --mem=100G
+#SBATCH --time=72:00:00
+#SBATCH --mem=230G
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=10
+#SBATCH --ntasks=10
 #SBATCH --cpus-per-task=3
 #SBATCH --workdir=$workdir
 #SBATCH --image=docker:argrosso/htspreprocessing:0.1.1
@@ -110,7 +110,7 @@ cat > $workdir/runTrimGalore.sbatch <<EOL
 
 if [ "$runParallel" = "true" ]; then
 	srun="srun --exclusive -N1 -n1"
-	parallel="parallel --delay 0.2 -j \$SLURM_NTASKS_PER_NODE"
+	parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --joblog parallel.log --resume-failed" 
 	time cat "$fastq_data" | grep -v "R2" | \$parallel '\$srun shifter $cmd {} {=s/R1/R2/=}'
 else
 	for file1 in \$(find \$(dirname $fastq_data) -type f -name \$(basename $fastq_data) -exec cat {} \; | grep -v "R2"); 
