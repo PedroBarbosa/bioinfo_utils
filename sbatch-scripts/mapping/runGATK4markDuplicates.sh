@@ -41,8 +41,28 @@ else
     fi
 fi
 
-CMD="/gatk/gatk-launch MarkDuplicatesWithMateCigar --REMOVE_DUPLICATES"
-####INNDEX####
+###PARALLEL####
+if [ -z "$4" ] || [ "$4" = "true" ]; then
+    NODES=1 #2 #1
+    NTASKS=5 #10 #4
+    CPUS=5 #8 #10
+    JAVA_Xmx="--java-options '-Xmx45G'"
+    PARALLEL=true
+elif [ "$4" = "false" ]; then
+    NODES=1
+    NTASKS=1
+    CPUS=40
+    JAVA_Xmx="--java-options '-Xmx240G'"
+    PARALLEL=false
+else
+    printf "Please set a valid value for the 4th argument\n"
+    display_usage
+    exit 1
+fi
+
+
+CMD="gatk ${JAVA_Xmx} MarkDuplicatesGATK --CREATE_INDEX=true --REMOVE_DUPLICATES"
+####DUPLICATES####
 if [ -z "$3" ] || [ "$3" = "-" ] || [ "$3" = "false" ]; then
     CMD="$CMD false"
 elif [ "$3" = "true" ]; then
@@ -53,42 +73,25 @@ else
     exit 1    
 fi
 
-###PARALLEL####
-if [ -z "$4" ] || [ "$4" = "true" ]; then
-    NODES=1 #2 #1
-    NTASKS=10 #10 #4
-    CPUS=4 #8 #10
-    PARALLEL=true
-elif [ "$4" = "false" ]; then
-    NODES=1
-    NTASKS=1
-    CPUS=40
-    PARALLEL=false
-else
-    printf "Please set a valid value for the 4th argument\n"
-    display_usage
-    exit 1
-fi
-
 cat > $WORKDIR/runGATKmarkDup.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=gatk_md
 #SBATCH --time=72:00:00
-#SBATCH --mem=150G
+#SBATCH --mem=240G
 #SBATCH --nodes=$NODES
 #SBATCH --ntasks=$NTASKS
 #SBATCH --cpus-per-task=$CPUS
 #SBATCH --image=docker:broadinstitute/gatk:latest
 #SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_markDup.log
+#SBATCH --output=$WORKDIR/%j_gatk_markDup.log
 
 SCRATCH_OUTDIR="$WORKDIR/\$SLURM_JOB_ID"
 mkdir \$SCRATCH_OUTDIR
 cd \$SCRATCH_OUTDIR
 if [ "$PARALLEL" = "true" ]; then
 	srun="srun --exclusive -N1 -n1"
-	parallel="parallel --tmpdir \$SCRATCH_OUTDIR --delay 0.2 -j $NTASKS --joblog parallel.log --resume"	
-        cat "$BAM_DATA" | \$parallel '\$srun shifter $CMD -I={} -M={/.}_dup.metrics -O={/.}_DUP.bam; mv {/.}* $OUTDIR'
+	parallel="parallel --tmpdir \$SCRATCH_OUTDIR --delay 0.2 -j $NTASKS --joblog parallel.log --resume-failed"	
+        cat "$BAM_DATA" | \$parallel '\$srun shifter $CMD -I={} -M={/.}_dup.metrics -O={/.}_DUP.bam && mv {/.}* $OUTDIR'
 else
 	for j in \$(find $BAM_DATA -exec cat {} \; );do
 	    printf "\$(date): Processing \$(basename \$j) file.\n"
@@ -114,6 +117,7 @@ fi
 echo "\$(date): All done."
 EOL
 sbatch $WORKDIR/runGATKmarkDup.sbatch
-
-
+sleep 2
+cd $WORKDIR
+mv runGATKmarkDup.sbatch $(ls -td -- */ | head -n 1) #moves sbatch to the last directory created in gatk dir (we expect to be the slurm job ID folder)
 

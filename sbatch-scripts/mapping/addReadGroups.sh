@@ -84,7 +84,7 @@ elif [[ !  " ${sort_values[@]} " =~ " ${4} " ]]; then
 else
     SORT_ORDER="-SO ${4} "
 fi
-CMD="/gatk/gatk-launch AddOrReplaceReadGroups ${SORT_ORDER}--CREATE_INDEX true $READGROUP"
+CMD="gatk AddOrReplaceReadGroups ${SORT_ORDER}--CREATE_INDEX true $READGROUP"
 cat > $WORKDIR/addReadGroups.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=gatk_rg
