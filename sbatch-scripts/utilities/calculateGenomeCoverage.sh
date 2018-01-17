@@ -1,9 +1,7 @@
 #!/bin/bash
-
-
-
 display_usage(){
  printf "Script to automatically calculate genome/exome/targeted data coverage.\n
+ IMPORTANT: Sample names will be extracted up to the first '_' found on each bam name, make sure that substring is unique.\n
  Usage:.
     -1st argument must be the file containing the bam sequences to analyze. All samples must have been aligned against the same reference.[one per line].
     -2nd argument must be the name of the ouptut directory.
@@ -183,8 +181,12 @@ done
 #    CMD="\$CMD -I \$line"
 #done < $BAM_DATA
 #\$srun \$CMD
+mv * ../\$SLURM_JOB_ID*log $OUTDIR
 EOL
         sbatch $WORKDIR/targetCoverage.sbatch
+        sleep 1
+        cd $WORKDIR
+        mv targetCoverage.sbatch $(ls -td -- */ | head -n 1)
     else
         printf "Invalid input for target regions. Please provide a bed file.\n"
         display_usage
@@ -232,6 +234,9 @@ if [ -n "$targets" ]; then
     INTERVALS="--INTERVALS=\${tg/.bed/.picard}"
 fi
 echo "\$(timestamp) -> Calculating individual coverages and experiment metrics!"
+header_wgsmetrics="sample\tgenome_territory\tmean_coverage\tstd_coverage\tmedian_coverage\tfraction_alignedBp_excluded\tfraction_refBp_1X_cov\tfraction_refBp_5X_cov\tfraction_refBp_10X_cov\tfraction_refBp_20X_cov\tfraction_refBp_30X_cov\tfraction_refBp_40X_cov\tfraction_refBp_50X_cov\tfraction_refBp_70X_cov\tfraction_refBp_90X_cov\tfraction_refBp_100_cov"
+echo -e "\$header_wgsmetrics" > final_colllectWgsMetrics_all.txt
+
 CMD="gatk --java-options '-Xmx245G' CollectWgsMetrics --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --COVERAGE_CAP=$coverage_cap --INCLUDE_BQ_HISTOGRAM=true -R=$reference"
 #Again, parallel with issues
 #cat "$BAM_DATA" | \$parallel '\$srun shifter -I={} -O={/.}_WGS_metrics.txt \$CMD \$INTERVALS'
@@ -241,10 +246,18 @@ for j in \$(find $BAM_DATA -exec cat {} \; );do
     i=\$(basename \$j)
     out=\$(echo \$i | cut -f1 -d "_")
     \$srun shifter \$CMD -I=\$j -O=\${out}_WGS_metrics.txt \$INTERVALS
+    awk '/GENOME_TERRITORY/{getline; print}' \${out}_WGS_metrics.txt | cut -f1,2,3,4,12,13,14,15,17,19,20,21,23,25,26 >> final_colllectWgsMetrics_all.txt
+    sed -i '\$s/^/'"\${out}\t"'/' final_colllectWgsMetrics_all.txt
+ 
+    sed -n -e '/^coverage/,\$p' \${out}_WGS_metrics.txt > \${out}_wgscov.histo
     printf "\$(timestamp): Sample \$i processed!\n"
 done
-
 echo "\$(timestamp) -> Done!!!"
+mv * ../\$SLURM_JOB_ID*log $OUTDIR
 EOL
     sbatch $WORKDIR/wgsCoverage.sbatch
+    sleep 1
+    cd $WORKDIR
+    mv wgsCoverage.sbatch $(ls -td -- */ | head -n 1)
+
 fi
