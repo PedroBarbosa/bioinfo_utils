@@ -1,14 +1,15 @@
 #!/bin/bash
-
 display_usage(){
  printf "Script to automatically count alignments in a list of BAM files.\n
  Usage:.
     -1st argument must be the file containing the files sequences to count.
     -2nd argument must be the name of the ouptut directory.
-    -3rd argument is optional. You may write here additional flags to pass on to samtools. Multiple flags may by setting the ';' delimiter.\n" 
+    -3rd argument must be the name of the output file.
+    -4th argument is optional.  Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:2,8,10. '-' skips this argument.
+    -5rd argument is optional. You may write here additional flags to pass on to samtools. Multiple flags may by setting the ';' delimiter.\n" 
 }
 
-if [ -z "$1" ] || [ -z "$2" ]; then
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     printf "Error. Please set the required parameters of the script\n"
     display_usage
     exit 1
@@ -35,16 +36,43 @@ if [ ! -d $OUTDIR ];then
     mkdir $OUTDIR
 fi
 
-OUT_FILE="mappingStats.tsv"
+##JOB SETTINGS""
+if [[ -z "$4" || "$4" = "-" ]]; then
+    NODES=2
+    NTASKS=8
+    CPUS_PER_TASK=10
+else
+    IFS=','
+    read -r -a array <<< "$4"
+    if [ ${#array[@]} = 3 ]; then
+        for elem in "${array[@]}"
+        do
+            if ! [[ "$elem" =~ $re ]]; then
+                printf "Error. Please set INT numbers for the number of nodes, tasks and cpus per task.\n"
+                display_usage
+                exit 1
+            fi
+        done
+        NODES=${array[0]}
+        NTASKS=${array[1]}
+        CPUS_PER_TASK=${array[2]}
+    else
+        printf "ERROR. 3 fields are required for the 4th argument (nodes,tasks,cpus per task). You set a different number.\n"
+        display_usage
+        exit 1
+    fi
+fi
+
+OUT_FILE="$3"
 MAPPER="bwa-mem"
 cat > $WORKDIR/generateBamStats.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=getStatsFromBAM
 #SBATCH --time=72:00:00
-#SBATCH --mem=240G
-#SBATCH --nodes=2
-#SBATCH --ntasks=6
-#SBATCH --cpus-per-task=10
+#SBATCH --mem=245G
+#SBATCH --nodes=$NODES
+#SBATCH --ntasks=$NTASKS
+#SBATCH --cpus-per-task=$CPUS_PER_TASK
 #SBATCH --image=ummidock/bowtie2_samtools:latest
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/%j_getStats.log
@@ -75,6 +103,7 @@ metrics="{=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//;s/\_[^_]+$//=}\t\$reads\t\$aln\t\$
 echo -e "\$metrics" >> $OUT_FILE && \
 echo -e "\$(timestamp) -> Finished parallel job number {#} (sample {=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//=})"'
 mv $OUT_FILE $OUTDIR
+mv ../\$SLURM_JOB_ID_getStats.log $OUTDIR
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"
