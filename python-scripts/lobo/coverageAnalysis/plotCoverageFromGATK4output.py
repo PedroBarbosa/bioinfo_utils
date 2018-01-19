@@ -6,12 +6,14 @@ import glob
 import subprocess
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,  format='%(asctime)s %(message)s')
 import matplotlib.pyplot as plt
+from matplotlib import rcParams
 import seaborn as sns
 import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from scipy.cluster import hierarchy
 from scipy.spatial import distance
+from collections import defaultdict
 def wccount(filename):
     out = subprocess.Popen(['wc', '-l', filename],
                          stdout=subprocess.PIPE,
@@ -26,7 +28,7 @@ def countOcurrences(filename,char):
 #def plotWGShisto(filename):
 def processTargetedExperiment(allMetrics,perTargetMetrics):
     logging.info("Starting targeted experiment analysis.")
-    if len(list(glob.glob('*HS_metrics.txt'))) > 0 #if individual metrics files exist
+    if len(list(glob.glob('*HS_metrics.txt'))) > 0: #if individual metrics files exist
         logging.info("We detected individual sample metrics files. Will check the low quality base pair distribution in the data")
         processIndividualTargetSamples()
 
@@ -76,10 +78,42 @@ def processIndividualTargetSamples():
 
 def targetedAllMetricsProcess(infile):
     logging.info("Reading overall metrics file..")
+    targets_dic=defaultdict()
+    correl_on_off_baits=defaultdict()
     with open(infile,"r") as f:
         for line in f:
             if line.startswith("sample") and "bait_region" in line:
                 header=line.rstrip().split("\t")
+            else:
+                (sample, bait_region, target_region, nreads, fractionBP_filtered_on_Near_baits, fractionBP_filtered_away_baits,
+                 fractionBP_filt_offTarget, mean_cov_targets,median_cov_targets,fraction_targetsNoCov, fraction_tgt_1X,
+                 fraction_tgt_2X, fraction_tgt_10X, fraction_tgt_20X, fraction_tgt_30X,fraction_tgt_40X,fraction_tgt_50X,fraction_100X_cov) = line.rstrip().split("\t")
+                #outlist=[sample, bait_region, target_region, nreads, fractionBP_filtered_on_Near_baits, fractionBP_filtered_away_baits,
+                #fraction_targetsNoCov,fractionBP_filt_offTarget, mean_cov_targets,median_cov_targets, fraction_tgt_1X,
+                #fraction_tgt_2X, fraction_tgt_10X, fraction_tgt_20X, fraction_tgt_30X,fraction_tgt_40X,fraction_tgt_50X,fraction_100X_cov]
+                #outf.write('\t'.join(outlist) + "\n")
+                correl_on_off_baits[sample] = [int(nreads),float(fractionBP_filtered_on_Near_baits)]
+
+        #violin_plot_fractionBP_on_near_baits
+        df = pd.DataFrame.from_dict(correl_on_off_baits,orient="index").rename({0: "number_of_reads", 1: "fraction_bp_on_near_baits"}, axis ='columns')
+        df[['fraction_bp_on_near_baits']].apply(pd.to_numeric)
+        badsamples = df['fraction_bp_on_near_baits'] < 0.5
+        if len(df[badsamples].index) > 0:
+            logging.info("WARNING. {} samples have a high fraction (> 50%) of their aligned bases outside the baits intervals (including 250bp outside "
+                         "their boundaries)".format(len(df[badsamples].index)))
+            with open("bad_wet-lab_efficiency.txt", "w") as outf:
+                #outf.write("#List of samples with a small fraction of aligned based within the baits intervals.")
+                df_bad=df[badsamples].sort_values('fraction_bp_on_near_baits', ascending=False)
+                df_bad.to_csv("bad_wet-lab_efficiency.txt", sep='\t', columns=list(df_bad),encoding='utf-8')
+        sns.set()
+        vl=sns.violinplot(data=df[df.columns[1]])
+        plt.ylim(0,1)
+        plt.ylabel("Fractions")
+        plt.xlabel("Aligned base-pairs within baits intervals.")
+        plt.axes().get_xaxis().set_ticks([])
+        plt.title("Distribution of the targeted experiment efficiency across samples")
+        plt.savefig("output/targetedExperimentEfficiencyDistribution.png")
+        plt.close()
 
 
 def main():

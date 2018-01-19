@@ -9,8 +9,9 @@ display_usage(){
     -4th argument must refer to the type of analysis in hand. Values:[WGS|targeted].
     -5th argument must be provided when the data comes from a targeted experiment. Refers to the target regions in bed format. Use '-' to skip this argument.
     -6th argument is optional. Refers to the bait regions used for the hybridization capture method. If you don't have such file, the targets file will be used as the baits file as well. Use '-' to skip this argument.
-    -7th argument is optional. Refers to the max coverage limit for theoritical sensitivity calculations. Default: 250.
-    -8th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,5,8. '-' skips this argument.\n"
+    -7th argument is optional. Refers to the maximum distance between a read and the nearest probe/bait/amplicon for the read to be considered 'near probe' and included in percent selected. Default: 250.
+    -8th argument is optional. Refers to the max coverage limit for theoritical sensitivity calculations. Default: 250.
+    -9th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,5,8. '-' skips this argument.\n"
 }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] ; then
@@ -60,26 +61,37 @@ else
     reference=$(readlink -f "$3")
 fi
 
-##COV CAP##
+##NEAR DISTANCE##
 re='^[0-9]+$'
 if [[ -z "$7" || "$7" = "-" ]]; then
-    coverage_cap="250"
+    near_dist="250"
 elif ! [[ "$7" =~ $re ]]; then
-    printf "Coverage cap is not a INT number. Please set one valid one in the 7th argument.\n"
+    printf "Near distance is not a INT number. Please set one valid one in the 7th argument.\n"
     exit 1
     display_usage
 else
-    coverage_cap="$7"
+    near_dist="$7"
+fi
+
+##COV CAP##
+if [[ -z "$8" || "$8" = "-" ]]; then
+    coverage_cap="250"
+elif ! [[ "$8" =~ $re ]]; then
+    printf "Coverage cap is not a INT number. Please set one valid one in the 8th argument.\n"
+    exit 1
+    display_usage
+else
+    coverage_cap="$8"
 fi
 
 ##JOB SETTINGS""
-if [[ -z "$8" || "$8" = "-" ]]; then
+if [[ -z "$9" || "$9" = "-" ]]; then
     NODES=1
     NTASKS=8
     CPUS_PER_TASK=5
 else
     IFS=','
-    read -r -a array <<< "$8"
+    read -r -a array <<< "$9"
     if [ ${#array[@]} = 3 ]; then
         for elem in "${array[@]}"
         do
@@ -93,7 +105,7 @@ else
         NTASKS=${array[1]}
         CPUS_PER_TASK=${array[2]}
     else 
-        printf "ERROR. 3 fields are required for the 8th argument (nodes,tasks,cpus per task). You set a different number.\n"
+        printf "ERROR. 3 fields are required for the 9th argument (nodes,tasks,cpus per task). You set a different number.\n"
         display_usage
         exit 1
     fi
@@ -156,7 +168,7 @@ echo -e "\$header_hsmetrics" > final_collectHSmetrics_all.txt
 
 BAITS=\${bt/.bed/_b.picard}
 TARGETS=\${tg/.bed/_t.picard}
-CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap -R=$reference"
+CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
 ##PARALLEL CODE HAS SOME PROBLEMS. UNFORTUNETELY, THIS STEP NEEDS TO BE RUN ITERATIVELY
 ##echo \$CMD
 ##cat $BAM_DATA | \$parallel '\$srun \$CMD --INPUT={} --OUTPUT=HS_metrics.txt --PER_TARGET_COVERAGE=perTargetCov.txt' 
