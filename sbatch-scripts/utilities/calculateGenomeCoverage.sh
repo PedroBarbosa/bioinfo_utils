@@ -178,7 +178,7 @@ for j in \$(find $BAM_DATA -exec cat {} \; );do
     i=\$(basename \$j)
     out=\$(echo \$i | cut -f1 -d "_")
     \$srun \$CMD -I=\$j -O=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt
-    awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | cut -f3,4,6,19,20,34,23,26,29,36,37,38,39,40,41,42,43 >> final_collectHSmetrics_all.txt
+    awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt
     sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt
 
     echo -e "##\${out}" >> final_perTargetCoverage.txt
