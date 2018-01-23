@@ -6,14 +6,12 @@ import glob
 import subprocess
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,  format='%(asctime)s %(message)s')
 import matplotlib.pyplot as plt
-from matplotlib import rcParams
 import seaborn as sns
-import numpy as np
 import pandas as pd
-from sklearn import preprocessing
-from scipy.cluster import hierarchy
-from scipy.spatial import distance
+from scipy.stats import pearsonr
 from collections import defaultdict
+
+
 def wccount(filename):
     out = subprocess.Popen(['wc', '-l', filename],
                          stdout=subprocess.PIPE,
@@ -39,7 +37,7 @@ def processIndividualTargetSamples():
     nleft=len(list(glob.glob('*HS_metrics.txt')))
     for indiv_metrics in list(glob.glob('*HS_metrics.txt')):
         sname=indiv_metrics.split("_")[0]
-        logging.info("{} file! {} left..".format(indiv_metrics, nleft))
+        #logging.info("{} file! {} left..".format(indiv_metrics, nleft))
         nleft -= 1
         with open(indiv_metrics, "r") as f:
             baseQualities=[]
@@ -78,8 +76,9 @@ def processIndividualTargetSamples():
 
 def targetedAllMetricsProcess(infile):
     logging.info("Reading overall metrics file..")
-    targets_dic=defaultdict()
     correl_on_off_baits=defaultdict()
+    mean_median_cov=defaultdict()
+    coverage_fractions=defaultdict()
     with open(infile,"r") as f:
         for line in f:
             if line.startswith("sample") and "bait_region" in line:
@@ -87,26 +86,28 @@ def targetedAllMetricsProcess(infile):
             else:
                 (sample, bait_region, target_region, nreads, fractionBP_filtered_on_Near_baits, fractionBP_filtered_away_baits,
                  fractionBP_filt_offTarget, mean_cov_targets,median_cov_targets,fraction_targetsNoCov, fraction_tgt_1X,
-                 fraction_tgt_2X, fraction_tgt_10X, fraction_tgt_20X, fraction_tgt_30X,fraction_tgt_40X,fraction_tgt_50X,fraction_100X_cov) = line.rstrip().split("\t")
-                #outlist=[sample, bait_region, target_region, nreads, fractionBP_filtered_on_Near_baits, fractionBP_filtered_away_baits,
-                #fraction_targetsNoCov,fractionBP_filt_offTarget, mean_cov_targets,median_cov_targets, fraction_tgt_1X,
-                #fraction_tgt_2X, fraction_tgt_10X, fraction_tgt_20X, fraction_tgt_30X,fraction_tgt_40X,fraction_tgt_50X,fraction_100X_cov]
-                #outf.write('\t'.join(outlist) + "\n")
+                 fraction_tgt_2X, fraction_tgt_10X, fraction_tgt_20X, fraction_tgt_30X,fraction_tgt_40X,fraction_tgt_50X,fraction_100X_cov) = line.rstrip().split()
                 correl_on_off_baits[sample] = [int(nreads),float(fractionBP_filtered_on_Near_baits)]
-
+                mean_median_cov[sample] = [float(mean_cov_targets),float(median_cov_targets)]
+                l=[float(i) for i in [fraction_tgt_1X, fraction_tgt_2X, fraction_tgt_10X, fraction_tgt_20X, fraction_tgt_30X, fraction_tgt_40X, fraction_tgt_50X,fraction_100X_cov]]
+                coverage_fractions[sample] = l
+                if float(fraction_targetsNoCov) > 0:
+                    logging.info("WARNING, sample {} has some targets ({}) that didn't reach coverage=1 over any base (fully uncaptured)".format(sample,fraction_targetsNoCov))
         #violin_plot_fractionBP_on_near_baits
+        logging.info("Plotting violin plot of the bait efficiency")
         df = pd.DataFrame.from_dict(correl_on_off_baits,orient="index").rename({0: "number_of_reads", 1: "fraction_bp_on_near_baits"}, axis ='columns')
         df[['fraction_bp_on_near_baits']].apply(pd.to_numeric)
         badsamples = df['fraction_bp_on_near_baits'] < 0.5
         if len(df[badsamples].index) > 0:
             logging.info("WARNING. {} samples have a high fraction (> 50%) of their aligned bases outside the baits intervals (including 250bp outside "
                          "their boundaries)".format(len(df[badsamples].index)))
-            with open("bad_wet-lab_efficiency.txt", "w") as outf:
+            with open("output/bad_wet-lab_efficiency.txt", "w") as outf:
                 #outf.write("#List of samples with a small fraction of aligned based within the baits intervals.")
                 df_bad=df[badsamples].sort_values('fraction_bp_on_near_baits', ascending=False)
-                df_bad.to_csv("bad_wet-lab_efficiency.txt", sep='\t', columns=list(df_bad),encoding='utf-8')
+                df_bad.to_csv("output/bad_wet-lab_efficiency.txt", sep='\t', columns=list(df_bad),encoding='utf-8')
+                outf.close()
         sns.set()
-        vl=sns.violinplot(data=df[df.columns[1]])
+        sns.violinplot(data=df[df.columns[1]])
         plt.ylim(0,1)
         plt.ylabel("Fractions")
         plt.xlabel("Aligned base-pairs within baits intervals.")
@@ -116,8 +117,72 @@ def targetedAllMetricsProcess(infile):
         plt.close()
 
 
-def main():
+        ##scatterPlot - correlation between the number of reads and the bait efficiency
+        logging.info("Plotting correlation between sequencing throughput and bait efficiency")
+        pcc=pearsonr(df["number_of_reads"],df["fraction_bp_on_near_baits"])
+        logging.info("\tPearson correlation coefficient: {}".format(pcc[0]))
+        sns.regplot(x=df["number_of_reads"], y=df["fraction_bp_on_near_baits"], scatter=True,color="slategray")
+        plt.title("Correlation between the number of reads and bait efficiency")
+        plt.savefig("output/throughputVsBaitEfficiency.png")
+        plt.close()
 
+        #mean distribution
+        logging.info("Analysing targets coverage")
+        df_mean = pd.DataFrame.from_dict(mean_median_cov, orient="index").rename({0: "Mean", 1: "Median"},axis='columns')
+        lowcoverage = df_mean['Median'] < 30
+        if len(lowcoverage) > 0:
+            logging.info("WARNING. {} samples were flagged with the low coverage flag because their median coverage depth value across the targets was lower than 30".format(len(df_mean[lowcoverage].index)))
+            with open("output/low_coverageDepth_on_target.txt", "w") as outf:
+                df_lowcov=df_mean[lowcoverage].sort_values('Median', ascending=False)
+                df_lowcov.to_csv("output/low_coverage_on_target.txt", sep='\t', columns=list(df_lowcov),encoding='utf-8')
+            outf.close()
+        sns.distplot(df_mean["Median"])
+        sns.distplot(df_mean["Mean"])
+        plt.xlim(0,df_mean.iloc[:,0].max() + 50)
+        plt.title("Distribution of the mean and median across multiple samples.")
+        plt.xlabel("Values")
+        plt.ylabel("Probabilities")
+        plt.legend(['Median', 'Mean'])
+        plt.savefig("output/coverageDepthDistributionOnTargets.png")
+        plt.close()
+
+
+        #fraction of targets with X coverage
+        #draw boxplots
+        sns.set_style("whitegrid")
+        df_fractionXCoverage = pd.DataFrame.from_dict(coverage_fractions,orient="index").rename({0:"1X", 1:"2X", 2:"10X", 3:"20X", 4:"30X", 5:"40X", 6:"50X", 7:"100x"},axis='columns')
+        lowgenomeCoverageOverall = df_fractionXCoverage['2X'] < 0.5
+        if len(lowgenomeCoverageOverall) > 0:
+            logging.info("WARNING. {} samples have less than half of the target regions with coverage 2X or more.".format(len(df_fractionXCoverage[lowgenomeCoverageOverall].index)))
+            with open("output/low_targetCoverage.txt", "w") as outf:
+                df_lowtargetcov=df_fractionXCoverage[lowgenomeCoverageOverall].sort_values('2X', ascending=False)
+                df_lowtargetcov.to_csv("output/low_targetCoverage.txt", sep='\t', columns=list(df_lowtargetcov),encoding='utf-8')
+            outf.close()
+
+        sns.boxplot(data=df_fractionXCoverage)
+        plt.xlabel('Coverage')
+        plt.ylabel('Fraction of target bases')
+        plt.savefig("output/targetCoverageBreadthDistribution_boxplot.png")
+        plt.close()
+
+        i=1
+
+        if len(df_fractionXCoverage.index) > 10:
+            leg_value=False
+        else:
+            leg_value=True
+
+        df_fractionXCoverage.T.plot(legend=leg_value,xlim=(0,7),ylim=(0,1.0),grid=True)
+        x=list(df_fractionXCoverage.T.index)
+        xi = [i for i in range(0, len(x))]
+        plt.xticks(xi,x)
+        plt.ylabel("Fraction of the target regions covered")
+        plt.xlabel("Coverage depth")
+        plt.savefig("output/targetCoverageBreadthDistribution_linePlot.png")
+        plt.close()
+
+
+def main():
     parser = argparse.ArgumentParser(description='Script to plot useful data from a genome coverage analysis performed with GAT4K4. Matplotlib is required')
     parser.add_argument(dest='path',help='Path to the directory which holds all the output files.')
     parser.add_argument(dest='analysis_type', metavar='analysis_type', choices=("WGS", "targeted"), help="Type of the analysis performed. Choices: [WGS,targeted]")
@@ -147,7 +212,7 @@ def main():
                 logging.error("Error: '{}' and '{}' must exist in {} directory. They are required when targeted analysis is set.".format(targeted_all, perTarget_all,args.path))
                 sys.exit(1)
             elif countOcurrences(perTarget_all, "##") != (wccount(targeted_all) - 1):
-                logging.error("Error. Number of samples differs in {} and {} files.".format(targeted_all, perTarget_all))
+                logging.error("Error. Number of samples differs in {} and {} files. ({};{})".format(targeted_all, perTarget_all,wccount(targeted_all)-1,countOcurrences(perTarget_all,"##")))
                 sys.exit(1)
             else:
                 processTargetedExperiment(targeted_all, perTarget_all)

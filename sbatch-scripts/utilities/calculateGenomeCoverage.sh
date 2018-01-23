@@ -19,6 +19,8 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] ; then
     display_usage
     exit 1
 fi
+###PLOTING EXEC
+plottingExec="/home/pedro.barbosa/bioinfo_utils/python-scripts/lobo/coverageAnalysis/plotCoverageFromGATK4output.py"
 
 ####CHECK BAM INPUT####
 if [ ! -f "$1" ]; then
@@ -137,7 +139,7 @@ elif [ "$4" = "targeted" ]; then
 #!/bin/bash
 #SBATCH --job-name=target_coverage
 #SBATCH --time=72:00:00
-#SBATCH --mem=145G
+#SBATCH --mem=245G
 #SBATCH --nodes=$NODES
 #SBATCH --ntasks=$NTASKS
 #SBATCH --cpus-per-task=$CPUS_PER_TASK
@@ -145,6 +147,7 @@ elif [ "$4" = "targeted" ]; then
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/%j_getTargetCoverage.log
 
+ulimit -c ulimited
 timestamp() {
     date +"%Y-%m-%d  %T"
 }
@@ -186,6 +189,12 @@ for j in \$(find $BAM_DATA -exec cat {} \; );do
     printf "\$(timestamp): Done!\n"
 done
 
+if [ -f "$plottingExec" ];then
+    printf "\$(timestamp): Plotting some of the results!"
+    \$srun shifter --image mcfonsecalab/python36_bio:latest python $plottingExec $PWD targeted
+else
+    printf "\$(timestamp): No plotting script found."
+fi
 ##CalculateTargetCoverage was removed from last GATK4 release. Piece of code removed.
 #echo -e "\\n\$(timestamp) -> Calculating proportional read counts per target and sample!"
 #CMD="gatk CalculateTargetCoverage -L \$TARGETS -O final_pCovCounts.txt --transform PCOV -targetInfo FULL -groupBy SAMPLE --rowSummaryOutput final_perFeature_totalCounts.txt --columnSummaryOutput final_perSample_totalTargetsCoverage.txt"
@@ -227,6 +236,7 @@ elif [ "$4" = "WGS" ]; then
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/%j_getWGScoverage.log
 
+ulimit -c ulimited
 timestamp() {
     date +"%Y-%m-%d  %T"
 }
@@ -265,6 +275,13 @@ for j in \$(find $BAM_DATA -exec cat {} \; );do
     printf "\$(timestamp): Sample \$i processed!\n"
 done
 echo "\$(timestamp) -> Done!!!"
+
+if [ -f "$plottingExec" ];then
+    printf "\$(timestamp): Plotting some of the results!"
+    \$srun shifter --image mcfonsecalab/python36_bio:latest python $plottingExec $PWD WGS
+else
+    printf "\$(timestamp): No plotting script found."
+fi
 mv * ../\$SLURM_JOB_ID*log $OUTDIR
 EOL
     sbatch $WORKDIR/wgsCoverage.sbatch
