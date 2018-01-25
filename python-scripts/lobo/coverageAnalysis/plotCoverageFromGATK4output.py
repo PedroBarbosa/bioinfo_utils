@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 from scipy.stats import pearsonr
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 
 def wccount(filename):
@@ -31,7 +31,7 @@ def processTargetedExperiment(allMetrics,perTargetMetrics):
         processIndividualTargetSamples()
 
     targetedAllMetricsProcess(allMetrics)
-
+    processPerTargetCoverage(perTargetMetrics)
 def processIndividualTargetSamples():
     dict_bq={}
     nleft=len(list(glob.glob('*HS_metrics.txt')))
@@ -73,7 +73,6 @@ def processIndividualTargetSamples():
     plt.savefig("output/lowerQualityBPDistribution.png")
     plt.close()
 
-
 def targetedAllMetricsProcess(infile):
     logging.info("Reading overall metrics file..")
     correl_on_off_baits=defaultdict()
@@ -101,11 +100,11 @@ def targetedAllMetricsProcess(infile):
         if len(df[badsamples].index) > 0:
             logging.info("WARNING. {} samples have a high fraction (> 50%) of their aligned bases outside the baits intervals (including 250bp outside "
                          "their boundaries)".format(len(df[badsamples].index)))
-            with open("output/bad_wet-lab_efficiency.txt", "w") as outf:
-                #outf.write("#List of samples with a small fraction of aligned based within the baits intervals.")
-                df_bad=df[badsamples].sort_values('fraction_bp_on_near_baits', ascending=False)
-                df_bad.to_csv("output/bad_wet-lab_efficiency.txt", sep='\t', columns=list(df_bad),encoding='utf-8')
-                outf.close()
+
+            #outf.write("#List of samples with a small fraction of aligned based within the baits intervals.")
+            df_bad=df[badsamples].sort_values('fraction_bp_on_near_baits', ascending=False)
+            df_bad.to_csv("output/bad_wet-lab_efficiency.txt", sep='\t', columns=list(df_bad),encoding='utf-8')
+
         sns.set()
         sns.violinplot(data=df[df.columns[1]])
         plt.ylim(0,1)
@@ -130,11 +129,11 @@ def targetedAllMetricsProcess(infile):
         logging.info("Analysing targets coverage")
         df_mean = pd.DataFrame.from_dict(mean_median_cov, orient="index").rename({0: "Mean", 1: "Median"},axis='columns')
         lowcoverage = df_mean['Median'] < 30
-        if len(lowcoverage) > 0:
+        if len(df_mean[lowcoverage]) > 0:
             logging.info("WARNING. {} samples were flagged with the low coverage flag because their median coverage depth value across the targets was lower than 30".format(len(df_mean[lowcoverage].index)))
-            with open("output/low_coverageDepth_on_target.txt", "w") as outf:
+            with open("output/low_averageCoverageDepth_on_target.txt", "w") as outf:
                 df_lowcov=df_mean[lowcoverage].sort_values('Median', ascending=False)
-                df_lowcov.to_csv("output/low_coverage_on_target.txt", sep='\t', columns=list(df_lowcov),encoding='utf-8')
+                df_lowcov.to_csv("output/low_averageCoverageDepth_on_target.txt", sep='\t', columns=list(df_lowcov),encoding='utf-8')
             outf.close()
         sns.distplot(df_mean["Median"])
         sns.distplot(df_mean["Mean"])
@@ -151,12 +150,12 @@ def targetedAllMetricsProcess(infile):
         #draw boxplots
         sns.set_style("whitegrid")
         df_fractionXCoverage = pd.DataFrame.from_dict(coverage_fractions,orient="index").rename({0:"1X", 1:"2X", 2:"10X", 3:"20X", 4:"30X", 5:"40X", 6:"50X", 7:"100x"},axis='columns')
-        lowgenomeCoverageOverall = df_fractionXCoverage['2X'] < 0.5
-        if len(lowgenomeCoverageOverall) > 0:
-            logging.info("WARNING. {} samples have less than half of the target regions with coverage 2X or more.".format(len(df_fractionXCoverage[lowgenomeCoverageOverall].index)))
-            with open("output/low_targetCoverage.txt", "w") as outf:
+        lowgenomeCoverageOverall = df_fractionXCoverage['10X'] < 0.5
+        if len(df_fractionXCoverage[lowgenomeCoverageOverall]) > 0:
+            logging.info("WARNING. {} samples have less than half of the target regions with coverage 10X or more.".format(len(df_fractionXCoverage[lowgenomeCoverageOverall].index)))
+            with open("output/low_targetCoverageBreadth.txt", "w") as outf:
                 df_lowtargetcov=df_fractionXCoverage[lowgenomeCoverageOverall].sort_values('2X', ascending=False)
-                df_lowtargetcov.to_csv("output/low_targetCoverage.txt", sep='\t', columns=list(df_lowtargetcov),encoding='utf-8')
+                df_lowtargetcov.to_csv("output/low_targetCoverageBreadth.txt", sep='\t', columns=list(df_lowtargetcov),encoding='utf-8')
             outf.close()
 
         sns.boxplot(data=df_fractionXCoverage)
@@ -180,6 +179,96 @@ def targetedAllMetricsProcess(infile):
         plt.xlabel("Coverage depth")
         plt.savefig("output/targetCoverageBreadthDistribution_linePlot.png")
         plt.close()
+def processPerTargetCoverage(perTargetMetrics):
+    logging.info("Processing perTarget coverage file..")
+    perTarget_dict=OrderedDict()
+    with open(perTargetMetrics, "r") as infile:
+        for line in infile:
+            if line.startswith("##"):
+                sample=line[2:].rstrip()
+            elif not line.startswith("chrom"):
+                (chrom,start,end,featureLength,name,gc,mean_cov,normalized_cov,min_normalized_cov,max_normalized_cov,min_cov,max_cov,pct_0x,readCount) = line.rstrip().split()
+                feature="{}:{}".format(name,start)
+                if feature in perTarget_dict.keys():
+                    perTarget_dict[feature].append((sample,int(featureLength),float(gc),float(mean_cov),float(normalized_cov),float(min_normalized_cov),float(max_normalized_cov),int(min_cov),int(max_cov),float(pct_0x),int(readCount)))
+                else:
+                    perTarget_dict[feature] = [(sample,int(featureLength),float(gc),float(mean_cov),float(normalized_cov),float(min_normalized_cov),float(max_normalized_cov),int(min_cov),int(max_cov),float(pct_0x),int(readCount))]
+
+        number_of_samples = set([len(v) for k,v in perTarget_dict.items()])
+        if len(number_of_samples) != 1:
+            logging.info("Some samples may not have results displayed for all the target features: {}".format(number_of_samples))
+        else:
+            logging.info("{} samples under analysis.".format(number_of_samples.pop()))
+
+
+        # #sub dicts for specific plots
+        # #perFeature coverage vs gc content scatterplot
+        df_corr_cov_gc= pd.DataFrame()
+        # #perFeature coverage vs feature length
+        df_corr_cov_length=pd.DataFrame()
+
+        #per sample and perFeature_normalizedCov
+        first_val=list(perTarget_dict.values())[0]
+        cols=[sample[0] for sample in first_val]
+        dfperFeatureAndPerSample_norm_cov=pd.DataFrame(index=perTarget_dict.keys(), columns=set([sample[0] for sample in first_val]))
+
+        #features with no coverage
+        df_featuresWith0X=pd.DataFrame()
+        for feature, values in perTarget_dict.items():
+            perFeature_avg_cov=sum([e[4] for e in values])/len(values)
+            perFeature_avg_0cov=sum([e[9] for e in values])/len(values)
+            df2 = pd.DataFrame({"gc_content" : [values[0][2]], "mean_normalized_coverage" : [perFeature_avg_cov]}, index=[feature])
+            df3 = pd.DataFrame({"feature_length" : [values[0][1]], "mean_normalized_coverage": [perFeature_avg_cov]}, index=[feature])
+
+            for sample in values:
+                dfperFeatureAndPerSample_norm_cov.at[feature,sample[0]] = sample[4]
+
+            df5 = pd.DataFrame({"mean_fraction_cov0" : [perFeature_avg_0cov]}, index=[feature])
+            df_corr_cov_gc = df_corr_cov_gc.append(df2)
+            df_corr_cov_length = df_corr_cov_length.append(df3)
+            df_featuresWith0X=df_featuresWith0X.append(df5)
+
+        p10=df_corr_cov_gc['mean_normalized_coverage'].quantile(0.1)
+        logging.info("Analysing mean coverage per target")
+        logging.info("Mean normalized coverage value for the 10th percentile (10% of the features have mean coverage below this value, which translates for targets with lower coverage): {}".format(p10))
+        logging.info("Writing targets with lowest coverage to 'targetsWithLowestMeanCoverage.txt' file")
+        df_corr_cov_gc[df_corr_cov_gc.mean_normalized_coverage < df_corr_cov_gc['mean_normalized_coverage'].quantile(0.1)].to_csv("output/targetsWithLowestMeanCoverage.txt",sep="\t", columns=list(df_corr_cov_gc))
+
+        ###scatterplots
+        logging.info("Plotting per target correlation between gc content and mean coverage")
+        pcc=pearsonr(df_corr_cov_gc["gc_content"],df_corr_cov_gc["mean_normalized_coverage"])
+        logging.info("\tPearson correlation coefficient: {}".format(pcc[0]))
+        sns.regplot(x=df_corr_cov_gc["gc_content"], y=df_corr_cov_gc["mean_normalized_coverage"], scatter=True,color="slategray")
+        plt.title("Correlation between gc content and the mean coverage")
+        plt.savefig("output/perTarget_gcVscoverage.png")
+        plt.ylim(0,3)
+        plt.close()
+
+        logging.info("Plotting per target correlation between feature length and mean coverage")
+        pcc=pearsonr(df_corr_cov_length["feature_length"],df_corr_cov_length["mean_normalized_coverage"])
+        logging.info("\tPearson correlation coefficient: {}".format(pcc[0]))
+        sns.regplot(x=df_corr_cov_length["feature_length"], y=df_corr_cov_length["mean_normalized_coverage"], scatter=True,color="green")
+        plt.title("Correlation between feature length and mean coverage")
+        plt.savefig("output/perTarget_featureLengthVscoverage.png")
+        plt.close()
+        ##heatmap
+        #lt.pcolor(dfperFeatureAndPerSample_norm_cov.apply(pd.to_numeric,errors='coerce'))
+        #sns.heatmap(dfperFeatureAndPerSample_norm_cov.apply(pd.to_numeric, errors='coerce'))
+        #lt.show()
+        #targets not covered
+        logging.info("Analysing fractions of targets with 0 coverage.")
+        logging.info("Plotting per target average of regions with no coverage")
+        bins_count = df_featuresWith0X.groupby(pd.cut(df_featuresWith0X.mean_fraction_cov0, right=True,bins=[ -0.01,0,0.1,0.2,0.5,0.75,1], include_lowest=False)).count()
+        bins_count.plot(kind='bar',legend=False,color=sns.color_palette("GnBu_d"))
+        plt.xticks([0,1,2,3,4,5,6], ["100%","> 90% ", "> 80%", ">50%", ">25%", ">0%" ])
+        plt.tick_params(axis='x', rotation=0)
+        plt.ylabel("Number of features")
+        plt.xlabel("Average coverage breadth")
+        plt.savefig("output/perTarget_averageCoverageBreadth.png")
+        plt.close()
+        df_featuresWith0X[df_featuresWith0X["mean_fraction_cov0"] > 0.1].sort_values(by="mean_fraction_cov0",ascending=False).to_csv("output/perTarget_withSignificantFractionNotCovered.txt",sep="\t",columns=list(df_featuresWith0X))
+
+
 
 
 def main():
