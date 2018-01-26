@@ -176,10 +176,15 @@ CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 -
 ##echo \$CMD
 ##cat $BAM_DATA | \$parallel '\$srun \$CMD --INPUT={} --OUTPUT=HS_metrics.txt --PER_TARGET_COVERAGE=perTargetCov.txt' 
 
+unique_samples=()
 for j in \$(find $BAM_DATA -exec cat {} \; );do
     printf "\$(timestamp): Processing \$(basename \$j) file.\n"
     i=\$(basename \$j)
     out=\$(echo \$i | cut -f1 -d "_")
+    if [[ " \${unique_samples[@]} " =~ " \${out} " ]]; then
+        printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
+        out="\${i%.*}"
+    fi
     \$srun \$CMD -I=\$j -O=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt
     awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt
     sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt
@@ -262,11 +267,15 @@ echo -e "\$header_wgsmetrics" > final_colllectWgsMetrics_all.txt
 CMD="gatk --java-options '-Xmx245G' CollectWgsMetrics --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --COVERAGE_CAP=$coverage_cap --INCLUDE_BQ_HISTOGRAM=true -R=$reference"
 #Again, parallel with issues
 #cat "$BAM_DATA" | \$parallel '\$srun shifter -I={} -O={/.}_WGS_metrics.txt \$CMD \$INTERVALS'
-
+unique_sample=()
 for j in \$(find $BAM_DATA -exec cat {} \; );do
     printf "\$(timestamp): Processing \$(basename \$j) file.\n"
     i=\$(basename \$j)
     out=\$(echo \$i | cut -f1 -d "_")
+    if [[ " \${unique_samples[@]} " =~ " \${out} " ]]; then
+        printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
+        out="\${i%.*}"
+    fi
     \$srun shifter \$CMD -I=\$j -O=\${out}_WGS_metrics.txt \$INTERVALS
     awk '/GENOME_TERRITORY/{getline; print}' \${out}_WGS_metrics.txt | cut -f1,2,3,4,12,13,14,15,17,19,20,21,23,25,26 >> final_colllectWgsMetrics_all.txt
     sed -i '\$s/^/'"\${out}\t"'/' final_colllectWgsMetrics_all.txt

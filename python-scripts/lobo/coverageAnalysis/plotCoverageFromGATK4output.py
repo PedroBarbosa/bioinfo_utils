@@ -253,7 +253,7 @@ def processPerTargetCoverage(perTargetMetrics):
         plt.close()
         ##heatmap
         #lt.pcolor(dfperFeatureAndPerSample_norm_cov.apply(pd.to_numeric,errors='coerce'))
-        #sns.heatmap(dfperFeatureAndPerSample_norm_cov.apply(pd.to_numeric, errors='coerce'))
+        #sns.heatmap(# .apply(pd.to_numeric, errors='coerce'))
         #lt.show()
         #targets not covered
         logging.info("Analysing fractions of targets with 0 coverage.")
