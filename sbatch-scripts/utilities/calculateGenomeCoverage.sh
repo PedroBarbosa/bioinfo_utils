@@ -10,7 +10,7 @@ display_usage(){
     -5th argument must be provided when the data comes from a targeted experiment. Refers to the target regions in bed format. Use '-' to skip this argument.
     -6th argument is optional. Refers to the bait regions used for the hybridization capture method. If you don't have such file, the targets file will be used as the baits file as well. Use '-' to skip this argument.
     -7th argument is optional. Refers to the maximum distance between a read and the nearest probe/bait/amplicon for the read to be considered 'near probe' and included in percent selected. Default: 250.
-    -8th argument is optional. Refers to the max coverage limit for theoritical sensitivity calculations. Default: 250.
+    -8th argument is optional. Refers to the max coverage limit for theoritical sensitivity calculations. Default: 600.
     -9th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,5,8. '-' skips this argument.\n"
 }
 
@@ -77,7 +77,7 @@ fi
 
 ##COV CAP##
 if [[ -z "$8" || "$8" = "-" ]]; then
-    coverage_cap="250"
+    coverage_cap="600"
 elif ! [[ "$8" =~ $re ]]; then
     printf "Coverage cap is not a INT number. Please set one valid one in the 8th argument.\n"
     exit 1
@@ -185,6 +185,7 @@ for j in \$(find $BAM_DATA -exec cat {} \; );do
         printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
         out="\${i%.*}"
     fi
+    unique_samples+=(\${out})
     \$srun \$CMD -I=\$j -O=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt
     awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt
     sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt
@@ -267,7 +268,7 @@ echo -e "\$header_wgsmetrics" > final_colllectWgsMetrics_all.txt
 CMD="gatk --java-options '-Xmx245G' CollectWgsMetrics --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --COVERAGE_CAP=$coverage_cap --INCLUDE_BQ_HISTOGRAM=true -R=$reference"
 #Again, parallel with issues
 #cat "$BAM_DATA" | \$parallel '\$srun shifter -I={} -O={/.}_WGS_metrics.txt \$CMD \$INTERVALS'
-unique_sample=()
+unique_samples=()
 for j in \$(find $BAM_DATA -exec cat {} \; );do
     printf "\$(timestamp): Processing \$(basename \$j) file.\n"
     i=\$(basename \$j)
@@ -276,6 +277,7 @@ for j in \$(find $BAM_DATA -exec cat {} \; );do
         printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
         out="\${i%.*}"
     fi
+    unique_samples+=(\${out})
     \$srun shifter \$CMD -I=\$j -O=\${out}_WGS_metrics.txt \$INTERVALS
     awk '/GENOME_TERRITORY/{getline; print}' \${out}_WGS_metrics.txt | cut -f1,2,3,4,12,13,14,15,17,19,20,21,23,25,26 >> final_colllectWgsMetrics_all.txt
     sed -i '\$s/^/'"\${out}\t"'/' final_colllectWgsMetrics_all.txt

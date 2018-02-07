@@ -10,7 +10,7 @@ import seaborn as sns
 import pandas as pd
 from scipy.stats import pearsonr
 from collections import defaultdict, OrderedDict
-
+import numpy as np
 
 def wccount(filename):
     out = subprocess.Popen(['wc', '-l', filename],
@@ -26,11 +26,11 @@ def countOcurrences(filename,char):
 #def plotWGShisto(filename):
 def processTargetedExperiment(allMetrics,perTargetMetrics):
     logging.info("Starting targeted experiment analysis.")
-    if len(list(glob.glob('*HS_metrics.txt'))) > 0: #if individual metrics files exist
-        logging.info("We detected individual sample metrics files. Will check the low quality base pair distribution in the data")
-        processIndividualTargetSamples()
+    #f len(list(glob.glob('*HS_metrics.txt'))) > 0: #if individual metrics files exist
+    #   logging.info("We detected individual sample metrics files. Will check the low quality base pair distribution in the data")
+    #   processIndividualTargetSamples()
 
-    targetedAllMetricsProcess(allMetrics)
+    #argetedAllMetricsProcess(allMetrics)
     processPerTargetCoverage(perTargetMetrics)
 def processIndividualTargetSamples():
     dict_bq={}
@@ -182,13 +182,21 @@ def targetedAllMetricsProcess(infile):
 def processPerTargetCoverage(perTargetMetrics):
     logging.info("Processing perTarget coverage file..")
     perTarget_dict=OrderedDict()
+    sample=""
+    unique_feature=set()
+    perSample_dict,perSubTargetAverageCov=defaultdict(list),defaultdict(list)
     with open(perTargetMetrics, "r") as infile:
         for line in infile:
             if line.startswith("##"):
+                if len(perSubTargetAverageCov) > 0:
+                    perSample_dict[sample] = perSubTargetAverageCov
                 sample=line[2:].rstrip()
+                perSubTargetAverageCov=defaultdict(list)
             elif not line.startswith("chrom"):
                 (chrom,start,end,featureLength,name,gc,mean_cov,normalized_cov,min_normalized_cov,max_normalized_cov,min_cov,max_cov,pct_0x,readCount) = line.rstrip().split()
                 feature="{}:{}".format(name,start)
+                unique_feature.add(name)
+                perSubTargetAverageCov[name].append((int(featureLength),float(mean_cov)))
                 if feature in perTarget_dict.keys():
                     perTarget_dict[feature].append((sample,int(featureLength),float(gc),float(mean_cov),float(normalized_cov),float(min_normalized_cov),float(max_normalized_cov),int(min_cov),int(max_cov),float(pct_0x),int(readCount)))
                 else:
@@ -199,6 +207,7 @@ def processPerTargetCoverage(perTargetMetrics):
             logging.info("Some samples may not have results displayed for all the target features: {}".format(number_of_samples))
         else:
             logging.info("{} samples under analysis.".format(number_of_samples.pop()))
+
 
 
         # #sub dicts for specific plots
@@ -268,9 +277,27 @@ def processPerTargetCoverage(perTargetMetrics):
         plt.close()
         df_featuresWith0X[df_featuresWith0X["mean_fraction_cov0"] > 0.1].sort_values(by="mean_fraction_cov0",ascending=False).to_csv("output/perTarget_withSignificantFractionNotCovered.txt",sep="\t",columns=list(df_featuresWith0X))
 
+        logging.info("Testing for coding/non coding coverage analysis.")
+        df_codingNonCodingCov = pd.DataFrame(index=perSample_dict.keys(),columns=unique_feature)
+        with open("output/perTargetInfoAbout0XCoverageSubfeatures.txt", "w") as outf:
+            for sample, feature in perSample_dict.items():
+                outf.write("##{}\n".format(sample))
+                for feat_name, subfeature in feature.items():
+                    cov_0X=[i[1] for i in subfeature if i[1] == 0.0]
+                    if len(cov_0X) > 0:
+                        outf.write("{} feature has {} subfeatures, where {} if them has no coverage at all.\n".format(feat_name,len(subfeature),len(cov_0X)))
+                    avg_cov=np.average([i[1] for i in subfeature],weights=[j[0] for j in subfeature])
+                    df_codingNonCodingCov.at[sample, feat_name] = avg_cov
+        outf.close()
 
-
-
+        #df.columns = [i if "_" not in i else i + "=" + str(newElements[int(i[-1]) - 1]) for i in df.columns]
+        df_codingNonCodingCov.columns = [i.split("_")[1] for i in df_codingNonCodingCov.columns if "exon" or "intron" in i ]
+        plt.figure(figsize=(9,8))
+        sns.boxplot(data=df_codingNonCodingCov)
+        plt.xticks(rotation='vertical')
+        #plt.ylim(0,1500)
+        plt.ylabel("Average read depth")
+        plt.savefig("output/perTarget_depthOfCoverage.png")
 def main():
     parser = argparse.ArgumentParser(description='Script to plot useful data from a genome coverage analysis performed with GAT4K4. Matplotlib is required')
     parser.add_argument(dest='path',help='Path to the directory which holds all the output files.')
