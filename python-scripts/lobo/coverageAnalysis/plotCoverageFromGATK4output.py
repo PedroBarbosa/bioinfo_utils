@@ -6,6 +6,7 @@ import glob
 import subprocess
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,  format='%(asctime)s %(message)s')
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
 import seaborn as sns
 import pandas as pd
 from scipy.stats import pearsonr
@@ -26,11 +27,11 @@ def countOcurrences(filename,char):
 #def plotWGShisto(filename):
 def processTargetedExperiment(allMetrics,perTargetMetrics):
     logging.info("Starting targeted experiment analysis.")
-    #f len(list(glob.glob('*HS_metrics.txt'))) > 0: #if individual metrics files exist
-    #   logging.info("We detected individual sample metrics files. Will check the low quality base pair distribution in the data")
-    #   processIndividualTargetSamples()
+    if len(list(glob.glob('*HS_metrics.txt'))) > 0: #if individual metrics files exist
+       logging.info("We detected individual sample metrics files. Will check the low quality base pair distribution in the data")
+       processIndividualTargetSamples()
 
-    #argetedAllMetricsProcess(allMetrics)
+    targetedAllMetricsProcess(allMetrics)
     processPerTargetCoverage(perTargetMetrics)
 def processIndividualTargetSamples():
     dict_bq={}
@@ -70,7 +71,7 @@ def processIndividualTargetSamples():
     sns.boxplot(data=df)
     plt.xlabel('Base qualities below given values')
     plt.ylabel('Percentage of base pairs (%)')
-    plt.savefig("output/lowerQualityBPDistribution.png")
+    plt.savefig("output/lowerQualityBPDistribution.pdf", format='pdf')
     plt.close()
 
 def targetedAllMetricsProcess(infile):
@@ -112,7 +113,7 @@ def targetedAllMetricsProcess(infile):
         plt.xlabel("Aligned base-pairs within baits intervals.")
         plt.axes().get_xaxis().set_ticks([])
         plt.title("Distribution of the targeted experiment efficiency across samples")
-        plt.savefig("output/targetedExperimentEfficiencyDistribution.png")
+        plt.savefig("output/targetedExperimentEfficiencyDistribution.pdf", format='pdf')
         plt.close()
 
 
@@ -122,7 +123,7 @@ def targetedAllMetricsProcess(infile):
         logging.info("\tPearson correlation coefficient: {}".format(pcc[0]))
         sns.regplot(x=df["number_of_reads"], y=df["fraction_bp_on_near_baits"], scatter=True,color="slategray")
         plt.title("Correlation between the number of reads and bait efficiency")
-        plt.savefig("output/throughputVsBaitEfficiency.png")
+        plt.savefig("output/throughputVsBaitEfficiency.pdf",format='pdf')
         plt.close()
 
         #mean distribution
@@ -142,7 +143,7 @@ def targetedAllMetricsProcess(infile):
         plt.xlabel("Values")
         plt.ylabel("Probabilities")
         plt.legend(['Median', 'Mean'])
-        plt.savefig("output/coverageDepthDistributionOnTargets.png")
+        plt.savefig("output/coverageDepthDistributionOnTargets.pdf",format='pdf')
         plt.close()
 
 
@@ -152,7 +153,7 @@ def targetedAllMetricsProcess(infile):
         df_fractionXCoverage = pd.DataFrame.from_dict(coverage_fractions,orient="index").rename({0:"1X", 1:"2X", 2:"10X", 3:"20X", 4:"30X", 5:"40X", 6:"50X", 7:"100x"},axis='columns')
         lowgenomeCoverageOverall = df_fractionXCoverage['10X'] < 0.5
         if len(df_fractionXCoverage[lowgenomeCoverageOverall]) > 0:
-            logging.info("WARNING. {} samples have less than half of the target regions with coverage 10X or more.".format(len(df_fractionXCoverage[lowgenomeCoverageOverall].index)))
+            logging.info("WARNING. {} samples have more than 50% of the target regions with coverage lower than 10X.".format(len(df_fractionXCoverage[lowgenomeCoverageOverall].index)))
             with open("output/low_targetCoverageBreadth.txt", "w") as outf:
                 df_lowtargetcov=df_fractionXCoverage[lowgenomeCoverageOverall].sort_values('2X', ascending=False)
                 df_lowtargetcov.to_csv("output/low_targetCoverageBreadth.txt", sep='\t', columns=list(df_lowtargetcov),encoding='utf-8')
@@ -161,7 +162,7 @@ def targetedAllMetricsProcess(infile):
         sns.boxplot(data=df_fractionXCoverage)
         plt.xlabel('Coverage')
         plt.ylabel('Fraction of target bases')
-        plt.savefig("output/targetCoverageBreadthDistribution_boxplot.png")
+        plt.savefig("output/targetCoverageBreadthDistribution_boxplot.pdf", format='pdf')
         plt.close()
 
         i=1
@@ -177,7 +178,7 @@ def targetedAllMetricsProcess(infile):
         plt.xticks(xi,x)
         plt.ylabel("Fraction of the target regions covered")
         plt.xlabel("Coverage depth")
-        plt.savefig("output/targetCoverageBreadthDistribution_linePlot.png")
+        plt.savefig("output/targetCoverageBreadthDistribution_linePlot.pdf",format='pdf')
         plt.close()
 def processPerTargetCoverage(perTargetMetrics):
     logging.info("Processing perTarget coverage file..")
@@ -249,7 +250,7 @@ def processPerTargetCoverage(perTargetMetrics):
         logging.info("\tPearson correlation coefficient: {}".format(pcc[0]))
         sns.regplot(x=df_corr_cov_gc["gc_content"], y=df_corr_cov_gc["mean_normalized_coverage"], scatter=True,color="slategray")
         plt.title("Correlation between gc content and the mean coverage")
-        plt.savefig("output/perTarget_gcVscoverage.png")
+        plt.savefig("output/perTarget_gcVscoverage.pdf",format='pdf')
         plt.ylim(0,3)
         plt.close()
 
@@ -258,7 +259,7 @@ def processPerTargetCoverage(perTargetMetrics):
         logging.info("\tPearson correlation coefficient: {}".format(pcc[0]))
         sns.regplot(x=df_corr_cov_length["feature_length"], y=df_corr_cov_length["mean_normalized_coverage"], scatter=True,color="green")
         plt.title("Correlation between feature length and mean coverage")
-        plt.savefig("output/perTarget_featureLengthVscoverage.png")
+        plt.savefig("output/perTarget_featureLengthVscoverage.pdf",format='pdf')
         plt.close()
         ##heatmap
         #lt.pcolor(dfperFeatureAndPerSample_norm_cov.apply(pd.to_numeric,errors='coerce'))
@@ -273,7 +274,7 @@ def processPerTargetCoverage(perTargetMetrics):
         plt.tick_params(axis='x', rotation=0)
         plt.ylabel("Number of features")
         plt.xlabel("Average coverage breadth")
-        plt.savefig("output/perTarget_averageCoverageBreadth.png")
+        plt.savefig("output/perTarget_averageCoverageBreadth.pdf",format='pdf')
         plt.close()
         df_featuresWith0X[df_featuresWith0X["mean_fraction_cov0"] > 0.1].sort_values(by="mean_fraction_cov0",ascending=False).to_csv("output/perTarget_withSignificantFractionNotCovered.txt",sep="\t",columns=list(df_featuresWith0X))
 
@@ -292,12 +293,14 @@ def processPerTargetCoverage(perTargetMetrics):
 
         #df.columns = [i if "_" not in i else i + "=" + str(newElements[int(i[-1]) - 1]) for i in df.columns]
         df_codingNonCodingCov.columns = [i.split("_")[1] for i in df_codingNonCodingCov.columns if "exon" or "intron" in i ]
+        #print(df_codingNonCodingCov)
+
         plt.figure(figsize=(9,8))
         sns.boxplot(data=df_codingNonCodingCov)
         plt.xticks(rotation='vertical')
         #plt.ylim(0,1500)
         plt.ylabel("Average read depth")
-        plt.savefig("output/perTarget_depthOfCoverage.png")
+        plt.savefig("output/perTarget_depthOfCoverage.pdf", format="pdf")
 def main():
     parser = argparse.ArgumentParser(description='Script to plot useful data from a genome coverage analysis performed with GAT4K4. Matplotlib is required')
     parser.add_argument(dest='path',help='Path to the directory which holds all the output files.')

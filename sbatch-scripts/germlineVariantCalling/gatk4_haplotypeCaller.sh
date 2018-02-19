@@ -9,7 +9,8 @@ display_usage(){
     -4th argument must be the fasta reference for which the reads were aligned. If '-' is set, the existing hg38 version in lobo will be used. Be aware that a fasta index file (.fai) must also be present in the fasta directory.
     -5th argument is optional. If set to false, GNU parallel will be disabled to run the set of samples provided in the 1st argument. Options: [true|false]. Default: true, GNU parallel is used to parallelize the job.
     -6th argument must be provided when the data comes from a targeted experiment. Refers to the target intervals in bed format. Use '-' to skip this argument.
-    -7th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID.\n"
+    -7th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,8,5 if GNU parallel (5th argument) is true; 1,1,40 if GNU parallel is false. '-' skips this argument. Setting this argument will override any settings assumed by GNU parallel option.
+    -8th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID.\n"
 }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
@@ -58,24 +59,45 @@ else
     REF="$4"
 fi
 
-###PARALLEL####
-if [ -z "$5" ] || [ "$5" = "true" ]; then
-    NODES=2 #2 #1
-    NTASKS=20 #10 #4
-    CPUS=4 #8 #10
-    JAVA_Xmx="--java-options '-Xmx45G'"
-    PARALLEL=true
-elif [ "$5" = "false" ]; then
-    NODES=1
-    NTASKS=1
-    CPUS=40
-    JAVA_Xmx="--java-options '-Xmx240G -DGATK_STACKTRACE_ON_USER_EXCEPTION=true'"
-    PARALLEL=false
+re='^[0-9]+$'
+##JOB SETTINGS""
+if [[ -z "$7" || "$7" = "-" ]]; then
+    if [ -z "$5" ] || [ "$5" = "true" ]; then
+        NODES=1
+        NTASKS=8
+        CPUS_PER_TASK=5
+    elif [ "$5" = "false" ]; then
+        NODES=1
+        NTASKS=1
+        CPUS=40
+    else
+        printf "Please set a valid value for the 5th argument (gnu parallel)\n"
+        display_usage
+        exit 1
+    fi
 else
-    printf "Please set a valid value for the 5th argument\n"
-    display_usage
-    exit 1
+    IFS=','
+    read -r -a array <<< "$7"
+    if [ ${#array[@]} = 3 ]; then
+        for elem in "${array[@]}"
+        do
+            if ! [[ "$elem" =~ $re ]]; then 
+                printf "Error. Please set INT numbers for the number of nodes, tasks and cpus per task.\n"
+                display_usage
+                exit 1
+            fi
+        done
+        NODES=${array[0]}
+        NTASKS=${array[1]}
+        CPUS_PER_TASK=${array[2]}
+    else 
+        printf "ERROR. 3 fields are required for the 9th argument (nodes,tasks,cpus per task). You set a different number.\n"
+        display_usage
+        exit 1
+    fi
 fi
+
+
 ##CMD##
 ref_2bit="$(basename $REF)"
 #CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit -ERC GVCF"
