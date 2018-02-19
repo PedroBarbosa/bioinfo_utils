@@ -1,7 +1,6 @@
 #!/bin/bash
 display_usage(){
- printf "Script to run Haplotype caller pipeline in lobo for a bunch of bam files. Be aware that this script already implements the latest innovations regarding
-   the multisample variant calling in GVCF mode and ImportGenomicsDB.\n
+ printf "Script to run Haplotype caller pipeline in single sample mode in lobo for a bunch of bam files. One VCF file per sample will be produced via HaplotypeCallerSpark utility.\n
  Usage:.
     -1st argument must be the file containing the alignment files. A '.bai' index for each bam file must exist in each bam directory.
     -2nd argument must be the name of the final ouptut directory.
@@ -60,9 +59,9 @@ fi
 
 ###PARALLEL####
 if [ -z "$5" ] || [ "$5" = "true" ]; then
-    NODES=2 #2 #1
-    NTASKS=20 #10 #4
-    CPUS=4 #8 #10
+    NODES=1 #2 #1
+    NTASKS=5 #10 #4
+    CPUS=7 #8 #10
     JAVA_Xmx="--java-options '-Xmx45G'"
     PARALLEL=true
 elif [ "$5" = "false" ]; then
@@ -78,10 +77,10 @@ else
 fi
 ##CMD##
 ref_2bit="$(basename $REF)"
-#CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit -ERC GVCF"
-CMD="gatk ${JAVA_Xmx} HaplotypeCaller --TMP_DIR=/home/pedro.barbosa/scratch --reference $REF -ERC GVCF"
+CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit"
+#CMD="gatk ${JAVA_Xmx} HaplotypeCaller --TMP_DIR=/home/pedro.barbosa/scratch --reference $REF -ERC GVCF"
 #createOutputVariantIndex true [missing this arg. Needed to add extra step of generating index for genomicsDB import through IndexFeatureFile utility]
-#SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS]"
+SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS]"
 ###MODE####
 analysis=("WGS" "targeted")
 if [[ !  " ${analysis[@]} " =~ " ${3} " ]]; then
@@ -105,9 +104,9 @@ fi
 
 
 ##Dbsnp file###
-cat > $WORKDIR/haplotypeCaller_GVCF.sbatch <<EOL
+cat > $WORKDIR/haplotypeCaller.sbatch <<EOL
 #!/bin/bash
-#SBATCH --job-name=gatk_hc
+#SBATCH --job-name=gatk_singleSample
 #SBATCH --time=72:00:00
 #SBATCH --mem=240G
 #SBATCH --nodes=$NODES
@@ -131,9 +130,10 @@ echo "\$(timestamp) -> Job started!"
 echo "\$(timestamp) -> Converting reference fasta file to 2bit format for HaplotypeCallerSpark"
 \$srun --image=mcfonsecalab/htstools_plus:latest faToTwoBit $REF ${ref_2bit%.*}.2bit
 echo "\$(timestamp) -> Done"
+echo "\$(timestamp) -> Running HaplotypeCaller in normal mode"
 if [ "$PARALLEL" == "true" ]; then
-#    cat $BAM_DATA | \$parallel  'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf $SPARK && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
-    cat $BAM_DATA | \$parallel 'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
+    cat $BAM_DATA | \$parallel '\$srun $CMD -I={} -O={/.}.vcf $SPARK && echo -e "{/.}\\t{/.}.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.vcf'
+#    cat $BAM_DATA | \$parallel '\$srun $CMD -I={} -O={/.}.vcf && shifter gatk IndexFeatureFile -F {/.}.vcf'
 else
     unique_samples=()
     for j in \$(find $BAM_DATA -exec cat {} \; );do
@@ -145,48 +145,16 @@ else
             out="\${i%.*}"
         fi
         unique_samples+=(\${out})
-#        \$srun $CMD -I=\$j -O=\${out}.g.vcf $SPARK
-        \$srun $CMD -I=\$j -O=\${out}.g.vcf
-        echo -e "\${out}\\t\${out}.g.vcf" >> aux_sampleName.map
-        \$srun gatk IndexFeatureFile -F \${out}.g.vcf
+        \$srun $CMD -I=\$j -O=\${out}.vcf -L chr1 $SPARK
+#        \$srun $CMD -I=\$j -O=\${out}.vcf
+        \$srun gatk IndexFeatureFile -F \${out}.vcf
         printf "\$(timestamp): Done!\n"
     done
 fi
-echo "\$(timestamp) -> Haplotype caller in GVCF for all samples has finished."
-echo "\$(timestamp) -> Merging gVCF files with CombineGVCFs tools."
-CMD_CombineGVCFs="gatk CombineGVCFs -R $REF -O combined.g.vcf.gz"
-#echo "\$(timestamp) -> Creating GenomicsDB datastore to combine multiple gvcf data."
-##TRY ALSO FOR ONE SINGLE INTERVALS FILE###
-#CMD_GenomicsDB="gatk GenomicsDBImport --sample-name-map aux_sampleName.map --batch-size 5 -R $REF --genomicsdb-workspace-path workspace"
-while read line;do
-    gvcf_file=\$(echo "\$line" | cut -f2)
-    CMD_CombineGVCFs="\$CMD_CombineGVCFs -V \$gvcf_file"
-done < aux_sampleName.map
-if [ "$3" == "WGS" ]; then
-    \$srun \$CMD_CombineGVCFs
-#    for ((i=1;i<=22;i++)); do echo -e "\$(timestamp) Consolidating gVCF for chromosome \${i}"; \$srun \$CMD_GenomicsDB --L chr\${i}; done
-#    echo -e "\$(timestamp) Consolidating gVCF for sexual chromosomes and mithocondria."
-#    \$srun $CMD_GenomicsDB -L chrM
-#    \$srun $CMD_GenomicsDB -L chrY
-#    \$srun $CMD_GenomicsDB -L chrX
-else
-    \$srun \$CMD_CombineGVCFs
-#    while read line;
-#    do
-#        echo -e "\$(timestamp) Consolidating gVCF for \$(echo "\$line" | cut -f1,2,3) interval."
-#        \$srun \$CMD_GenomicsDB --L \$(echo "\$line" | cut -f1):\$((\$(echo "\$line" | cut -f2) + 1))-\$(echo "\$line" | cut -f3)
-#    done < $BED
-fi
-echo "\$(timestamp) -> Done! Genotyping gVCFs stored in the GenomicsDB database."
-\$srun gatk GenotypeGVCFs --variant combined.g.vcf.gz -R $REF --output joint.vcf.gz
-#\$srun gatk GenotypeGVCFs --variant gendb://workspace -R $REF --output joint.vcf.gz
-echo -e "\$(timestamp) -> Finished job."
-echo "Statistics for job \$SLURM_JOB_ID:"
-sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"
 EOL
-sbatch $WORKDIR/haplotypeCaller_GVCF.sbatch
+sbatch $WORKDIR/haplotypeCaller.sbatch
 sleep 1 
 
 cd $WORKDIR
-mv haplotypeCaller_GVCF.sbatch $(ls -td -- */ | head -n 1)
+mv haplotypeCaller.sbatch $(ls -td -- */ | head -n 1)

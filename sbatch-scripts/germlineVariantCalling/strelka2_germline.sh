@@ -77,11 +77,45 @@ else
     CMD="$CMD --reference=$4"
 fi
 
-##CMD EXTEMDSION##
-while read line 
-do
-    CMD="$CMD --bam=${line}"
-done < $BAM_DATA
+CMD_ROOT=$CMD
+##CMD EXTENSION##
+numb_samples=$(wc -l < $BAM_DATA)
+numb_samples_to_split=75
+batched=false
+if [[ $numb_samples -gt $numb_samples_to_split ]]; then
+    printf "Number of samples ($numb_samples) exceeds strelka recommendations for germline joint variant calling ($numb_samples_to_split). Will split analysis in several batches.\n"
+    samples_array=()
+    batched=true
+    while read line;do samples_array+=("--bam=${line}"); done < $BAM_DATA
+#    printf "Array elements: ${samples_array[*]}.\n"
+    batches=$((${#samples_array[@]} / $numb_samples_to_split + 1))
+    printf "Will split analysis in $batches batches.\n"
+    END=$batches
+    index=0
+    declare -A dynamic_CMD=()   
+    declare -a orders;
+    for ((i=1;i<=END;i++)); do
+        if [[ $i -eq $batches ]]; then #slice until the end
+            CMD="$CMD_ROOT ${samples_array[@]:$index}"
+            dynamic_CMD["job_$i"]=$CMD
+            orders+=( "job_$i" )
+        else
+            CMD="$CMD_ROOT ${samples_array[@]:$index:$numb_samples_to_split}"
+            index=$(($index + $numb_samples_to_split))
+            dynamic_CMD["job_$i"]=$CMD
+            orders+=( "job_$i" )
+        fi
+    done
+    printf "Jobs to run: ${!dynamic_CMD[*]}.\n"
+    WORKDIR="$WORKDIR/batched_run"
+    if [ ! -d $WORKDIR ];then
+        mkdir "$WORKDIR"
+    fi
+
+else
+    printf "Total number of samples is smaller than 50. Will process them all in one batch.\n"
+    while read line;do CMD="$CMD --bam=${line}";done < $BAM_DATA
+fi
 
 cat > $WORKDIR/configureStrelka.sbatch <<EOL
 #!/bin/bash
@@ -105,7 +139,7 @@ cd \$scratch_out
 srun="srun -N1 -n1 --slurmd-debug 3"
 parallel="parallel --delay 0.2 -j \$SLURM_NTASKS  --env timestamp --joblog parallel.log --resume-failed"
 echo "\$(timestamp) -> Job started! Configuring a new workflow running script.."
-\$srun shifter $CMD
+\$srun shifter \$1
 echo "\$(timestamp) -> Configuration completed. Will run now workflow."
 runWorkflow="\$scratch_out/StrelkaGermlineWorkflow/runWorkflow.py -m local -j \$SLURM_CPUS_ON_NODE"
 \$srun shifter \$runWorkflow
@@ -114,7 +148,24 @@ echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"
 EOL
-sbatch $WORKDIR/configureStrelka.sbatch
-sleep 1 
-cd $WORKDIR
-mv configureStrelka.sbatch $(ls -td -- */ | head -n 1) 
+
+if [ "$batched" = "true" ]; then
+    echo "#!/bin/bash" > $WORKDIR/runStrelkaInBatches.sh
+    chmod +x $WORKDIR/runStrelkaInBatches.sh
+    previous_job=""
+    for key in "${orders[@]}"
+    do
+        if [ $key = "job_1" ];then
+            echo -e "$key=\$(sbatch $WORKDIR/configureStrelka.sbatch '${dynamic_CMD[$key]}')\n" >> $WORKDIR/runStrelkaInBatches.sh
+        else
+            echo -e "$key=\$(sbatch --dependency=afterok:\${${previous_job}##* } --kill-on-invalid-dep=yes $WORKDIR/configureStrelka.sbatch '${dynamic_CMD[$key]}')\n" >> $WORKDIR/runStrelkaInBatches.sh
+        fi
+        previous_job=$key
+    done
+    $WORKDIR/runStrelkaInBatches.sh
+else
+    sbatch $WORKDIR/configureStrelka.sbatch
+    sleep 1 
+    cd $WORKDIR
+    mv configureStrelka.sbatch $(ls -td -- */ | head -n 1) 
+fi

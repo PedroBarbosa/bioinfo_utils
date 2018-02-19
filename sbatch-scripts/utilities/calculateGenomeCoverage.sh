@@ -171,7 +171,7 @@ echo -e "\$header_hsmetrics" > final_collectHSmetrics_all.txt
 
 BAITS=\${bt/.bed/_b.picard}
 TARGETS=\${tg/.bed/_t.picard}
-CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
+CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --interval_merging=OVERLAPPING_ONLY --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
 ##PARALLEL CODE HAS SOME PROBLEMS. UNFORTUNETELY, THIS STEP NEEDS TO BE RUN ITERATIVELY
 ##echo \$CMD
 ##cat $BAM_DATA | \$parallel '\$srun \$CMD --INPUT={} --OUTPUT=HS_metrics.txt --PER_TARGET_COVERAGE=perTargetCov.txt' 
@@ -197,7 +197,7 @@ done
 
 if [ -f "$plottingExec" ];then
     printf "\$(timestamp): Plotting some of the results!"
-    \$srun shifter --image mcfonsecalab/python36_bio:latest python $plottingExec $PWD targeted
+    \$srun --image=mcfonsecalab/python36_bio:latest python $plottingExec $PWD targeted
 else
     printf "\$(timestamp): No plotting script found."
 fi
@@ -289,7 +289,7 @@ echo "\$(timestamp) -> Done!!!"
 
 if [ -f "$plottingExec" ];then
     printf "\$(timestamp): Plotting some of the results!"
-    \$srun shifter --image mcfonsecalab/python36_bio:latest python $plottingExec $PWD WGS
+    \$srun shifter --image=mcfonsecalab/python36_bio:latest python $plottingExec $PWD WGS
 else
     printf "\$(timestamp): No plotting script found."
 fi
