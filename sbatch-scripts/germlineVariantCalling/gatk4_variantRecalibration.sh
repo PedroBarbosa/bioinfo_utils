@@ -10,7 +10,7 @@ display_usage(){
     -5th argument must be a file listing the resources to employ for in the recalibration. Must be a 2 column tab separated file where first
     column must refer to the input file and second to the resource name. Available resources names: [hapmap,omni,1000G,dbsnp,mills]. At least
      one resource is mandatory.
-    -6th argument must the the mode to apply recalibration: (SNP,INDEL,BOTH)"
+    -6th argument must the the mode to apply recalibration: (SNP,INDEL,BOTH).\n"
  }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] || [ -z "$5" ] || [ -z "$6" ]; then
@@ -144,6 +144,8 @@ readPosRankSumTest="-an ReadPosRankSum" # It compares whether the positions of t
 CMD_RECALIBRATOR="$CMD_RECALIBRATOR $qualbydepth $fisherstrand $strandOddRatio $rmsMappingQuality $mappingQualRankSumTest $readPosRankSumTest"
 if [ "$experiment" = "WGS" ]; then
     CMD_RECALIBRATOR="$CMD_RECALIBRATOR $coverage"
+else
+    CMD_RECALIBRATOR="$CMD_RECALIBRATOR --max-gaussians 4" 
 fi
 
 
@@ -178,17 +180,18 @@ srun="srun -N1 -n1 --slurmd-debug 3 shifter"
 echo "\$(timestamp) -> Recalibration job started!"
 \$srun $CMD_RECALIBRATOR -O recalibration.out -tranches-file tranches.out --rscript-file output.plots.R
 echo "\$(timestamp) -> Done! Apllying VQSR now."
-CMD_APPLY_VQSR="gatk ApplyVQSR -R $REF -V $VCF --recal-file recalibration.out --tranches-file tranches.out -O out_vqsr.vcf.gz
+CMD_APPLY_VQSR="gatk ApplyVQSR -R $REF -V $VCF --recal-file recalibration.out --tranches-file tranches.out -O out_vqsr.vcf.gz"
 
-if [ "$MODE" = "SNP" ];
+if [ "$MODE" = "SNP" ]; then
     CMD_APPLY_VQSR="\$CMD_APPLY_VQSR --truth-sensitivity-filter-level 99.5 -mode SNP"
 elif [ "$MODE" = "INDEL" ]; then
-    CMD_APPLY_VQSR="\$CMD_APPLY_VQSR --ts_filter_level 99.0 -mode INDEL"
+    CMD_APPLY_VQSR="\$CMD_APPLY_VQSR --truth-sensitivity-filter-level 90.0 -mode INDEL"
 else
-    CMD_APPLY_VQSR="\$CMD_APPLY_VQSR --ts_filter_level 95.0 -mode BOTH"
+    CMD_APPLY_VQSR="\$CMD_APPLY_VQSR --truth-sensitivity-filter-level 95.0 -mode BOTH"
 fi
 \$srun \$CMD_APPLY_VQSR
 echo -e "\$(timestamp) -> Finished job."
+mv * ../\${SLURM_JOB_ID}_VQSR_gatk.log $OUTDIR
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"

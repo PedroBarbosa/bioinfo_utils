@@ -54,7 +54,7 @@ elif [ "$3" != "WGS" ]; then
         display_usage
         exit 1
     elif [[ ${5: -4} == ".bgz" && -f "${5}.tbi" ]]; then
-        CMD="$CMD --callRegions="$5""
+        CMD="$CMD --callRegions="$(readlink -f $5)""
     else
         printf "Invalid bed input for target regions. Please make sure you provide a bgzipped bed file (extension .bgz) in the 5th argument, and that in the same directory exists a tabix index of the bgz file.\n"
         display_usage
@@ -139,7 +139,11 @@ cd \$scratch_out
 srun="srun -N1 -n1 --slurmd-debug 3"
 parallel="parallel --delay 0.2 -j \$SLURM_NTASKS  --env timestamp --joblog parallel.log --resume-failed"
 echo "\$(timestamp) -> Job started! Configuring a new workflow running script.."
-\$srun shifter \$1
+if [ "$batched" = "true" ];then
+    \$srun shifter \$1
+else
+    \$srun shifter $CMD
+fi
 echo "\$(timestamp) -> Configuration completed. Will run now workflow."
 runWorkflow="\$scratch_out/StrelkaGermlineWorkflow/runWorkflow.py -m local -j \$SLURM_CPUS_ON_NODE"
 \$srun shifter \$runWorkflow
@@ -147,6 +151,7 @@ echo -e "\$(timestamp) -> Finished job."
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"
+cd ../ mv \$scratch_out \${SLURM_JOB_ID}_strelka2.log $OUTDIR
 EOL
 
 if [ "$batched" = "true" ]; then

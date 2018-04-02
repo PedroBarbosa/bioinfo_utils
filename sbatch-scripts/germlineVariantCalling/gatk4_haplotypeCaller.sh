@@ -61,6 +61,7 @@ fi
 
 re='^[0-9]+$'
 ##JOB SETTINGS""
+PARALLEL="true"
 if [[ -z "$7" || "$7" = "-" ]]; then
     if [ -z "$5" ] || [ "$5" = "true" ]; then
         NODES=1
@@ -70,6 +71,7 @@ if [[ -z "$7" || "$7" = "-" ]]; then
         NODES=1
         NTASKS=1
         CPUS=40
+        PARALLEL="false"
     else
         printf "Please set a valid value for the 5th argument (gnu parallel)\n"
         display_usage
@@ -90,6 +92,13 @@ else
         NODES=${array[0]}
         NTASKS=${array[1]}
         CPUS_PER_TASK=${array[2]}
+        if [ "$5" = "false" ]; then
+            PARALLEL="false"
+        elif [ "$5" != "true" ]; then
+            printf "Error. Please set a valid value for the 5th argument (gnu parallel flag).\n"
+            display_usage
+            exit 1
+        fi
     else 
         printf "ERROR. 3 fields are required for the 9th argument (nodes,tasks,cpus per task). You set a different number.\n"
         display_usage
@@ -97,11 +106,21 @@ else
     fi
 fi
 
-
+if [ -n "$8" ] && [ -f "$8" ]; then
+    #CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --dbsnp $8"
+    CMD="gatk ${JAVA_Xmx} HaplotypeCaller --dbsnp $8"
+elif [ -n "$8" ]; then
+    printf "8th argument is not valid file. If you want to use it, please set it properly.\n"
+    display_usage
+    exit 1
+else
+    #CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark"
+    CMD="gatk ${JAVA_Xmx} HaplotypeCaller"
+fi
 ##CMD##
 ref_2bit="$(basename $REF)"
-#CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit -ERC GVCF"
-CMD="gatk ${JAVA_Xmx} HaplotypeCaller --TMP_DIR=/home/pedro.barbosa/scratch --reference $REF -ERC GVCF"
+#CMD="$CMD --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit -ERC GVCF"
+CMD="$CMD --TMP_DIR=/home/pedro.barbosa/scratch --reference $REF -ERC GVCF"
 #createOutputVariantIndex true [missing this arg. Needed to add extra step of generating index for genomicsDB import through IndexFeatureFile utility]
 #SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS]"
 ###MODE####
@@ -125,16 +144,15 @@ elif [ "$3" != "WGS" ]; then
     fi  
 fi
 
-
 ##Dbsnp file###
 cat > $WORKDIR/haplotypeCaller_GVCF.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=gatk_hc
 #SBATCH --time=72:00:00
-#SBATCH --mem=240G
+#SBATCH --mem=100G
 #SBATCH --nodes=$NODES
 #SBATCH --ntasks=$NTASKS
-#SBATCH --cpus-per-task=$CPUS
+#SBATCH --cpus-per-task=$CPUS_PER_TASK
 #SBATCH --image=broadinstitute/gatk:latest
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/%j_gatk_hc.log
