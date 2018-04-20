@@ -339,7 +339,7 @@ def main():
                                                                       'to pass the filtering stage.')
     parser.add_argument('-c','--firstConsequence', action='store_true', help='Flag to apply filters on just the first consequence. Default: Applies to all. Particularly important when using ANN filters')
     parser.add_argument('-t','--transcriptIDs',help='File with ensembl transcript IDs to keep variant consequence within the ANN field.')
-    parser.add_argument('-l','--location', help='Try to classify each variant as deep intronic/intronic/spliceSite/exonic based on an input bed file.')
+    parser.add_argument('-l','--location', help='Try to classify each variant as deep intronic/intronic/spliceSite/exonic based on an input EXONIC bed file.')
     parser.add_argument("-o", "--output", required=True, help='Basename to write output files.')
     args = parser.parse_args()
 
