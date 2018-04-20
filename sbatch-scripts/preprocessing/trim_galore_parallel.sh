@@ -6,7 +6,7 @@ display_usage(){
     -2nd argument must be the minimum Phred quality score to trim low quality ends from reads (in addition to adpaters).
     -3rd argument must be the minimum length allowed in a read after its processing.
     -4th argument must be set to turn on/off FastQC on the fastq file once trimming is complete.Values [true|false]. 
-    -5th argument must be the output directory.
+    -5th argument must be the output directory. If '-' is set, output directory will be the same as the parent of the input fastq
     -6th argument is optional. Refers to the stringency value. Default: 5.
     -7th argument is optional. If set, turns off/on GNU parallel. Values [true|false]. Default: true.
     -8th argument is optional. Refers to the adapter sequence to trim. By default, trim_galore auto detects it. Values: [DNA sequence| -]
@@ -75,7 +75,9 @@ if [ ! -d $workdir ]; then
     mkdir $workdir
 fi
 
-if [ ! -d $5 ]; then
+if [ "$5" == "-" ]; then
+    outdir="{//}"
+elif [ ! -d $5 ]; then
     outdir=$(readlink -f "$5")
     mkdir $outdir
 else
@@ -91,37 +93,45 @@ while read -r file; do
    fi
 done < "$1"
 fastq_data=$(readlink -f "$1")
-cmd="$cmd --gzip --length $3 --trim-n --max_n 2 --paired -o $workdir -q $2"
+cmd="$cmd --gzip --length $3 --trim-n --max_n 2 --paired -q $2"
 
 
 cat > $workdir/runTrimGalore.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=trimGalore
-#SBATCH --output=/home/pedro.barbosa/scratch/trim_galore/%j_trim_galore.out
 #SBATCH --mail-user=pedro.barbosa@medicina.ulisboa.pt
 #SBATCH --time=72:00:00
 #SBATCH --mem=230G
-#SBATCH --nodes=1
-#SBATCH --ntasks=10
+#SBATCH --nodes=2
+#SBATCH --ntasks=20
 #SBATCH --cpus-per-task=3
 #SBATCH --workdir=$workdir
 #SBATCH --image=docker:argrosso/htspreprocessing:0.1.1
 #SBATCH --export=ALL
+#SBATCH --output=%j_trimGalore.log
 
+
+scratch_workdir="$workdir/\$SLURM_JOB_ID"
+mkdir \$scratch_workdir
+cd \$scratch_workdir
+
+echo \$scratch_workdir
 if [ "$runParallel" = "true" ]; then
 	srun="srun --exclusive -N1 -n1"
-	parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --joblog parallel.log --resume-failed" 
-	time cat "$fastq_data" | grep -v "R2" | \$parallel '\$srun shifter $cmd {} {=s/R1/R2/=}'
+	parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --joblog parallel.log --resume-failed"
+        time cat "$fastq_data" | grep -v "R2" | \$parallel 'mkdir {/.}; cd {/.}; \$srun shifter $cmd {} {=s/R1/R2/=}; mv * $outdir; cd ../; rm -rf {/.}'
 else
 	for file1 in \$(find \$(dirname $fastq_data) -type f -name \$(basename $fastq_data) -exec cat {} \; | grep -v "R2"); 
 		do f2=\$(echo \$file1 | sed 's/R1/R2/');
-      		echo $\file1
-		echo $\file2
 		time srun -N1 -n1 --exclusive shifter $cmd \$file1 \$f2; done
+                if [ $outdir = {//} ]; then
+                    mv \${file1}* \${f2}* \$(dirname \$file1)
+                fi
 fi
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID 
-mv $workdir/* $outdir
+if [ $outdir != {//} ]; then
+    mv * $outdir
+fi
 EOL
-
 sbatch $workdir/runTrimGalore.sbatch 

@@ -10,7 +10,7 @@ display_usage(){
     -5th argument is optional. If set to false, GNU parallel will be disabled to run the set of samples provided in the 1st argument. Options: [true|false]. Default: true, GNU parallel is used to parallelize the job.
     -6th argument must be provided when the data comes from a targeted experiment. Refers to the target intervals in bed format. Use '-' to skip this argument.
     -7th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,8,5 if GNU parallel (5th argument) is true; 1,1,40 if GNU parallel is false. '-' skips this argument. Setting this argument will override any settings assumed by GNU parallel option.
-    -8th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID.\n"
+    -8th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID. Must be blocked compressed\n"
 }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
@@ -171,6 +171,11 @@ echo "\$(timestamp) -> Job started!"
 echo "\$(timestamp) -> Converting reference fasta file to 2bit format for HaplotypeCallerSpark"
 \$srun --image=mcfonsecalab/htstools_plus:latest faToTwoBit $REF ${ref_2bit%.*}.2bit
 echo "\$(timestamp) -> Done"
+#if [ ! -z "$8" ]; then
+#    echo "\$(timestamp) -> Known variants file was provided. An index needs to be created.."
+#    \$srun gatk IndexFeatureFile -F "$8"
+#    echo "\$(timestamo) -> Done."
+#fi
 if [ "$PARALLEL" == "true" ]; then
 #    cat $BAM_DATA | \$parallel  'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf $SPARK && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
     cat $BAM_DATA | \$parallel 'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
