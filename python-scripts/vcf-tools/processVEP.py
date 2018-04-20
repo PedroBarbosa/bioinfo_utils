@@ -6,6 +6,7 @@ import sys
 import operator
 import os
 from collections import OrderedDict, defaultdict
+from pybedtools import BedTool
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,  format='%(asctime)s %(message)s')
 
 
@@ -16,40 +17,34 @@ totalVariants=0
 passedVariants=0
 partialPassed=0
 allFailed=0
-siftcounts=0
+exonic,fiveprime_ss,threeprime_ss,near5prime,near3prime,deepintronic,ultradeepintronic=0,0,0,0,0,0,0
 def updateTotalVariants():
     global totalVariants
     totalVariants +=1
-    return totalVariants
 
 def updateVariantsPassingFilters():
     global passedVariants
     passedVariants +=1
-    return passedVariants
 
 def updateVariantsPartiallyPassing():
     global partialPassed
     partialPassed +=1
-    return partialPassed
 
 def updateVariantsFailing():
     global allFailed
     allFailed +=1
-    return allFailed
+
 def updateMultipleTranscriptMatch():
     global multipleTranscriptMatch
     multipleTranscriptMatch+=1
-    return multipleTranscriptMatch
 
 def updateNoTranscriptMatch():
     global noTranscriptMatch
     noTranscriptMatch+=1
-    return noTranscriptMatch
 
 def updateTranscriptMatch():
     global transcriptMatch
     transcriptMatch+=1
-    return transcriptMatch
 
 def checkFileExists(file):
     try:
@@ -60,7 +55,52 @@ def transcriptIDsToList(transcripts):
     with open(transcripts,"r") as infile:
         return [line.split(".")[0] for line in infile]
 
+def getLocation(distance,ranges):
+    try:
+        return [r[2] for r in ranges if r[0] <= int(distance) <= r[1]][0]
+    except:
+        print(distance)
+
+def updateglobalsLocation(location):
+    global exonic
+    global fiveprime_ss
+    global threeprime_ss
+    global near5prime
+    global near3prime
+    global deepintronic
+    global ultradeepintronic
+    if location == "ultra_deep_intronic":
+        ultradeepintronic+=1
+    elif location == "deep_intronic":
+        deepintronic+=1
+    elif location == "near_3prime_ss_intronic":
+        near3prime+=1
+    elif location == "3_prime_ss_intronic":
+        threeprime_ss+=1
+    elif location == "exonic":
+        exonic+=1
+    elif location == "5_prime_ss_intronic":
+        fiveprime_ss+=1
+    elif location == "near_5prime_ss_intronic":
+        near5prime+=1
+
+def computeFromBed(vcfrecord,bedtoolObj,loc_simple,loc_complex):
+    for alt in vcfrecord.ALT:
+        if len(vcfrecord.REF) <= len(alt) : #SNP or #Insertions
+            record_bed=BedTool('{} {} {}'.format(vcfrecord.CHROM,vcfrecord.POS-1,vcfrecord.POS), from_string=True)
+        else: #Deletions
+            record_bed=BedTool('{} {} {}'.format(vcfrecord.CHROM,vcfrecord.POS-1,vcfrecord.POS + len(vcfrecord.REF)-len(alt)), from_string=True)
+
+        isec=record_bed.closest(bedtoolObj,D="b")#d=True)#,wb=False)
+        simple=getLocation(str(isec).rstrip().split()[-1],loc_simple)
+        complex=getLocation(str(isec).rstrip().split()[-1],loc_complex)
+        updateglobalsLocation(complex)
+        vcfrecord.INFO["LOC"] = simple
+        vcfrecord.INFO["LOC_DETAIL"] = complex
+        return vcfrecord
+
 def filterVEPtranscripts(vcfrecord,transcripts,anno_fields):
+
     consequences=vcfrecord.INFO["ANN"]
     new_ann=[]
     new_variant=True
@@ -214,21 +254,19 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
     elif all("FAIL" in x[1] for x in filter_result):
         updateVariantsFailing()
 
-def vcfreader(invcf,transcriptIDs,filterConfig,bedLotation,outbasename,noneValues,permissive,just1stConsequence):
+def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence):
     vcf_reader = vcf.Reader(filename=invcf)
     vcf_writer = vcf.Writer(open(outbasename + '_filtered.vcf', 'w'), vcf_reader)
+
     checkFileExists(outbasename + "_failedFilter.txt")
     anno_fields=[]
-    filters=False
-    transcripts=False
-    bedLocation=False
+    filters,transcripts,location=False,False,False
 
     if not "ANN" in vcf_reader.infos.keys():
         logging.error("VCF record doesn't seem to have the required ANN field to process transcript consequences or filters usually found within such field.")
         exit(1)
     else:
         anno_fields = vcf_reader.infos["ANN"][3].split(":")[1].lstrip().split("|")
-        print(anno_fields)
     if filterConfig:
         filters=True
         checkValidFiltersSyntax(filterConfig,[],operation=True)
@@ -241,6 +279,13 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLotation,outbasename,noneValue
         transcripts=True
         transcripts_list=transcriptIDsToList(transcriptIDs)
 
+    if bedLocation:
+        location=True
+        myBedTool = BedTool(bedLocation)
+        loc_simple = [(-1000000, -101, "deep_intronic"), (-100, -1, "near_ss_intronic"), (0, 0, "exonic"),
+                         (1, 100, "near_ss_intronic"), (101, 1000000, "deep_intronic")]
+        loc_complex = [(-1000000,-100001,"ultra_deep_intronic"),(-100000, -101, "deep_intronic"), (-100, -21, "near_3prime_ss_intronic"), (-20,-1,"3_prime_ss_intronic"),
+                       (0, 0, "exonic"), (1, 6, "5_prime_ss_intronic"), (7, 100, "near_5prime_ss_intronic"),(101,100000,"deep_intronic"),(100001,1000000,"ultra_deep_intronic")]
     for record in vcf_reader:
         updateTotalVariants()
         if not "*" in record.ALT:
@@ -249,6 +294,9 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLotation,outbasename,noneValue
 
             if record and transcripts :
                 record=filterVEPtranscripts(record,transcripts_list,anno_fields,just1stConsequence)
+
+            if record and location:
+                record=computeFromBed(record,myBedTool,loc_simple,loc_complex)
 
             if record:
                 vcf_writer.write_record(record)
@@ -266,11 +314,18 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLotation,outbasename,noneValue
         logging.info("{}\t{}".format("Number of variants failing the filters:", allFailed))
 
     if transcripts:
-        logging.info("\n{}\t{}".format("Number of variants filtered with match to transcriptIDs:",transcriptMatch))
+        logging.info("{}\t{}".format("Number of variants filtered with match to transcriptIDs:",transcriptMatch))
         logging.info("{}\t{}".format("Number of variants filtered with NO match to transcriptIDs:", noTranscriptMatch))
         logging.info("{}\t{}".format("Number of variants filtered with multiple matches to transcriptIDs:", multipleTranscriptMatch))
 
-
+    if location:
+        logging.info("{}\t{}".format("Exonic variants:", exonic))
+        logging.info("{}\t{}".format("5' prime intronic splice site variants (up to 6th bp within the intron):",fiveprime_ss))
+        logging.info("{}\t{}".format("Downstream near 5' prime intronic splice site variants (6th up to the 100th bp within the intron):", near5prime))
+        logging.info("{}\t{}".format("Upstream near 3' prime intronic splice site variants (100th up to the 20th bp on the 3' region of an intron):", near3prime))
+        logging.info("{}\t{}".format("3' prime intronic splice site variants (20th up to the last bp of the intron):", threeprime_ss))
+        logging.info("{}\t{}".format("Deep intronic variants (100bp < pos < 100000) within the intron:",deepintronic))
+        logging.info("{}\t{}".format("Ultra deep intronic variants (100bp < pos < 100000) within the intron:", ultradeepintronic))
 
 def main():
     parser = argparse.ArgumentParser(
@@ -288,7 +343,7 @@ def main():
     parser.add_argument("-o", "--output", required=True, help='Basename to write output files.')
     args = parser.parse_args()
 
-    if not args.filter and not args.transcriptIDs and not args.deepIntronic:
+    if not args.filter and not args.transcriptIDs and not args.location:
         logging.error("ERROR: No operation was set. Please specificy '-f', '-t', '-l' or  a combination of them.")
         exit(1)
 
