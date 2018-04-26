@@ -198,7 +198,7 @@ done
 
 if [ -f "$plottingExec" ];then
     printf "\$(timestamp): Plotting some of the results!"
-    \$srun --image=mcfonsecalab/python36_bio:latest python $plottingExec $PWD targeted
+    \$srun --image=mcfonsecalab/python36_bio:latest python $plottingExec \$scratch_out targeted
 else
     printf "\$(timestamp): No plotting script found."
 fi
@@ -290,7 +290,7 @@ echo "\$(timestamp) -> Done!!!"
 
 if [ -f "$plottingExec" ];then
     printf "\$(timestamp): Plotting some of the results!"
-    \$srun shifter --image=mcfonsecalab/python36_bio:latest python $plottingExec $PWD WGS
+    \$srun shifter --image=mcfonsecalab/python36_bio:latest python $plottingExec \$scratch_out WGS
 else
     printf "\$(timestamp): No plotting script found."
 fi

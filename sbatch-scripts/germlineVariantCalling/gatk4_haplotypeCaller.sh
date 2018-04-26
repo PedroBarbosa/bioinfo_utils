@@ -225,6 +225,7 @@ fi
 echo "\$(timestamp) -> Done! Genotyping gVCFs stored in the GenomicsDB database."
 \$srun gatk GenotypeGVCFs --variant combined.g.vcf.gz -R $REF --output joint.vcf.gz
 #\$srun gatk GenotypeGVCFs --variant gendb://workspace -R $REF --output joint.vcf.gz
+mv * $OUTDIR
 echo -e "\$(timestamp) -> Finished job."
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
