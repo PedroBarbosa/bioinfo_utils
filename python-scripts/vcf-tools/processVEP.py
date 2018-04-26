@@ -132,17 +132,17 @@ def checkValidFiltersSyntax(filtersFile,anno_fields,attributes=None,operation=Fa
         #operations = np.genfromtxt(filtersFile, dtype=str, delimiter='\t', usecols=(2))
         #operations = np.atleast_1d(operations)
         for v in operations:
-            for op in v.rstrip().split("_"):
+            for op in v.rstrip().split(";"):
                 if op not in ops:
                     logging.error("ERROR. Invalid operation found in 3rd column of filter file: [{}]".format(op))
                     exit(1)
 
         for v in op_values:
-            if "_" in v:
-                for val in v.split("_"):
+            if ";" in v:
+                for val in v.split(";"):
                     try:
                         float(val)
-                        logging.error("ERROR. Multiple values (splitted by '_') per filter on the 2nd column ({}) are only available when comparing strings (e.g contains operation).".format(val))
+                        logging.error("ERROR. Multiple values (splitted by ';') per filter on the 2nd column ({}) are only available when comparing strings (e.g contains operation).".format(val))
                         exit(1)
                     except ValueError:
                         continue
@@ -193,7 +193,7 @@ def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,jus
                 except ValueError:
                     try:
                         inlength=len(filter_result)
-                        for value in filters[0].split("_"):
+                        for value in filters[0].split(";"):
                             if ops[filters[1]](cons_fiels[anno_fields.index(attr)], value):
                                 filter_result.append((attr, "PASS"))
                                 passed_detected=True
@@ -223,22 +223,48 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
         if not attr in vcfrecord.INFO:
             filter_result=applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,filter_result)
         else:
-            if vcfrecord.INFO[attr] is None:
-                if noneDiscard == False:
-                    filter_result.append((attr,"PASS_asNA"))
+            try:
+                A=vcfrecord.INFO[attr]
+                inlength = len(filter_result)
+                if vcfrecord.INFO[attr] is None:
+                    if noneDiscard == False:
+                        filter_result.append((attr,"PASS_asNA"))
+                    else:
+                        filter_result.append((attr, "FAIL_asNA"))
+                elif isinstance(vcfrecord.INFO[attr], list) and vcfrecord.INFO[attr][0] is None:
+                    if noneDiscard == False:
+                        filter_result.append((attr, "PASS_asNA"))
+                    else:
+                        filter_result.append((attr, "FAIL_asNA"))
+
+                elif isinstance(vcfrecord.INFO[attr], list) and ops[filters[1]](float(vcfrecord.INFO[attr][0]), float(filters[0])):
+                    filter_result.append((attr, "PASS"))
+
+                elif isinstance(vcfrecord.INFO[attr], float) and ops[filters[1]](vcfrecord.INFO[attr], float(filters[0])):
+                    filter_result.append((attr, "PASS"))
+
                 else:
-                    filter_result.append((attr, "FAIL_asNA"))
-            elif isinstance(vcfrecord.INFO[attr], list) and vcfrecord.INFO[attr][0] is None:
-                if noneDiscard == False:
-                    filter_result.append((attr, "PASS_asNA"))
+                    filter_result.append((attr, "FAIL"))
+
+            except ValueError:
+                if isinstance(vcfrecord.INFO[attr], list):
+                    found=False
+                    for i in range(0,len(vcfrecord.INFO[attr])):
+                        for value in filters[0].split(";"):
+                            if ops[filters[1]](vcfrecord.INFO[attr][i], value):
+                                filter_result.append((attr, "PASS"))
+                                found=True
+                                break
+                        if found:
+                            break
+                    if len(filter_result) == inlength:  # no match for multiple filters, thus fail
+                        filter_result.append((attr, "FAIL"))
+
+                elif isinstance(vcfrecord.INFO[attr], float) and ops[filters[1]](vcfrecord.INFO[attr], filters[0]):
+                    logging.info("Are you comparing alhos com bogalhos?")
+                    exit(1)
                 else:
-                    filter_result.append((attr, "FAIL_asNA"))
-            elif isinstance(vcfrecord.INFO[attr], list) and ops[filters[1]](float(vcfrecord.INFO[attr][0]), float(filters[0])):
-                filter_result.append((attr, "PASS"))
-            elif isinstance(vcfrecord.INFO[attr], float) and ops[filters[1]](vcfrecord.INFO[attr], float(filters[0])):
-                filter_result.append((attr, "PASS"))
-            else:
-                filter_result.append((attr, "FAIL"))
+                    filter_result.append((attr, "FAIL"))
 
     with open(outfailed + '_filteringOutput.tsv','a') as filtout:
         filtout.write(str(vcfrecord) + "\t" + '\t'.join([x[1] for x in filter_result]) + "\n")
@@ -254,7 +280,7 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
     elif all("FAIL" in x[1] for x in filter_result):
         updateVariantsFailing()
 
-def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence):
+def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence,noANNO):
     vcf_reader = vcf.Reader(filename=invcf)
     vcf_writer = vcf.Writer(open(outbasename + '_filtered.vcf', 'w'), vcf_reader)
 
@@ -262,11 +288,12 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
     anno_fields=[]
     filters,transcripts,location=False,False,False
 
-    if not "ANN" in vcf_reader.infos.keys():
+    if not "ANN" in vcf_reader.infos.keys() and noANNO==False:
         logging.error("VCF record doesn't seem to have the required ANN field to process transcript consequences or filters usually found within such field.")
         exit(1)
-    else:
+    elif noANNO==False:
         anno_fields = vcf_reader.infos["ANN"][3].split(":")[1].lstrip().split("|")
+        print(anno_fields)
     if filterConfig:
         filters=True
         checkValidFiltersSyntax(filterConfig,[],operation=True)
@@ -329,15 +356,16 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Script to process VCF vep output useful data from a genome coverage analysis performed with GAT4K4. Matplotlib is required')
+        description='Script to process VCF vep output by several means')
     parser.add_argument(dest='vcf',  help='Path to the vcf')
     parser.add_argument('-f','--filter', help='Auxiliar tab delimited file with the INFO attributes to filter. E.g: "AF 0.01    greater". Valid operations for '
-                                              'the 3rd col: [greater,lower,equal,contains]. "_" may be used to apply multiple operations.')
+                                              'the 3rd col: [greater,lower,equal,contains]. ";" may be used to apply multiple operations.')
     parser.add_argument('-n','--none', action='store_true', help='Flag to disable None values (.) for specific filter to count as passing. E.g prediction tools with None assignments should not count as passing filters. '
                                                                  'Default: None values are treated as passing the filters (e.g 1000G mafs')
     parser.add_argument('-p','--permissive', action='store_true', help='Flag to allow the script to accept any variant that passes at least 1 filter, Default: A variant must comply with ALL the filters supplied in order'
                                                                       'to pass the filtering stage.')
     parser.add_argument('-c','--firstConsequence', action='store_true', help='Flag to apply filters on just the first consequence. Default: Applies to all. Particularly important when using ANN filters')
+    parser.add_argument('-a', '--noANNO', action='store_true',help='Input VCF does not contain ANNO field. Flag to disable ANNO field check up. By default, ANNO is required (e.g.snpsift/snpeff, VEP output)')
     parser.add_argument('-t','--transcriptIDs',help='File with ensembl transcript IDs to keep variant consequence within the ANN field.')
     parser.add_argument('-l','--location', help='Try to classify each variant as deep intronic/intronic/spliceSite/exonic based on an input EXONIC bed file.')
     parser.add_argument("-o", "--output", required=True, help='Basename to write output files.')
@@ -347,7 +375,7 @@ def main():
         logging.error("ERROR: No operation was set. Please specificy '-f', '-t', '-l' or  a combination of them.")
         exit(1)
 
-    vcfreader(args.vcf,args.transcriptIDs,args.filter,args.location,args.output,args.none,args.permissive,args.firstConsequence)
+    vcfreader(args.vcf,args.transcriptIDs,args.filter,args.location,args.output,args.none,args.permissive,args.firstConsequence,args.noANNO)
 if __name__ == "__main__":
     main()
 
