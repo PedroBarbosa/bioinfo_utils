@@ -86,7 +86,11 @@ def updateglobalsLocation(location):
 
 def computeFromBed(vcfrecord,bedtoolObj,loc_simple,loc_complex):
     for alt in vcfrecord.ALT:
-        if len(vcfrecord.REF) <= len(alt) : #SNP or #Insertions
+        print(vcfrecord)
+        if not alt:
+            logging.info("{} record may have an invalid VCF syntax to represent a deletion event.".format(vcfrecord))
+            record_bed=BedTool('{} {} {}'.format(vcfrecord.CHROM,vcfrecord.POS-1,vcfrecord.POS + len(vcfrecord.REF)-0, from_string=True))
+        elif len(vcfrecord.REF) <= len(alt) : #SNP or #Insertions
             record_bed=BedTool('{} {} {}'.format(vcfrecord.CHROM,vcfrecord.POS-1,vcfrecord.POS), from_string=True)
         else: #Deletions
             record_bed=BedTool('{} {} {}'.format(vcfrecord.CHROM,vcfrecord.POS-1,vcfrecord.POS + len(vcfrecord.REF)-len(alt)), from_string=True)
@@ -281,8 +285,8 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
         updateVariantsFailing()
 
 def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence,noANNO):
-    vcf_reader = vcf.Reader(filename=invcf)
-    vcf_writer = vcf.Writer(open(outbasename + '_filtered.vcf', 'w'), vcf_reader)
+    vcf_reader = vcf.Reader(filename=invcf,encoding='utf-8')
+    vcf_writer = vcf.Writer(open(outbasename + '_filtered.vcf', 'w', encoding='utf-8'), vcf_reader)
 
     checkFileExists(outbasename + "_failedFilter.txt")
     anno_fields=[]
