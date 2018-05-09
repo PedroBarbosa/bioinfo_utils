@@ -1,5 +1,5 @@
 import numpy as np
-import vcf
+from cyvcf2 import VCF, Writer
 import argparse
 import logging
 import sys
@@ -283,18 +283,19 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
         updateVariantsFailing()
 
 def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence,noANNO):
-    vcf_reader = vcf.Reader(filename=invcf,encoding='utf-8')
-    vcf_writer = vcf.Writer(open(outbasename + '_filtered.vcf', 'w', encoding='utf-8'), vcf_reader)
+    vcf_reader = VCF(fname=invcf,gts012=True)
+    vcf_writer = Writer(outbasename + '_filtered.vcf', vcf_reader)
+
 
     checkFileExists(outbasename + "_failedFilter.txt")
     anno_fields=[]
     filters,transcripts,location=False,False,False
 
-    if not "ANN" in vcf_reader.infos.keys() and noANNO==False:
+    if not "ANN" in vcf_reader.INFO.keys() and noANNO==False:
         logging.error("VCF record doesn't seem to have the required ANN field to process transcript consequences or filters usually found within such field.")
         exit(1)
     elif noANNO==False:
-        anno_fields = vcf_reader.infos["ANN"][3].split(":")[1].lstrip().split("|")
+        anno_fields = vcf_reader.INFO["ANN"][3].split(":")[1].lstrip().split("|")
         logging.info("ANNO fields present in VCF:  {}".format(anno_fields))
     if filterConfig:
         filters=True
@@ -315,29 +316,24 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
                          (1, 100, "near_ss_intronic"), (101, 1000000, "deep_intronic")]
         loc_complex = [(-1000000,-100001,"ultra_deep_intronic"),(-100000, -101, "deep_intronic"), (-100, -21, "near_3prime_ss_intronic"), (-20,-1,"3_prime_ss_intronic"),
                        (0, 0, "exonic"), (1, 6, "5_prime_ss_intronic"), (7, 100, "near_5prime_ss_intronic"),(101,100000,"deep_intronic"),(100001,1000000,"ultra_deep_intronic")]
-    try:
-        for record in vcf_reader:
-            print(record)
-            updateTotalVariants()
-            if not "*" in record.ALT and record.ALT != None:
-                if filters:
-                    record=applyFilter(record,filters_dict,anno_fields,noneValues,permissive,just1stConsequence,outbasename)
+    for record in vcf_reader:
+        updateTotalVariants()
+        if not "*" in record.ALT and record.ALT != None:
+            if filters:
+                record=applyFilter(record,filters_dict,anno_fields,noneValues,permissive,just1stConsequence,outbasename)
 
-                if record and transcripts :
-                    record=filterVEPtranscripts(record,transcripts_list,anno_fields,just1stConsequence)
+            if record and transcripts :
+                record=filterVEPtranscripts(record,transcripts_list,anno_fields,just1stConsequence)
 
-                if record and location:
-                    record=computeFromBed(record,myBedTool,loc_simple,loc_complex)
+            if record and location:
+                record=computeFromBed(record,myBedTool,loc_simple,loc_complex)
 
-                if record:
-                    vcf_writer.write_record(record)
-            else:
-                with open(outbasename + '_failedFilter.txt', 'a') as failed:
-                    failed.write("{}\t{}\n".format(str(record), 'ALT allele asterisk'))
-                failed.close()
-    except UnicodeDecodeError:
-        print(vcf_reader)
-        print(record)
+            if record:
+                vcf_writer.write_record(record)
+        else:
+            with open(outbasename + '_failedFilter.txt', 'a') as failed:
+                failed.write("{}\t{}\n".format(str(record), 'ALT allele asterisk'))
+            failed.close()
 
     vcf_writer.close()
     logging.info("{}\t{}".format("Total number of variants:",totalVariants))
