@@ -219,7 +219,7 @@ def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,jus
     return filter_result
 
 def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirstConsequence,outfailed):
-    ops = {"equal_lower": operator.le, "lower_equal" : operator.le, "greater_equal" : operator.ge, "equal_greater" : operator.ge
+    ops = {"equal;lower": operator.le, "lower;equal" : operator.le, "greater;equal" : operator.ge, "equal;greater" : operator.ge
            , "lower" : operator.lt, "greater" : operator.gt, "equal" : operator.eq, "contains" : operator.contains}
 
     filter_result=[]
@@ -228,7 +228,6 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
             filter_result=applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,filter_result)
         else:
             try:
-                A=vcfrecord.INFO[attr]
                 inlength = len(filter_result)
                 if vcfrecord.INFO[attr] is None:
                     if noneDiscard == False:
@@ -319,7 +318,7 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
                        (0, 0, "exonic"), (1, 6, "5_prime_ss_intronic"), (7, 100, "near_5prime_ss_intronic"),(101,100000,"deep_intronic"),(100001,1000000,"ultra_deep_intronic")]
     for record in vcf_reader:
         updateTotalVariants()
-        if not "*" in record.ALT:
+        if not "*" in record.ALT or not "." in record.ALT:
             if filters:
                 record=applyFilter(record,filters_dict,anno_fields,noneValues,permissive,just1stConsequence,outbasename)
 
