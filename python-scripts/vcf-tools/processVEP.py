@@ -129,12 +129,15 @@ def filterVEPtranscripts(vcfrecord,transcripts,anno_fields):
 def checkValidFiltersSyntax(filtersFile,anno_fields,attributes=None,operation=False):
 
     if operation:
-        ops=["greater","lower","equal","contains"]
+        ops=["greater","lower","equal","contains","isnone"]
         operations = [x.rstrip().split('\t')[2] for x in open(filtersFile).readlines()]
         op_values = [x.rstrip().split('\t')[1] for x in open(filtersFile).readlines()]
         #operations = np.genfromtxt(filtersFile, dtype=str, delimiter='\t', usecols=(2))
         #operations = np.atleast_1d(operations)
         for v in operations:
+            if "isnone" and ";" in v:
+                logging.error("ERROR. isnone does not accept multiple operations.")
+                exit(1)
             for op in v.rstrip().split(";"):
                 if op not in ops:
                     logging.error("ERROR. Invalid operation found in 3rd column of filter file: [{}]".format(op))
@@ -167,6 +170,26 @@ def filtersToDict(filtersFile):
     operation=[x.rstrip().split('\t')[1:3] for x in open(filtersFile).readlines()]
     return OrderedDict(zip(attribute, operation))
 
+
+def isnone(attr,bool):
+    if attr is None and bool:
+        return True
+    elif attr is None:
+        return False
+    elif attr and bool:
+        return False
+    elif attr:
+        return True
+
+def str_to_bool(s):
+    if s == 'True':
+         return True
+    elif s == 'False':
+         return False
+    else:
+        logging.error("If using isnone operation, only boolean True and False values are accepted in the value [2nd column] field.")
+        exit(1)
+
 def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,filter_result):
     passed_detected=False
     dict_multiple_cons=defaultdict(list)
@@ -176,7 +199,14 @@ def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,jus
         #for i in range(0,len(anno_fields)):
         #    print(anno_fields[i],cons_fiels[i])
         if passed_detected == False:
-            if not cons_fiels[anno_fields.index(attr)]:
+            if filters[1] == "isnone":
+                if ops[filters[1]](cons_fiels[anno_fields.index(attr)], str_to_bool(filters[0])):
+                    filter_result.append((attr, "PASS"))
+                    passed_detected = True
+                else:
+                    dict_multiple_cons[attr].append("FAIL")
+
+            elif not cons_fiels[anno_fields.index(attr)]:
                 if noneDiscard == False:
                     filter_result.append((attr, "PASS_asNA"))
                     passed_detected=True
@@ -219,7 +249,7 @@ def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,jus
 
 def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirstConsequence,outfailed):
     ops = {"equal;lower": operator.le, "lower;equal" : operator.le, "greater;equal" : operator.ge, "equal;greater" : operator.ge
-           , "lower" : operator.lt, "greater" : operator.gt, "equal" : operator.eq, "contains" : operator.contains}
+           , "lower" : operator.lt, "greater" : operator.gt, "equal" : operator.eq, "contains" : operator.contains, "isnone":isnone}
 
     filter_result=[]
     for attr,filters in filterDict.items():
@@ -228,12 +258,18 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
         else:
             try:
                 inlength = len(filter_result)
-                if vcfrecord.INFO[attr] is None:
+                if filters[1] == "isnone":
+                    if ops[filters[1]](vcfrecord.INFO[attr], str_to_bool(filters[0])):
+                        filter_result.append((attr, "PASS"))
+                    else:
+                        filter_result.append((attr, "FAIL"))
+
+                elif vcfrecord.INFO[attr] is None and filters[1]:
                     if noneDiscard == False:
                         filter_result.append((attr,"PASS_asNA"))
                     else:
                         filter_result.append((attr, "FAIL_asNA"))
-                elif isinstance(vcfrecord.INFO[attr], list) and vcfrecord.INFO[attr][0] is None:
+                elif isinstance(vcfrecord.INFO[attr], list) and vcfrecord.INFO[attr][0] is None and filters[1]:
                     if noneDiscard == False:
                         filter_result.append((attr, "PASS_asNA"))
                     else:
@@ -242,13 +278,14 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
                 elif isinstance(vcfrecord.INFO[attr], list) and ops[filters[1]](float(vcfrecord.INFO[attr][0]), float(filters[0])):
                     filter_result.append((attr, "PASS"))
 
-                elif isinstance(vcfrecord.INFO[attr], float) and ops[filters[1]](vcfrecord.INFO[attr], float(filters[0])):
+                elif isinstance(vcfrecord.INFO[attr], float) or isinstance(vcfrecord.INFO[attr], int) and ops[filters[1]](vcfrecord.INFO[attr], float(filters[0])):
                     filter_result.append((attr, "PASS"))
 
                 else:
                     filter_result.append((attr, "FAIL"))
 
             except ValueError:
+
                 if isinstance(vcfrecord.INFO[attr], list):
                     found=False
                     for i in range(0,len(vcfrecord.INFO[attr])):
@@ -283,12 +320,14 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
         updateVariantsFailing()
 
 def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence,noANNO):
+    num_var= sum(1 for line in open(invcf,'r') if not line.startswith("#"))
     vcf_reader = vcf.Reader(filename=invcf,encoding='utf-8')
     vcf_writer = vcf.Writer(open(outbasename + '_filtered.vcf', 'w', encoding='utf-8'), vcf_reader)
 
     checkFileExists(outbasename + "_failedFilter.txt")
     anno_fields=[]
     filters,transcripts,location=False,False,False
+    old=""
 
     if not "ANN" in vcf_reader.infos.keys() and noANNO==False:
         logging.error("VCF record doesn't seem to have the required ANN field to process transcript consequences or filters usually found within such field.")
@@ -317,9 +356,13 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
                        (0, 0, "exonic"), (1, 6, "5_prime_ss_intronic"), (7, 100, "near_5prime_ss_intronic"),(101,100000,"deep_intronic"),(100001,1000000,"ultra_deep_intronic")]
     try:
         for record in vcf_reader:
-            print(record)
+            percentage=int(totalVariants/num_var*100)
+            if percentage in range(0,100,5) and percentage != old:
+                old=percentage
+                logging.info("Progress: {}%".format(percentage))
+
             updateTotalVariants()
-            if not "*" in record.ALT and record.ALT != None:
+            if record.ALT[0] != "*" and record.ALT[0] != None:
                 if filters:
                     record=applyFilter(record,filters_dict,anno_fields,noneValues,permissive,just1stConsequence,outbasename)
 

@@ -18,7 +18,7 @@ def parseVCF(invcf,outbasename,reportMultipleSamples):
             out.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(record.CHROM, record.POS, record.REF, record.ALT[0],
                                                         record.num_het, ';'.join(samples_het),record.num_hom_alt,';'.join(samples_homvar)))
     out.close()
-    if multiple_samples:
+    if multiple_samples and reportMultipleSamples:
         outlist = [[k,v]for k, v in multiple_samples.items() if len(v) > 1]
         if not outlist:
             print("{}".format("No samples carry more than one variant represented in the input VCF."))
