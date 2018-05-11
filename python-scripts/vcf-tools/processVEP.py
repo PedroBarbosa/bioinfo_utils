@@ -16,6 +16,7 @@ multipleTranscriptMatch = 0
 totalVariants=0
 passedVariants=0
 partialPassed=0
+conflictVariant=0
 allFailed=0
 exonic,fiveprime_ss,threeprime_ss,near5prime,near3prime,deepintronic,ultradeepintronic=0,0,0,0,0,0,0
 def updateTotalVariants():
@@ -29,6 +30,10 @@ def updateVariantsPassingFilters():
 def updateVariantsPartiallyPassing():
     global partialPassed
     partialPassed +=1
+
+def updateVariantsWithConflicts():
+    global conflictVariant
+    conflictVariant +=1
 
 def updateVariantsFailing():
     global allFailed
@@ -172,9 +177,9 @@ def filtersToDict(filtersFile):
 
 
 def isnone(attr,bool):
-    if attr is None and bool:
+    if attr is None or len(attr) == 0 and bool:
         return True
-    elif attr is None:
+    elif attr is None or len(attr) == 0:
         return False
     elif attr and bool:
         return False
@@ -190,51 +195,48 @@ def str_to_bool(s):
         logging.error("If using isnone operation, only boolean True and False values are accepted in the value [2nd column] field.")
         exit(1)
 
-def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,filter_result):
+def nextConsequence(reportConflicting):
+    if reportConflicting == False:
+        return True
+def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,reportConflicting,filter_result):
     passed_detected=False
     dict_multiple_cons=defaultdict(list)
     for consequences in vcfrecord.INFO["ANN"]:
         cons_fiels=consequences.split("|")
-
-        #for i in range(0,len(anno_fields)):
-        #    print(anno_fields[i],cons_fiels[i])
         if passed_detected == False:
             if filters[1] == "isnone":
                 if ops[filters[1]](cons_fiels[anno_fields.index(attr)], str_to_bool(filters[0])):
-                    filter_result.append((attr, "PASS"))
-                    passed_detected = True
+                    dict_multiple_cons[attr].append("PASS")
+                    passed_detected = nextConsequence(reportConflicting)
                 else:
                     dict_multiple_cons[attr].append("FAIL")
 
             elif not cons_fiels[anno_fields.index(attr)]:
                 if noneDiscard == False:
-                    filter_result.append((attr, "PASS_asNA"))
-                    passed_detected=True
+                    dict_multiple_cons[attr].append("PASS_asNA")
+                    passed_detected = nextConsequence(reportConflicting)
                 else:
                     dict_multiple_cons[attr].append("FAIL_asNA")
-                    #filter_result.append((attr, "FAIL_asNA"))
             else:
                 try:
                     a=float(cons_fiels[anno_fields.index(attr)])
                     b=float(filters[0])
                     if ops[filters[1]](a,b):
-                        filter_result.append((attr, "PASS"))
-                        passed_detected=True
+                        dict_multiple_cons[attr].append("PASS")
+                        passed_detected = nextConsequence(reportConflicting)
                     else:
                         dict_multiple_cons[attr].append("FAIL_asNA")
-                        #filter_result.append((attr, "FAIL"))
                 except ValueError:
                     try:
-                        inlength=len(filter_result)
+                        inlength=len(dict_multiple_cons[attr])
                         for value in filters[0].split(";"):
                             if ops[filters[1]](cons_fiels[anno_fields.index(attr)], value):
-                                filter_result.append((attr, "PASS"))
-                                passed_detected=True
+                                dict_multiple_cons[attr].append("PASS")
+                                passed_detected = nextConsequence(reportConflicting)
                                 break #substring found, no need to search more
 
-                        if len(filter_result) == inlength: #no match for multiple filters, thus fail
+                        if len(dict_multiple_cons[attr]) == inlength: #no match for multiple filters, thus fail
                             dict_multiple_cons[attr].append("FAIL")
-                            #filter_result.append((attr, "FAIL"))
 
                     except TypeError:
                         logging.error("Error. {} filter contains invalid operations ({}) given value obtained in the VCF record ({}) the value ({}) provided. Perhaps you are comparing strings? If so, use contains operation "
@@ -242,19 +244,29 @@ def applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,jus
                         exit(1)
         if justFirstConsequence:
             break
-    if not filter_result:
-        filter_result.append((attr,dict_multiple_cons[attr][0]))
+
+    if reportConflicting:
+        if not all(x == dict_multiple_cons[attr][0] for x in dict_multiple_cons[attr]):
+            filter_result.append((attr,"CONFLICT"))
+        else:
+            filter_result.append((attr,dict_multiple_cons[attr][0]))
+    else:
+        i_pass=[i for i, s in enumerate(dict_multiple_cons[attr]) if 'PASS' in s]
+        if i_pass:
+            filter_result.append((attr,dict_multiple_cons[attr][i_pass[0]]))
+        else:
+            filter_result.append((attr, dict_multiple_cons[attr][0]))
 
     return filter_result
 
-def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirstConsequence,outfailed):
+def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirstConsequence,reportConflicting,outfailed):
     ops = {"equal;lower": operator.le, "lower;equal" : operator.le, "greater;equal" : operator.ge, "equal;greater" : operator.ge
            , "lower" : operator.lt, "greater" : operator.gt, "equal" : operator.eq, "contains" : operator.contains, "isnone":isnone}
 
     filter_result=[]
     for attr,filters in filterDict.items():
         if not attr in vcfrecord.INFO:
-            filter_result=applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,filter_result)
+            filter_result=applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,reportConflicting,filter_result)
         else:
             try:
                 inlength = len(filter_result)
@@ -305,6 +317,7 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
                 else:
                     filter_result.append((attr, "FAIL"))
 
+
     with open(outfailed + '_filteringOutput.tsv','a') as filtout:
         filtout.write(str(vcfrecord) + "\t" + '\t'.join([x[1] for x in filter_result]) + "\n")
     filtout.close()
@@ -312,14 +325,32 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
     if all("PASS" in x[1] for x in filter_result):
         updateVariantsPassingFilters()
         return vcfrecord
-    elif any("PASS" in x[1] for x in filter_result):
+    elif any("PASS" in x[1] for x in filter_result) and not any("FAIL" in x[1] for x in filter_result):#if pass and conflict
+        updateVariantsPassingFilters()
+        updateVariantsWithConflicts()
+        return vcfrecord
+
+    elif any("PASS" in x[1] for x in filter_result):#if pass and fail
         updateVariantsPartiallyPassing()
-        if permissive == True:
+        if any("CONFLICT" in x[1] for x in filter_result):
+            updateVariantsWithConflicts()
+        if permissive:
             return vcfrecord
+    elif any("CONFLICT" in x[1] for x in filter_result) and not any("FAIL" in x[1] for x in filter_result):
+        updateVariantsPassingFilters()
+        updateVariantsWithConflicts()
+        return vcfrecord
+    elif any("CONFLICT" in x[1] for x in filter_result):
+        updateVariantsPartiallyPassing()
+        updateVariantsWithConflicts()
+        if permissive:
+            return vcfrecord
+
     elif all("FAIL" in x[1] for x in filter_result):
         updateVariantsFailing()
 
-def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence,noANNO):
+
+def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValues,permissive,just1stConsequence,reportConflicting,noANNO):
     num_var= sum(1 for line in open(invcf,'r') if not line.startswith("#"))
     vcf_reader = vcf.Reader(filename=invcf,encoding='utf-8')
     vcf_writer = vcf.Writer(open(outbasename + '_filtered.vcf', 'w', encoding='utf-8'), vcf_reader)
@@ -364,7 +395,7 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
             updateTotalVariants()
             if record.ALT[0] != "*" and record.ALT[0] != None:
                 if filters:
-                    record=applyFilter(record,filters_dict,anno_fields,noneValues,permissive,just1stConsequence,outbasename)
+                    record=applyFilter(record,filters_dict,anno_fields,noneValues,permissive,just1stConsequence,reportConflicting,outbasename)
 
                 if record and transcripts :
                     record=filterVEPtranscripts(record,transcripts_list,anno_fields,just1stConsequence)
@@ -387,7 +418,9 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
     if filters:
         logging.info("{}\t{}".format("Number of variants passing all the filters:",passedVariants))
         if len(filters_dict.keys()) > 1:
-            logging.info("{}\t{}".format("Number of variants passing at least one the filters:", partialPassed))
+            logging.info("{}\t{}".format("Number of variants partially passing the filters (at least 1):", partialPassed))
+        if reportConflicting:
+            logging.info("{}\t{}".format("Number of variants with conflict values for a given filter within the ANN field:", conflictVariant))
         logging.info("{}\t{}".format("Number of variants failing the filters:", allFailed))
 
     if transcripts:
@@ -415,6 +448,7 @@ def main():
     parser.add_argument('-p','--permissive', action='store_true', help='Flag to allow the script to accept any variant that passes at least 1 filter, Default: A variant must comply with ALL the filters supplied in order'
                                                                       'to pass the filtering stage.')
     parser.add_argument('-c','--firstConsequence', action='store_true', help='Flag to apply filters on just the first consequence. Default: Applies to all. Particularly important when using ANN filters')
+    parser.add_argument('-r','--reportConflicting', action='store_true', help='Flag to report conflicting filtering results when analyzing multiple consequences per variants in the ANN field')
     parser.add_argument('-a', '--noANNO', action='store_true',help='Input VCF does not contain ANNO field. Flag to disable ANNO field check up. By default, ANNO is required (e.g.snpsift/snpeff, VEP output)')
     parser.add_argument('-t','--transcriptIDs',help='File with ensembl transcript IDs to keep variant consequence within the ANN field.')
     parser.add_argument('-l','--location', help='Try to classify each variant as deep intronic/intronic/spliceSite/exonic based on an input EXONIC bed file.')
@@ -425,7 +459,7 @@ def main():
         logging.error("ERROR: No operation was set. Please specificy '-f', '-t', '-l' or  a combination of them.")
         exit(1)
 
-    vcfreader(args.vcf,args.transcriptIDs,args.filter,args.location,args.output,args.none,args.permissive,args.firstConsequence,args.noANNO)
+    vcfreader(args.vcf,args.transcriptIDs,args.filter,args.location,args.output,args.none,args.permissive,args.firstConsequence,args.reportConflicting,args.noANNO)
 if __name__ == "__main__":
     main()
 

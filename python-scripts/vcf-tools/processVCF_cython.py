@@ -290,7 +290,7 @@ def vcfreader(invcf,transcriptIDs,filterConfig,bedLocation,outbasename,noneValue
     checkFileExists(outbasename + "_failedFilter.txt")
     anno_fields=[]
     filters,transcripts,location=False,False,False
-
+    print(vcf_reader.INFO)
     if not "ANN" in vcf_reader.INFO.keys() and noANNO==False:
         logging.error("VCF record doesn't seem to have the required ANN field to process transcript consequences or filters usually found within such field.")
         exit(1)
