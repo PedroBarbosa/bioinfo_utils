@@ -46,8 +46,8 @@ def processIntronicBed(inbed,lengths,outbasename,featureType):
         plotIntrons(smallIntObj,outbasename,featureType,l)
 
 def main():
-    parser = argparse.ArgumentParser(description='Script to compute size of the introns as well as plot their distribution based on the bed feature')
-    parser.add_argument(dest='bed', help='Path to the intronic bed file')
+    parser = argparse.ArgumentParser(description='Script to compute size of the features as well as plot their distribution based on the bed feature name')
+    parser.add_argument(dest='bed', help='Path to the bed file')
     parser.add_argument('-l','--feature_length_bins', nargs='+', required=True, type=int,help='Intron size thresholds to write down and plot smaller introns')
     parser.add_argument("-o", "--output", required=True, help='Basename to write output files.')
     parser.add_argument("-t","--featureType",required=True, choices=("exon","intron"),help='Features represented in the input file')
