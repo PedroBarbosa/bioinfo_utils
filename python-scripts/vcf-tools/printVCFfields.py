@@ -8,6 +8,7 @@ def printFields(vcf,fields):
     for field in vcf_data.header_iter():
         if field["HeaderType"] == "INFO" and field["ID"] == "ANN":
             tools = field["Description"].split("Format:")[1][:-1].strip().split("|")
+            print(tools)
             for f in fields:
                 try:
                     indexes[f] = tools.index(f)
@@ -18,7 +19,7 @@ def printFields(vcf,fields):
     for record in vcf_data:
         outline=[]
         try:
-            info = record.INFO.get("ANN").split("|")
+            info = record.INFO.get("ANN").split(",")[0].split("|")
         except AttributeError:
             continue
         for f in fields:
