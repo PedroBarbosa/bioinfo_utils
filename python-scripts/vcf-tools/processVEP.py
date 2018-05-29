@@ -107,7 +107,11 @@ def computeFromBed(vcfrecord,bedtoolObj,loc_simple,loc_complex):
         vcfrecord.INFO["LOC_DETAIL"] = complex
         return vcfrecord
 
-def filterVEPtranscripts(vcfrecord,transcripts,anno_fields):
+
+def filterVEPtranscripts(vcfrecord, transcripts, anno_fields, firstConsequence):
+    if firstConsequence:
+        logging.error("ERROR. You set first consequence argument, which is not compatible with '-t' option, which filters consequences based on transcript IDs, rather than the order they appear in the VCF")
+        exit(1)
 
     consequences=vcfrecord.INFO["ANN"]
     new_ann=[]
