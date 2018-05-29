@@ -12,7 +12,7 @@ import pandas as pd
 from scipy.stats import pearsonr
 from collections import defaultdict, OrderedDict
 import numpy as np
-
+import math
 def wccount(filename):
     out = subprocess.Popen(['wc', '-l', filename],
                          stdout=subprocess.PIPE,
@@ -136,12 +136,14 @@ def targetedAllMetricsProcess(infile):
                 df_lowcov=df_mean[lowcoverage].sort_values('Median', ascending=False)
                 df_lowcov.to_csv("output/low_averageCoverageDepth_on_target.txt", sep='\t', columns=list(df_lowcov),encoding='utf-8')
             outf.close()
-        sns.distplot(df_mean["Median"])
-        sns.distplot(df_mean["Mean"])
+        sns.set_style("whitegrid", {'axes.grid': False})
+        sns.distplot(df_mean["Median"],bins=10)
+        sns.distplot(df_mean["Mean"],bins=10)
         plt.xlim(0,df_mean.iloc[:,0].max() + 50)
-        plt.title("Distribution of the mean and median across multiple samples.")
-        plt.xlabel("Values")
-        plt.ylabel("Probabilities")
+        #plt.title("Distribution of the mean and median across multiple samples.")
+
+        plt.xlabel("Read depth")
+        plt.ylabel("Frequency")
         plt.legend(['Median', 'Mean'])
         plt.savefig("output/coverageDepthDistributionOnTargets.pdf",format='pdf')
         plt.close()
@@ -197,7 +199,7 @@ def processPerTargetCoverage(perTargetMetrics):
                 (chrom,start,end,featureLength,name,gc,mean_cov,normalized_cov,min_normalized_cov,max_normalized_cov,min_cov,max_cov,pct_0x,readCount) = line.rstrip().split()
                 feature="{}:{}".format(name,start)
                 unique_feature.add(name)
-                perSubTargetAverageCov[name].append((int(featureLength),float(mean_cov)))
+                perSubTargetAverageCov[name].append((int(featureLength),float(mean_cov), float(normalized_cov)))
                 if feature in perTarget_dict.keys():
                     perTarget_dict[feature].append((sample,int(featureLength),float(gc),float(mean_cov),float(normalized_cov),float(min_normalized_cov),float(max_normalized_cov),int(min_cov),int(max_cov),float(pct_0x),int(readCount)))
                 else:
@@ -291,6 +293,7 @@ def processPerTargetCoverage(perTargetMetrics):
                     df_codingNonCodingCov.at[sample, feat_name] = avg_cov
         outf.close()
 
+        df_codingNonCodingCov.to_csv("output/exon.csv", sep="\t")
         #df.columns = [i if "_" not in i else i + "=" + str(newElements[int(i[-1]) - 1]) for i in df.columns]
         df_codingNonCodingCov.columns = [i.split("_")[1] for i in df_codingNonCodingCov.columns if "exon" or "intron" in i ]
         #print(df_codingNonCodingCov)

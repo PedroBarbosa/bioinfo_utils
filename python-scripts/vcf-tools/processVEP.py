@@ -140,7 +140,7 @@ def checkValidFiltersSyntax(filtersFile,anno_fields,attributes=None,operation=Fa
         #operations = np.genfromtxt(filtersFile, dtype=str, delimiter='\t', usecols=(2))
         #operations = np.atleast_1d(operations)
         for v in operations:
-            if "isnone" and ";" in v:
+            if "isnone" in v and ";" in v:
                 logging.error("ERROR. isnone does not accept multiple operations.")
                 exit(1)
             for op in v.rstrip().split(";"):
