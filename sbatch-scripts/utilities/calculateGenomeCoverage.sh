@@ -175,9 +175,29 @@ cmd="-BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALI
 ##CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --interval_merging=OVERLAPPING_ONLY --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
 
 ##PARALLEL
-echo \$srun
-echo \$BAITS
-cat $BAM_DATA | \$parallel 'i=\$(basename {}); out=\$(echo \$i | cut -f1 -d "_"); \$srun shifter gatk CollectHsMetrics -BI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_b.picard -TI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_t.picard --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference --INPUT={} --OUTPUT=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt; awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt ; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt; echo -e "##\${out}" >> final_perTargetCoverage.txt; cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt'
+#cat $BAM_DATA | 
+
+doawk() {
+    INFILE=\$1
+    OUTFILE=\$2
+    awk '/BAIT_SET/{getline; print}' \$INFILE | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> \$OUTFILE
+}
+
+dosed() {
+    SAMPLE=\$1
+    INFILE=\$2
+    PERSAMPLE_IN=\$3
+    OUTFILE=\$4
+    sed -i '\$s/^/'"\${SAMPLE}\t"'/' \$INFILE 
+    echo -e "##\${SAMPLE}" >> \$OUTFILE 
+    cat \${PERSAMPLE_IN} >> \$OUTFILE
+}
+
+export -f doawk dosed 
+
+\$parallel "$srun shifter gatk CollectHsMetrics -BI {2} -TI {3} --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference --INPUT={1} --OUTPUT={1/.}_HS_metrics.txt --PER_TARGET_COVERAGE={1/.}_perTargetCov.txt ; doawk {1/.}_HS_metrics.txt final_collectHSmetrics_all.txt; dosed {1/.} final_collectHSmetrics_all.txt {1/.}_perTargetCov.txt final_perTargetCoverage.txt" :::: $BAM_DATA ::: \$BAITS ::: \$TARGETS
+
+#;  sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt ; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt; echo -e "##\${out}" >> final_perTargetCoverage.txt; cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt' :::: $BAM_DATA ::: \$BAITS ::: \$TARGETS
 
 #unique_samples=()
 #for j in \$(find $BAM_DATA -exec cat {} \; );do
@@ -214,7 +234,7 @@ fi
 mv * ../\$SLURM_JOB_ID*log $OUTDIR
 EOL
         sbatch $WORKDIR/targetCoverage.sbatch
-        sleep 1
+        sleep 10
         cd $WORKDIR
         mv targetCoverage.sbatch $(ls -td -- */ | head -n 1)
 
