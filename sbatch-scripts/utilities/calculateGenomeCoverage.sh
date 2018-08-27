@@ -20,7 +20,7 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] ; then
     exit 1
 fi
 ###PLOTING EXEC
-plottingExec="/home/pedro.barbosa/bioinfo_utils/python-scripts/lobo/coverageAnalysis/plotCoverageFromGATK4output.py"
+plottingExec="/home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/lobo/coverageAnalysis/plotCoverageFromGATK4output.py"
 
 ####CHECK BAM INPUT####
 if [ ! -f "$1" ]; then
@@ -177,10 +177,7 @@ cmd="-BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALI
 ##PARALLEL
 echo \$srun
 echo \$BAITS
-cat $BAM_DATA | \$parallel 'i=\$(basename {}); out=\$(echo \$i | cut -f1 -d "_"); \$srun shifter gatk CollectHsMetrics -BI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_b.picard -TI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_t.picard --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference --INPUT={} --OUTPUT=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt' 
-
-
-#awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt' 
+cat $BAM_DATA | \$parallel 'i=\$(basename {}); out=\$(echo \$i | cut -f1 -d "_"); \$srun shifter gatk CollectHsMetrics -BI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_b.picard -TI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_t.picard --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference --INPUT={} --OUTPUT=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt; awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt ; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt; echo -e "##\${out}" >> final_perTargetCoverage.txt; cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt'
 
 #unique_samples=()
 #for j in \$(find $BAM_DATA -exec cat {} \; );do
@@ -205,7 +202,7 @@ if [ -f "$plottingExec" ];then
     printf "\$(timestamp): Plotting some of the results!"
     \$srun shifter --image=mcfonsecalab/python36_bio:latest python $plottingExec \$scratch_out targeted
 else
-    printf "\$(timestamp): No plotting script found."
+    printf "\$(timestamp): No plotting script found.\n"
 fi
 ##CalculateTargetCoverage was removed from last GATK4 release. Piece of code removed.
 #echo -e "\\n\$(timestamp) -> Calculating proportional read counts per target and sample!"
