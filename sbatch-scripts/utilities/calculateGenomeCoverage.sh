@@ -211,12 +211,13 @@ fi
 #    CMD="\$CMD -I \$line"
 #done < $BAM_DATA
 #\$srun shifter \$CMD
-#mv * ../\$SLURM_JOB_ID*log $OUTDIR
+mv * ../\$SLURM_JOB_ID*log $OUTDIR
 EOL
         sbatch $WORKDIR/targetCoverage.sbatch
         sleep 1
         cd $WORKDIR
         mv targetCoverage.sbatch $(ls -td -- */ | head -n 1)
+
     else
         printf "Invalid input for target regions. Please provide a bed file.\n"
         display_usage
