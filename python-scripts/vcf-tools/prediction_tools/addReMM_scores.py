@@ -14,10 +14,13 @@ def processVCF(invcf,remm,out):
     vcf_data.add_info_to_header({'ID': 'ReMM', 'Description': 'The Regulatory Mendelian Mutation (ReMM) for relevance prediction of non-coding variations (SNVs and small InDels)','Type':'String', 'Number': '.'})
     w = Writer(out, vcf_data)
     for record in vcf_data:
-        for row in tbx.fetch(record.CHROM.replace('chr',''), record.start, record.end):
-            if int(str(row).split()[1]) == record.POS:
-                record.INFO["ReMM"] = str(row).split()[2]
-        if not record.INFO["ReMM"]:
+        try:
+            for row in tbx.fetch(record.CHROM.replace('chr',''), record.start, record.end):
+                if int(str(row).split()[1]) == record.POS:
+                    record.INFO["ReMM"] = str(row).split()[2]
+            if not record.INFO["ReMM"]:
+                record.INFO["ReMM"] = "."
+        except ValueError:
             record.INFO["ReMM"] = "."
         w.write_record(record)
 def main():

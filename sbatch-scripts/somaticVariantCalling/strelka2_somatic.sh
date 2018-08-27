@@ -43,7 +43,7 @@ if [ ! -d $OUTDIR ];then
 fi
 
 ###MODE####
-CMD="configureStrelkaSomaticWorkflow.py"
+CMD="configureStrelkaSomaticWorkflow.py --reportEVSFeatures"
 analysis=("WGS" "exome" "targeted")
 if [[ !  " ${analysis[@]} " =~ " ${4} " ]]; then
     printf "Please set a valid value for the 4th argument.\n"
@@ -92,7 +92,7 @@ cat > $WORKDIR/configureStrelka.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=strelka2
 #SBATCH --time=72:00:00
-#SBATCH --mem=240G
+#SBATCH --mem=100G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=40
@@ -118,7 +118,7 @@ echo -e "\$(timestamp) -> Finished job."
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"
-cd ../ && mv \$SLURM_JOB_ID \$SLURM_JOB_ID_strelka2.log $OUTDIR
+cd ../ && mv \$SLURM_JOB_ID* $OUTDIR
 EOL
 
 sbatch $WORKDIR/configureStrelka.sbatch

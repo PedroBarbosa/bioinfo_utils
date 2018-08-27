@@ -155,15 +155,15 @@ export -f timestamp
 scratch_out=$WORKDIR/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
-srun="srun -N1 -n1 --slurmd-debug 2 shifter"
-parallel="parallel -k --delay 0.2 -j \$SLURM_NTASKS --env timestamp --joblog parallel.log --resume-failed"
+srun="srun -N1 -n1 --slurmd-debug 2"
+parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --env timestamp --joblog parallel.log --resume-failed"
 echo "\$(timestamp) -> Analysis started! Converting bed files to Picard IntervalList format."
 seq_dict=\$(head -n 1 $BAM_DATA)
 echo "\$(timestamp) -> \$seq_dict file used to extract sequence dictionary required to GATK BedToIntervalList utility"
 tg=\$(basename ${targets})
 bt=\$(basename ${baits})
-\$srun gatk BedToIntervalList -I=$targets -O=\${tg/.bed/_t.picard} -SD=\$seq_dict
-\$srun gatk BedToIntervalList -I=$baits -O=\${bt/.bed/_b.picard} -SD=\$seq_dict
+\$srun shifter gatk BedToIntervalList -I=$targets -O=\${tg/.bed/_t.picard} -SD=\$seq_dict
+\$srun shifter gatk BedToIntervalList -I=$baits -O=\${bt/.bed/_b.picard} -SD=\$seq_dict
 
 echo "\$(timestamp) -> Calculating individual coverages and experiment metrics!"
 header_hsmetrics="sample\tbait_region\ttarget_region\t#reads_in_bam\tfraction_locatedOnOrNearBaits\tfraction_away_baits\tfraction_alignedBP_offTarget\tmean_cov_targets\tmedian_cov_targets\tfraction_targetsNoCov\tfraction_targetBP_1X_cov\tfraction_2X_cov\tfraction_10X_cov\tfraction_20X_cov\tfraction_30X_cov\tfraction_40X_cov\tfraction_50X_cov\tfraction_100X_cov"
@@ -171,34 +171,39 @@ echo -e "\$header_hsmetrics" > final_collectHSmetrics_all.txt
 
 BAITS=\${bt/.bed/_b.picard}
 TARGETS=\${tg/.bed/_t.picard}
-CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
-#CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --interval_merging=OVERLAPPING_ONLY --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
-##PARALLEL CODE HAS SOME PROBLEMS. UNFORTUNETELY, THIS STEP NEEDS TO BE RUN ITERATIVELY
-##echo \$CMD
-##cat $BAM_DATA | \$parallel '\$srun \$CMD --INPUT={} --OUTPUT=HS_metrics.txt --PER_TARGET_COVERAGE=perTargetCov.txt' 
+cmd="-BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
+##CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --interval_merging=OVERLAPPING_ONLY --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
 
-unique_samples=()
-for j in \$(find $BAM_DATA -exec cat {} \; );do
-    printf "\$(timestamp): Processing \$(basename \$j) file.\n"
-    i=\$(basename \$j)
-    out=\$(echo \$i | cut -f1 -d "_")
-    if [[ " \${unique_samples[@]} " =~ " \${out} " ]]; then
-        printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
-        out="\${i%.*}"
-    fi
-    unique_samples+=(\${out})
-    \$srun \$CMD -I=\$j -O=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt
-    awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt
-    sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt
+##PARALLEL
+echo \$srun
+echo \$BAITS
+cat $BAM_DATA | \$parallel 'i=\$(basename {}); out=\$(echo \$i | cut -f1 -d "_"); \$srun shifter gatk CollectHsMetrics -BI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_b.picard -TI final_gencode.v19_HCM_concatenated_noRepeatsOnIntrons_t.picard --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference --INPUT={} --OUTPUT=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt' 
 
-    echo -e "##\${out}" >> final_perTargetCoverage.txt
-    cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt
-    printf "\$(timestamp): Done!\n"
-done
+
+#awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt' 
+
+#unique_samples=()
+#for j in \$(find $BAM_DATA -exec cat {} \; );do
+#    printf "\$(timestamp): Processing \$(basename \$j) file.\n"
+#    i=\$(basename \$j)
+#    out=\$(echo \$i | cut -f1 -d "_")
+#    if [[ " \${unique_samples[@]} " =~ " \${out} " ]]; then
+#        printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
+#        out="\${i%.*}"
+#    fi
+#    unique_samples+=(\${out})
+#    \$srun shifter \$CMD -I=\$j -O=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt
+#    awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt
+#    sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt
+
+#    echo -e "##\${out}" >> final_perTargetCoverage.txt
+#    cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt
+#    printf "\$(timestamp): Done!\n"
+#done
 
 if [ -f "$plottingExec" ];then
     printf "\$(timestamp): Plotting some of the results!"
-    \$srun --image=mcfonsecalab/python36_bio:latest python $plottingExec \$scratch_out targeted
+    \$srun shifter --image=mcfonsecalab/python36_bio:latest python $plottingExec \$scratch_out targeted
 else
     printf "\$(timestamp): No plotting script found."
 fi
@@ -208,8 +213,8 @@ fi
 #while read line; do
 #    CMD="\$CMD -I \$line"
 #done < $BAM_DATA
-#\$srun \$CMD
-mv * ../\$SLURM_JOB_ID*log $OUTDIR
+#\$srun shifter \$CMD
+#mv * ../\$SLURM_JOB_ID*log $OUTDIR
 EOL
         sbatch $WORKDIR/targetCoverage.sbatch
         sleep 1
