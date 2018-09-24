@@ -49,18 +49,17 @@ if [ ! -d $OUTDIR ];then
 fi
 
 ##REFERENCE##
+reference=$(readlink -f "$3")
 if [ "$3" = "-" ]; then
     reference="/mnt/nfs/lobo/IMM-NFS/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa"
 elif [ ! -f "$3" ]; then
     printf "Please provide a valid fasta file in th 4th argument.\n"
     display_usage
     exit 1
-elif [ ! -f "${3}.fai" ]; then
-    printf "Fasta index ${3}.fai not found in the reference directory. Please create one with samtools faidx.\n"
+elif [[ ! -f "${reference}.fai" && ! -f "${reference}.gzi" ]]; then
+    printf "Fasta index ${3}.fai or ${3}.gzi (for compressed fasta) not found in the reference directory. Please create one with samtools faidx or bgzip.\n"
     display_usage
     exit 
-else
-    reference=$(readlink -f "$3")
 fi
 
 ##NEAR DISTANCE##
@@ -124,14 +123,14 @@ elif [ "$4" = "targeted" ]; then
         printf "When targeted sequencing, you should provide the target regions in the 5th argument, and if you have a bed file of the capture baits, you may also provide it in the 6th argument. Please set at least the 5th argument with the target regions.)\n"
         display_usage
         exit 1
-    elif [[ ${5: -4} == ".bed" ]]; then
+    elif [[ ${5: -4} == ".bed" || ${5: -7} == ".bed.gz" ]]; then
         targets=$(readlink -f "$5")
         if [[ -z "$6" || "$6" = "-" ]] ; then
             baits=$targets
-        elif [[ ! -z "$6" && ${6: -4} == ".bed" ]]; then
+        elif [[ ! -z "$6" && ${6: -4} == ".bed" || ${6: -7} == ".bed.gz" ]]; then
             baits=$(readlink -f "$6")
         else
-            printf "If provided, 6th argument must be in bed format. Please correct this issue.\n"
+            printf "If provided, 6th argument must be in bed or bed.gz format. Please correct this issue.\n"
             exit 1
             display_usage
         fi
