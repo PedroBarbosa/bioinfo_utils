@@ -87,10 +87,10 @@ cat > $workdir/runTrimmomatic.sbatch <<EOL
 #SBATCH --job-name=parallel_trimmomatic
 #SBATCH --mail-user=pedro.barbosa@medicina.ulisboa.pt
 #SBATCH --time=72:00:00
-#SBATCH --mem=230G
-#SBATCH --nodes=2
-#SBATCH --ntasks=20
-#SBATCH --cpus-per-task=3
+#SBATCH --mem=100G
+#SBATCH --nodes=1
+#SBATCH --ntasks=5
+#SBATCH --cpus-per-task=5
 #SBATCH --workdir=$workdir
 #SBATCH --image=ummidock/trimmomatic:0.36-2
 #SBATCH --export=ALL
