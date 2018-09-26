@@ -21,6 +21,18 @@ def process_genome(genome):
             d[key] = int(val)
     return d
 
+def add_bp_positive_feature(f,n):
+    f.start = f.start - n
+    if f.start < 0:
+        f.start = 0
+    return str(f)
+
+def add_bp_negative_feature(f,n,gnm_d):
+    f.end = f.end + n
+    if f.end > gnm_d[f.chrom]:
+        f.end = gnm_d[f.chrom]
+    return str(f)
+
 def apply_subset(f,l):
     if len(f) <= l*2:
         print("{}\tfeature can't be subset. Too small".format(str(f).rstrip()))
@@ -40,44 +52,36 @@ def promoter(bed,n,genome,delimiter,index,out):
     gnm_d=process_genome(genome)
     bedobj = BedTool(bed)
     bedobj.each(check_name_col)
+    fnames_list = [f.name.split(delimiter)[index] for f in bedobj]
     previous_g,previous_f, firstLine, obj_idx, nrecords="","",True, 0,len(bedobj)
     with open(out,'w') as outfile:
         for f in bedobj:
-            obj_idx += 1
+
             gname = get_feature_name(f.name,delimiter,index)
-
-            if firstLine and f.strand == "-":
-                outfile.write(str(f))
-            elif f.strand == "-" and gname == previous_g and obj_idx != nrecords:
-                outfile.write(str(previous_f))
-            elif f.strand == "-" and gname == previous_g:
-                f.end = f.end + n
-                if f.end > gnm_d[f.chrom]:
-                    f.end = gnm_d[f.chrom]
-                outfile.write(str(f))
-
-            if gname != previous_g:
-                if not firstLine and previous_f.strand == "-":
-                    previous_f.end = previous_f.end + n
-                    if previous_f.end > gnm_d[previous_f.chrom]:
-                        previous_f.end = gnm_d[previous_f.chrom]
-                    outfile.write(str(previous_f))
-
-                if firstLine:
-                    firstLine = False
-
-                if f.strand == "-":
-                    outfile.write(str(f))
+            if obj_idx == len(fnames_list)-1: #if last line [index checking will fail]
+                if gname != previous_g and f.strand == "+":
+                    outfile.write(add_bp_positive_feature(f, n))
                 elif f.strand == "+":
-                    f.start=f.start - n
-                    if f.start < 0:
-                        f.start = 0
                     outfile.write(str(f))
+                elif f.strand == "-":
+                    outfile.write(add_bp_negative_feature(f, n, gnm_d))
 
-            elif f.strand == "+":
+            elif gname != previous_g and f.strand == "+":
+                outfile.write(add_bp_positive_feature(f,n))
+
+            elif gname != previous_g and obj_idx != nrecords and fnames_list[obj_idx + 1] == gname:  # first feature of multifeature gene in negative strand
                 outfile.write(str(f))
 
-            previous_f = f
+            elif gname != previous_g: # if negative gene has only one feature
+                outfile.write(add_bp_negative_feature(f,n,gnm_d))
+
+            elif gname == previous_g and f.strand == "+" or obj_idx != nrecords and fnames_list[obj_idx + 1] == gname: # if positive strand or not last feature of negative gene
+                outfile.write(str(f))
+
+            elif gname == previous_g and fnames_list[obj_idx + 1] != gname: #if last feature of a negative strand gene
+                outfile.write(add_bp_negative_feature(f,n,gnm_d))
+
+            obj_idx += 1
             previous_g = gname
     outfile.close()
 
