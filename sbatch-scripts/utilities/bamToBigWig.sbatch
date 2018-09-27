@@ -22,4 +22,4 @@ srun shifter sortBed -i ${out/.bam/.bg} > ${out/.bam/.sort.bg}
 srun shifter bedGraphToBigWig ${out/.bam/.sort.bg} $genomeChromSize ${out/.bam/.bw}
 
 mv ${out/.bam/.bw} $outdir
-#rm ${out/.bam/.bg}
+rm ${out/.bam/.bg} ${out/.bam/.sort.bg}

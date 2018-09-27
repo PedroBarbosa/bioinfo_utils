@@ -1,4 +1,5 @@
 #!/bin/bash
+
 display_usage(){
  printf "Script to run Haplotype caller pipeline in lobo for a bunch of bam files. Be aware that this script already implements the latest innovations regarding
    the multisample variant calling in GVCF mode and ImportGenomicsDB.\n
@@ -36,7 +37,7 @@ BAM_DATA=$(readlink -f "$1")
 
 ####SCRATCH WORKDIR####
 OUTDIR=$(readlink -f "$2")
-WORKDIR="/home/pedro.barbosa/scratch/gatk"
+WORKDIR="/home/pedro.barbosa/scratch/gatk/haplotypeCaller"
 if [ ! -d $WORKDIR ];then
     mkdir $WORKDIR
 fi
@@ -108,7 +109,9 @@ fi
 
 if [ -n "$8" ] && [ -f "$8" ]; then
     #CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --dbsnp $8"
-    CMD="gatk ${JAVA_Xmx} HaplotypeCaller --dbsnp $8"
+    printf "Known variants file provided.\n"
+    dbsnp=$(readlink -f "$8")
+    CMD="gatk ${JAVA_Xmx} HaplotypeCaller --dbsnp $dbsnp"
 elif [ -n "$8" ]; then
     printf "8th argument is not valid file. If you want to use it, please set it properly.\n"
     display_usage
@@ -119,8 +122,8 @@ else
 fi
 ##CMD##
 ref_2bit="$(basename $REF)"
-#CMD="$CMD --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit -ERC GVCF"
-CMD="$CMD --TMP_DIR=/home/pedro.barbosa/scratch --reference $REF -ERC GVCF"
+#CMD="$CMD --tmp-dir=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit -ERC GVCF"
+CMD="$CMD --tmp-dir=/home/pedro.barbosa/scratch/gatk --reference $REF -ERC GVCF"
 #createOutputVariantIndex true [missing this arg. Needed to add extra step of generating index for genomicsDB import through IndexFeatureFile utility]
 #SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS]"
 ###MODE####
@@ -143,8 +146,6 @@ elif [ "$3" != "WGS" ]; then
         exit 1
     fi  
 fi
-
-##Dbsnp file###
 cat > $WORKDIR/haplotypeCaller_GVCF.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=gatk_hc
@@ -171,11 +172,12 @@ echo "\$(timestamp) -> Job started!"
 echo "\$(timestamp) -> Converting reference fasta file to 2bit format for HaplotypeCallerSpark"
 \$srun --image=mcfonsecalab/htstools_plus:latest faToTwoBit $REF ${ref_2bit%.*}.2bit
 echo "\$(timestamp) -> Done"
-#if [ ! -z "$8" ]; then
-#    echo "\$(timestamp) -> Known variants file was provided. An index needs to be created.."
-#    \$srun gatk IndexFeatureFile -F "$8"
-#    echo "\$(timestamo) -> Done."
-#fi
+if [[ -n "$dbsnp"  && ! -f "${dbsnp}.tbi" ]]; then
+    echo "\$(timestamp) -> Known variants file was provided, but there is not index. It will be created now.."
+    \$srun gatk IndexFeatureFile -F "$dbsnp"
+    echo "\$(timestamp) -> Done."
+fi
+
 if [ "$PARALLEL" == "true" ]; then
 #    cat $BAM_DATA | \$parallel  'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf $SPARK && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
     cat $BAM_DATA | \$parallel 'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
@@ -225,14 +227,16 @@ fi
 echo "\$(timestamp) -> Done! Genotyping gVCFs stored in the GenomicsDB database."
 \$srun gatk GenotypeGVCFs --variant combined.g.vcf.gz -R $REF --output joint.vcf.gz
 #\$srun gatk GenotypeGVCFs --variant gendb://workspace -R $REF --output joint.vcf.gz
-mv * $OUTDIR
+mv * ../\${SLURM_JOB_ID}_gatk_hc.log $OUTDIR
+cd .. && rm -rf \$SLURM_JOB_ID
+
 echo -e "\$(timestamp) -> Finished job."
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"
 EOL
 sbatch $WORKDIR/haplotypeCaller_GVCF.sbatch
-sleep 1 
+sleep 3 
 
 cd $WORKDIR
 mv haplotypeCaller_GVCF.sbatch $(ls -td -- */ | head -n 1)

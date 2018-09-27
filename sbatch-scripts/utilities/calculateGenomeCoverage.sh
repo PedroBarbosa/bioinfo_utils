@@ -11,7 +11,8 @@ display_usage(){
     -6th argument is optional. Refers to the bait regions used for the hybridization capture method. If you don't have such file, the targets file will be used as the baits file as well. Use '-' to skip this argument.
     -7th argument is optional. Refers to the maximum distance between a read and the nearest probe/bait/amplicon for the read to be considered 'near probe' and included in percent selected. Default: 250.
     -8th argument is optional. Refers to the max coverage limit for theoritical sensitivity calculations. Default: 600.
-    -9th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,5,8. '-' skips this argument.\n"
+    -9th argument is optional. If set to false, GNU parallel will be disabled to run the set of samples provided in the 1st argument. Options: [true|false|-]. Default: true, GNU parallel is used to parallelize the job.
+    -10th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,5,8 if GNU parallel=true; else 1,1,20. '-' skips this argument.\n"
 }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ] ; then
@@ -86,30 +87,44 @@ else
 fi
 
 ##JOB SETTINGS""
-if [[ -z "$9" || "$9" = "-" ]]; then
-    NODES=1
-    NTASKS=8
-    CPUS_PER_TASK=5
-else
-    IFS=','
-    read -r -a array <<< "$9"
-    if [ ${#array[@]} = 3 ]; then
-        for elem in "${array[@]}"
-        do
-            if ! [[ "$elem" =~ $re ]]; then 
-                printf "Error. Please set INT numbers for the number of nodes, tasks and cpus per task.\n"
-                display_usage
-                exit 1
-            fi
-        done
-        NODES=${array[0]}
-        NTASKS=${array[1]}
-        CPUS_PER_TASK=${array[2]}
-    else 
-        printf "ERROR. 3 fields are required for the 9th argument (nodes,tasks,cpus per task). You set a different number.\n"
-        display_usage
-        exit 1
+PARALLEL=true
+if [[ -z "$9" || "$9" = "true" || "$9" = "-" ]]; then
+    if [[ -z "${10}" || "${10}" = "-" ]]; then
+        NODES=1
+        NTASKS=8
+        CPUS_PER_TASK=5
+    else
+        IFS=','
+        read -r -a array <<< "${10}"
+        if [ ${#array[@]} = 3 ]; then
+            for elem in "${array[@]}"
+            do
+                if ! [[ "$elem" =~ $re ]]; then
+                    printf "Error. Please set INT numbers for the number of nodes, tasks and cpus per task.\n"
+                    display_usage
+                    exit 1
+                fi  
+            done
+            NODES=${array[0]}
+            NTASKS=${array[1]}
+            CPUS_PER_TASK=${array[2]}
+        else
+            printf "ERROR. 3 fields are required for the 9th argument (nodes,tasks,cpus per task). You set a different number.\n"
+            display_usage
+            exit 1
+        fi
     fi
+
+elif [[ "$9" = "false" ]]; then
+    printf "You set the job to not run with parallel. If you provided the 10th arg, it will be ignored anyway!\n"
+    NODES=1
+    NTASKS=1
+    CPUS_PER_TASK=20
+    PARALLEL=false
+else
+    printf "Please set a valid value for the 9th argument: [true|false|-].\n"
+    display_usage
+    exit 1
 fi
 
 ###MODE####
@@ -155,7 +170,6 @@ scratch_out=$WORKDIR/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
 srun="srun -N1 -n1 --slurmd-debug 2"
-parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --env timestamp --joblog parallel.log --resume-failed"
 echo "\$(timestamp) -> Analysis started! Converting bed files to Picard IntervalList format."
 seq_dict=\$(head -n 1 $BAM_DATA)
 echo "\$(timestamp) -> \$seq_dict file used to extract sequence dictionary required to GATK BedToIntervalList utility"
@@ -170,52 +184,55 @@ echo -e "\$header_hsmetrics" > final_collectHSmetrics_all.txt
 
 BAITS=\${bt/.bed/_b.picard}
 TARGETS=\${tg/.bed/_t.picard}
-cmd="-BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
-##CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --interval_merging=OVERLAPPING_ONLY --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
 
-##PARALLEL
-#cat $BAM_DATA | 
+#If adjacent intervals exist in bed files, they are merged in the ouptut when using the "--PER_TARGET_COVERAGE" argument.
+#Opened an issue on GATK forum: https://gatkforums.broadinstitute.org/gatk/discussion/11439/gatk4-collecthsmetrics-how-to-avoid-the-overlap-of-adjacent-intervals#latest , still waiting to be solved
+#When solved, we should be able to run the tool with the argument --interval_merging=OVERLAPPING_ONLY
+CMD="gatk CollectHsMetrics -BI=\$BAITS -TI=\$TARGETS --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference"
 
-doawk() {
-    INFILE=\$1
-    OUTFILE=\$2
-    awk '/BAIT_SET/{getline; print}' \$INFILE | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> \$OUTFILE
-}
+if [[ $PARALLEL = "true" ]];then
+    parallel="parallel --delay 0.2 -j \$SLURM_NTASKS --env timestamp --joblog parallel.log --resume-failed"
+    doawk() {
+        INFILE=\$1
+        OUTFILE=\$2
+        awk '/BAIT_SET/{getline; print}' \$INFILE | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> \$OUTFILE
+    }
 
-dosed() {
-    SAMPLE=\$1
-    INFILE=\$2
-    PERSAMPLE_IN=\$3
-    OUTFILE=\$4
-    sed -i '\$s/^/'"\${SAMPLE}\t"'/' \$INFILE 
-    echo -e "##\${SAMPLE}" >> \$OUTFILE 
-    cat \${PERSAMPLE_IN} >> \$OUTFILE
-}
+    dosed() {
+        SAMPLE=\$1
+        INFILE=\$2
+        PERSAMPLE_IN=\$3
+        OUTFILE=\$4
+        sed -i '\$s/^/'"\${SAMPLE}\t"'/' \$INFILE 
+        echo -e "##\${SAMPLE}" >> \$OUTFILE 
+        cat \${PERSAMPLE_IN} >> \$OUTFILE
+    }
 
-export -f doawk dosed 
+    export -f doawk dosed 
 
-\$parallel "$srun shifter gatk CollectHsMetrics -BI {2} -TI {3} --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference --INPUT={1} --OUTPUT={1/.}_HS_metrics.txt --PER_TARGET_COVERAGE={1/.}_perTargetCov.txt ; doawk {1/.}_HS_metrics.txt final_collectHSmetrics_all.txt; dosed {1/.} final_collectHSmetrics_all.txt {1/.}_perTargetCov.txt final_perTargetCoverage.txt" :::: $BAM_DATA ::: \$BAITS ::: \$TARGETS
+    \$parallel "$srun shifter gatk CollectHsMetrics -BI {2} -TI {3} --MINIMUM_BASE_QUALITY=15 --MINIMUM_MAPPING_QUALITY=10 --METRIC_ACCUMULATION_LEVEL=ALL_READS --COVERAGE_CAP=$coverage_cap --NEAR_DISTANCE=$near_dist -R=$reference --INPUT={1} --OUTPUT={1/.}_HS_metrics.txt --PER_TARGET_COVERAGE={1/.}_perTargetCov.txt ; doawk {1/.}_HS_metrics.txt final_collectHSmetrics_all.txt; dosed {1/.} final_collectHSmetrics_all.txt {1/.}_perTargetCov.txt final_perTargetCoverage.txt" :::: $BAM_DATA ::: \$BAITS ::: \$TARGETS
 
-#;  sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt ; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt; echo -e "##\${out}" >> final_perTargetCoverage.txt; cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt' :::: $BAM_DATA ::: \$BAITS ::: \$TARGETS
+    #;  sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt ; sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt; echo -e "##\${out}" >> final_perTargetCoverage.txt; cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt' :::: $BAM_DATA ::: \$BAITS ::: \$TARGETS
 
-#unique_samples=()
-#for j in \$(find $BAM_DATA -exec cat {} \; );do
-#    printf "\$(timestamp): Processing \$(basename \$j) file.\n"
-#    i=\$(basename \$j)
-#    out=\$(echo \$i | cut -f1 -d "_")
-#    if [[ " \${unique_samples[@]} " =~ " \${out} " ]]; then
-#        printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
-#        out="\${i%.*}"
-#    fi
-#    unique_samples+=(\${out})
-#    \$srun shifter \$CMD -I=\$j -O=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt
-#    awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt
-#    sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt
-
-#    echo -e "##\${out}" >> final_perTargetCoverage.txt
-#    cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt
-#    printf "\$(timestamp): Done!\n"
-#done
+else
+    unique_samples=()
+    for j in \$(find $BAM_DATA -exec cat {} \; );do
+        printf "\$(timestamp): Processing \$(basename \$j) file.\n"
+        i=\$(basename \$j)
+        out=\$(echo \$i | cut -f1 -d "_")
+        if [[ " \${unique_samples[@]} " =~ " \${out} " ]]; then
+            printf "\$(timestamp): Warning, duplicate sample ID (\${out}) found after splitting by first '_'. Will use the filename instead without the extension."
+        out="\${i%.*}"
+        fi
+        unique_samples+=(\${out})
+        \$srun shifter \$CMD -I=\$j -O=\${out}_HS_metrics.txt --PER_TARGET_COVERAGE=\${out}_perTargetCov.txt
+        awk '/BAIT_SET/{getline; print}' \${out}_HS_metrics.txt | awk 'BEGIN{OFS="\t";} {print \$3,\$4,\$6,\$19,\$20,\$34,\$23,\$24,\$29,\$36,\$37,\$38,\$39,\$40,\$41,\$42,\$43}' >> final_collectHSmetrics_all.txt
+        sed -i '\$s/^/'"\${out}\t"'/' final_collectHSmetrics_all.txt
+        echo -e "##\${out}" >> final_perTargetCoverage.txt
+        cat \${out}_perTargetCov.txt >> final_perTargetCoverage.txt
+        printf "\$(timestamp): Done!\n"
+    done
+fi
 
 if [ -f "$plottingExec" ];then
     printf "\$(timestamp): Plotting some of the results!"
@@ -223,6 +240,7 @@ if [ -f "$plottingExec" ];then
 else
     printf "\$(timestamp): No plotting script found.\n"
 fi
+
 ##CalculateTargetCoverage was removed from last GATK4 release. Piece of code removed.
 #echo -e "\\n\$(timestamp) -> Calculating proportional read counts per target and sample!"
 #CMD="gatk CalculateTargetCoverage -L \$TARGETS -O final_pCovCounts.txt --transform PCOV -targetInfo FULL -groupBy SAMPLE --rowSummaryOutput final_perFeature_totalCounts.txt --columnSummaryOutput final_perSample_totalTargetsCoverage.txt"
