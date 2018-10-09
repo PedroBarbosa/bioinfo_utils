@@ -269,7 +269,7 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
 
     filter_result=[]
     for attr,filters in filterDict.items():
-        if not attr in vcfrecord.INFO:
+        if not attr in vcfrecord.INFO or "ANN/" in attr:
             filter_result=applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,reportConflicting,filter_result)
         else:
             try:
