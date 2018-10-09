@@ -165,18 +165,18 @@ def checkValidFiltersSyntax(filtersFile,anno_fields,attributes=None,operation=Fa
         for attr in attributes[1]:
 
             if attr not in attributes[0]:
-                if not "ANN/" in attr and attr not in anno_fields:
+                if not "ANN\\" in attr and attr not in anno_fields:
                     print(attr)
                     logging.error("ERROR: {} filter atrribute is not present in VCF record. Please set valid filters in the INFO field names in the filters file".format(attr))
                     exit(1)
-                elif not "ANN/" in attr:
+                elif not "ANN\\" in attr:
                     logging.info("{} attribute specified is located within the ANNO field.".format(attr))
 
-                elif attr.split("/")[1] in anno_fields:
-                    logging.info("{} attribute specified is located within the ANNO field.".format(attr.split("/")[1]))
+                elif attr.split("\\")[1] in anno_fields:
+                    logging.info("{} attribute specified is located within the ANNO field.".format(attr.split("\\")[1]))
 
                 else:
-                    logging.info("{} attribute specified is not in ANN field".format(attr.split("/")[1]))
+                    logging.info("{} attribute specified is not in ANN field".format(attr.split("\\")[1]))
                     exit(1)
 def filtersToDict(filtersFile):
     #attribute=np.genfromtxt(filtersFile, dtype=str, usecols=(0))
@@ -275,8 +275,13 @@ def applyFilter(vcfrecord,filterDict,anno_fields,noneDiscard,permissive,justFirs
 
     filter_result=[]
     for attr,filters in filterDict.items():
-        if not attr in vcfrecord.INFO or "ANN/" in attr:
-            filter_result=applyFilterWithinANNO(vcfrecord,attr,filters,ops,anno_fields,noneDiscard,justFirstConsequence,reportConflicting,filter_result)
+        if not attr in vcfrecord.INFO or "ANN\\" in attr:
+            if "ANN\\" in attr:
+                filter_result=applyFilterWithinANNO(vcfrecord,attr.split("\\")[1],filters,ops,anno_fields,noneDiscard,justFirstConsequence,reportConflicting,filter_result)
+            else:
+                filter_result = applyFilterWithinANNO(vcfrecord, attr, filters, ops, anno_fields,
+                                                      noneDiscard, justFirstConsequence, reportConflicting,
+                                                      filter_result)
         else:
             try:
                 inlength = len(filter_result)
