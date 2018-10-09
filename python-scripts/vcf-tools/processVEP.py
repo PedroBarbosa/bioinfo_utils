@@ -165,13 +165,19 @@ def checkValidFiltersSyntax(filtersFile,anno_fields,attributes=None,operation=Fa
         for attr in attributes[1]:
 
             if attr not in attributes[0]:
-                if attr not in anno_fields:
+                if not "ANN/" in attr and attr not in anno_fields:
                     print(attr)
                     logging.error("ERROR: {} filter atrribute is not present in VCF record. Please set valid filters in the INFO field names in the filters file".format(attr))
                     exit(1)
-                else:
+                elif not "ANN/" in attr:
                     logging.info("{} attribute specified is located within the ANNO field.".format(attr))
 
+                elif attr.split("/")[1] in anno_fields:
+                    logging.info("{} attribute specified is located within the ANNO field.".format(attr.split("/")[1]))
+
+                else:
+                    logging.info("{} attribute specified is not in ANN field".format(attr.split("/")[1]))
+                    exit(1)
 def filtersToDict(filtersFile):
     #attribute=np.genfromtxt(filtersFile, dtype=str, usecols=(0))
     #operation = np.genfromtxt(filtersFile, dtype=str, delimiter='\t', usecols=range(1, 3))
