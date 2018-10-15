@@ -101,7 +101,7 @@ echo -e "#!/bin/bash
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/merge_bcftools_%j.log\n" > $WORKDIR/mergeVCFs.sbatch
 
-echo -e "srun shifter bcftools merge -Oz -o ${OUTBASENAME}_merged.vcf.gz -i DP:min *_filt.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
+echo -e "srun shifter bcftools merge -Oz -i DP:min *_filt.vcf.gz | shifter bcftools norm -Oz -m -both -o ${OUTBASENAME}_merged.vcf.gz -\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools index ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools view --min-ac 1 -Oz -o ${OUTBASENAME}_merged_filt.vcf.gz ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "mv ${OUTBASENAME}_merged* merge*log $OUTDIR" >> $WORKDIR/mergeVCFs.sbatch
