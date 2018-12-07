@@ -6,7 +6,7 @@ import copy
 def parseVCF(invcf,outbasename,reportMultipleSamples,reportNoSamples):
     vcf_data = VCF(invcf,gts012=True)
     samples=vcf_data.samples
-    print(len(samples))
+#    print(len(samples))
     multiple_samples=defaultdict(list)
     absent_samples=copy.deepcopy(samples)
     with open(outbasename + "_genotypes.txt",'w') as out:
@@ -25,8 +25,8 @@ def parseVCF(invcf,outbasename,reportMultipleSamples,reportNoSamples):
                 [(samples_homvar.append(samples[i]),multiple_samples[samples[i]].append((record.CHROM,str(record.POS)))) for i in home_var]
                 if reportNoSamples:
                     [absent_samples.remove(samples[i]) for i in home_var if samples[i] in absent_samples]
-            else:
-                print(record.genotypes)
+ #           else:
+ #               print(record.genotypes)
             out.write("{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(record.CHROM, record.POS, record.REF, record.ALT[0],
                                                         record.num_het, ';'.join(samples_het),record.num_hom_alt,';'.join(samples_homvar)))
     out.close()

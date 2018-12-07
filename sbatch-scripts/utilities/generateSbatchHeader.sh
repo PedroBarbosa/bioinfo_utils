@@ -43,7 +43,7 @@ else
 fi
 
 
-cat > /home/pedro.barbosa/$1 <<EOL
+cat > $PWD/$1 <<EOL
 #!/bin/bash
 #SBATCH --job-name=$2
 #SBATCH --time=24:00:00

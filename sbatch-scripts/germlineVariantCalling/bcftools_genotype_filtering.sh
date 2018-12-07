@@ -59,7 +59,7 @@ JOBS=$(( $(cat $WORKDIR/listSamples.txt | wc -l) - 1 ))
 cat > $WORKDIR/bcftools_genotypes_hardFiltering.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=filt_hard_bcftools
-#SBATCH --array=0-$JOBS%10
+#SBATCH --array=0-$JOBS%70
 #SBATCH --time=24:00:00
 #SBATCH --mem=15G
 #SBATCH --nodes=1
@@ -79,7 +79,7 @@ readarray -t samples < $WORKDIR/listSamples.txt
 
 \$srun shifter bcftools view -Oz -s \${samples[\$SLURM_ARRAY_TASK_ID]} -o \${samples[\$SLURM_ARRAY_TASK_ID]}.vcf.gz $VCF
 \$srun shifter bcftools view --exclude-uncalled -i 'FMT/DP >= 20 & FMT/GQ > 30 & (FMT/GT="0/0" & FMT/AD[0:0] >= 20 || MIN(FMT/AD) > 7)' -Oz -o \${samples[\$SLURM_ARRAY_TASK_ID]}_filt.vcf.gz \${samples[\$SLURM_ARRAY_TASK_ID]}.vcf.gz
- \$srun shifter bcftools index \${samples[\$SLURM_ARRAY_TASK_ID]}_filt.vcf.gz
+\$srun shifter bcftools index \${samples[\$SLURM_ARRAY_TASK_ID]}_filt.vcf.gz
 
 mv *_filt.vcf.gz* ../
 
