@@ -48,7 +48,6 @@ def generate_vcf(gnomad_vcf, outfile, pop, format_fields):
     gt_dp, gt_qual = generate_putative_GQ_DP(format_fields, nind)
     vcf_data = VCF(gnomad_vcf, gts012=True)
     with gzip.open(outfile, 'wb') as out:
-  #  with open(outfile, 'w') as out:
         vcf_data.add_format_to_header({'ID': 'GT', 'Description': 'Genotype', 'Type': 'String', 'Number': 1})
         vcf_data.add_format_to_header(
             {'ID': 'AD', 'Description': 'Allelic depths for the ref and alt alleles in the order listed',
@@ -126,7 +125,6 @@ def add_absent_records(vcf_absent_gnomad,outfile,nind):
     info_fields = [field["ID"] for field in vcf_data.header_iter() if field["HeaderType"] == "INFO"]
 
     with gzip.open(outfile, 'ab') as out:
-    #with open(outfile,'a') as out:
         for record in vcf_data:
             str_info = []
             for i in info_fields:
