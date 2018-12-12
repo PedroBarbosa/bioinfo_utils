@@ -4,11 +4,12 @@ display_usage(){
  Usage:.
     -1st argument must be the input VCF file to process.
     -2nd argument must be the name of the final ouptut directory.
-    -3rd argument musth be the basename of the output file.
-    -4th argument is optional. It refers to a file including the samples to process. Default: Process all samples.\n"
+    -3rd argument must be the basename of the output file.
+    -4th argument must be the fasta reference file to use in the indel normalization step. Values: [-|file]. If -, will use the hg19 assembly present in lobo.
+    -5th argument is optional. It refers to a file including the samples to process. Default: Process all samples.\n"
  }
 
-if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] ; then
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
     printf "Error. Please set the required parameters of the script\n"
     display_usage
     exit 1
@@ -42,13 +43,19 @@ fi
 
 #BCFTOOLS: bcftools filter -s LowGQ,LowAD -m + -S . -e "FMT/GQ < 50 " -m + -e "FMT/DP[1] <= 15" ~/Desktop/joint.vcf.gz
 
-samples_subset=$(readlink -f "$4")
-if [ -z "$4" ]; then
+if [ -z "$4" ] || [ "$4" == "-" ]; then
+    REF_FASTA="/mnt/nfs/lobo/IMM-NFS/genomes/hg19/Sequence/WholeGenomeFasta/genome.fa"
+else
+    REF_FASTA=$(readlink -f $4)
+fi
+
+samples_subset=$(readlink -f "$5")
+if [ -z "$5" ]; then
     shifter --image=mcfonsecalab/variantutils:0.4 bcftools query -l $VCF > $WORKDIR/listSamples.txt
 elif [ -f "$samples_subset" ]; then
     cat $samples_subset > $WORKDIR/listSamples.txt
 else
-    printf "Please set a valid file for the 4th argument"
+    printf "Please set a valid file for the 5th argument"
     display_usage
     exit 1
 fi
@@ -101,7 +108,7 @@ echo -e "#!/bin/bash
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/merge_bcftools_%j.log\n" > $WORKDIR/mergeVCFs.sbatch
 
-echo -e "srun shifter bcftools merge -Oz -i DP:min *_filt.vcf.gz | shifter bcftools norm -Oz -m -both -o ${OUTBASENAME}_merged.vcf.gz -\n" >> $WORKDIR/mergeVCFs.sbatch
+echo -e "srun shifter bcftools merge -Oz -i DP:min *_filt.vcf.gz | shifter bcftools norm -Oz -f $REF_FASTA -m -both -o ${OUTBASENAME}_merged.vcf.gz -\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools index ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools view --min-ac 1 -Oz -o ${OUTBASENAME}_merged_filt.vcf.gz ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "mv ${OUTBASENAME}_merged* merge*log $OUTDIR" >> $WORKDIR/mergeVCFs.sbatch

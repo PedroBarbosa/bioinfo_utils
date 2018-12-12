@@ -30,4 +30,4 @@ srun shifter --image=ummidock/ubuntu_base:latest bgzip --force ${output_vcf/.gz/
 srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${output_vcf}
 mv ${output_vcf}* $outdir
 #cd ../ && rm -rf $SLURM_JOB_ID 
-
+rm /tmp/*
