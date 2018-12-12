@@ -47,7 +47,8 @@ def generate_vcf(gnomad_vcf, outfile, pop, format_fields):
     nind = get_number_individuals(gnomad_vcf, pop)
     gt_dp, gt_qual = generate_putative_GQ_DP(format_fields, nind)
     vcf_data = VCF(gnomad_vcf, gts012=True)
-    with gzip.open(outfile, 'wb') as out:
+    with open(outfile,'w') as out:
+    #with gzip.open(outfile, 'wb') as out:
         vcf_data.add_format_to_header({'ID': 'GT', 'Description': 'Genotype', 'Type': 'String', 'Number': 1})
         vcf_data.add_format_to_header(
             {'ID': 'AD', 'Description': 'Allelic depths for the ref and alt alleles in the order listed',
@@ -62,7 +63,8 @@ def generate_vcf(gnomad_vcf, outfile, pop, format_fields):
         individuals = ["ind_" + str(i) for i in range(1, nind, 1)]
         header = filter(None, vcf_data.raw_header.split("\n"))
         final_header = [line + '\t' + '\t'.join(individuals) if line.startswith("#CHROM") else line for line in header]
-        out.write('\n'.join(final_header).encode() + "\n".encode())
+        out.write('\n'.join(final_header) + "\n")
+        #out.write('\n'.join(final_header).encode() + "\n".encode())
         info_fields = [field["ID"] for field in vcf_data.header_iter() if field["HeaderType"] == "INFO"]
 
         for record in vcf_data:
@@ -108,7 +110,8 @@ def generate_vcf(gnomad_vcf, outfile, pop, format_fields):
                              record.FILTER,
                              ';'.join(str_info), "GT:AD:DP:GQ:PL"]]
 
-            out.write('\t'.join(write_record + fmt).encode() + "\n".encode())
+            out.write('\t'.join(write_record + fmt) + "\n")
+            #out.write('\t'.join(write_record + fmt).encode() + "\n".encode())
 
         vcf_data.close()
         out.close()
@@ -124,7 +127,8 @@ def add_absent_records(vcf_absent_gnomad,outfile,nind):
     vcf_data = VCF(vcf_absent_gnomad, gts012=True)
     info_fields = [field["ID"] for field in vcf_data.header_iter() if field["HeaderType"] == "INFO"]
 
-    with gzip.open(outfile, 'ab') as out:
+    with open(outfile,'a') as out:
+    #with gzip.open(outfile, 'ab') as out:
         for record in vcf_data:
             str_info = []
             for i in info_fields:
@@ -137,7 +141,8 @@ def add_absent_records(vcf_absent_gnomad,outfile,nind):
                              record.FILTER,
                              ';'.join(str_info), "GT:AD:DP:GQ:PL"]]
 
-            out.write('\t'.join(write_record + fmt).encode() + "\n".encode())
+            out.write('\t'.join(write_record + fmt) + "\n")
+            #out.write('\t'.join(write_record + fmt).encode() + "\n".encode())
         vcf_data.close()
     out.close()
 
