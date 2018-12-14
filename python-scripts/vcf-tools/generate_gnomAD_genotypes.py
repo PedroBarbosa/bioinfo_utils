@@ -145,6 +145,7 @@ def add_absent_records(vcf_absent_gnomad,outfile,nind):
             #out.write('\t'.join(write_record + fmt).encode() + "\n".encode())
         vcf_data.close()
     out.close()
+    logging.info("Done")
 
 def main():
     parser = argparse.ArgumentParser(description='Script to create add genotypes into a VCF file.')

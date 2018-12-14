@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=vep_base_run
-#SBATCH --time=24:00:00
+#SBATCH --time=72:00:00
 #SBATCH --mem=100G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -26,12 +26,11 @@ srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf $outfile
 srun shifter --image=mcfonsecalab/variantutils:0.4 python ~/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/addReMM_scores.py $outfile ~/resources/predictionTools/reMM_genomiser/ReMM.v0.3.1.tsv.gz ${outfile/vcf.gz/ReMM.vcf}
 #--plugin G2P,file=/media/custom_data/G2P/G2P.csv.gz
 srun /home/pedro.barbosa/software/annovar/table_annovar.pl ${outfile/vcf.gz/ReMM.vcf} /home/pedro.barbosa/software/annovar/humandb/ -buildver hg19 -out ${outfile/vcf.gz/spidex} -remove -protocol spidex -operation f -nastring . -vcfinput
-mv * $outdir && cd ../ && rm -rf $SLURM_JOB_ID 
 
 mv ${outfile/vcf.gz/spidex}*vcf ${outfile/.gz/}
 srun shifter --image=ummidock/ubuntu_base:latest bgzip --force ${outfile/.gz/}
 srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${outfile}
 mv ${outfile}* $outdir
-#cd ../ && rm -rf $SLURM_JOB_ID
-rm /tmp/*
+cd ../ && rm -rf $SLURM_JOB_ID
+rm -rf `ls -la /tmp/ | grep 'pedro.barbosa' | awk ' { print $9 } '`
 

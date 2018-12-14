@@ -1,0 +1,16 @@
+#!/bin/bash
+#SBATCH --job-name=cadd_intersect
+#SBATCH --time=48:00:00
+#SBATCH --mem=200G
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=40
+#SBATCH --workdir=/home/pedro.barbosa/scratch
+#SBATCH --output=/home/pedro.barbosa/scratch/%j_cadd_intersect.log
+
+cadd_bed_file=$(readlink -f /home/pedro.barbosa/resources/predictionTools/cadd13/cadd13_wgs_sorted_SNVs.bed.gz)
+cadd_indels_file
+database_bed_file=$(readlink -f /home/pedro.barbosa/resources/alcides_clinvar/5_sorted_chrAdded_hg19_noInvalidCoord_noDupCoords.bed)
+srun shifter --image=mcfonsecalab/htstools_plus:latest bedtools intersect -wo -f 1.0 -r -sorted -a $database_bed_file -b $cadd_bed_file | gzip > 1_cadd_intersection_indels.bed.gz
+mv 1_cadd_intersection.bed.gz /home/pedro.barbosa/resources/predictionTools/cadd13/ 
+mv ${SLURM_JOB_ID}_cadd_intersect.log /home/pedro.barbosa/resources/predictionTools/cadd13/
