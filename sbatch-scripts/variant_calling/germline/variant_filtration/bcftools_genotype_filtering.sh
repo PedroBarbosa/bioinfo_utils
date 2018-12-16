@@ -66,7 +66,7 @@ JOBS=$(( $(cat $WORKDIR/listSamples.txt | wc -l) - 1 ))
 cat > $WORKDIR/bcftools_genotypes_hardFiltering.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=filt_hard_bcftools
-#SBATCH --array=0-$JOBS%150
+#SBATCH --array=0-$JOBS%75
 #SBATCH --time=24:00:00
 #SBATCH --mem=15G
 #SBATCH --nodes=1
@@ -108,10 +108,10 @@ echo -e "#!/bin/bash
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/merge_bcftools_%j.log\n" > $WORKDIR/mergeVCFs.sbatch
 
-echo -e "srun shifter bcftools merge --missing-to-ref -Oz -i DP:min *_filt.vcf.gz | shifter bcftools norm -Oz -f $REF_FASTA -m -both -o ${OUTBASENAME}_merged.vcf.gz -\n" >> $WORKDIR/mergeVCFs.sbatch
+echo -e "srun shifter bcftools merge --missing-to-ref -Oz -i DP:min *_filt.vcf.gz | shifter bcftools norm -Oz -f $REF_FASTA -m- | shifter bcftools norm -d none -Oz -f $REF_FASTA -o ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools index ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools view --min-ac 1 -Oz -o ${OUTBASENAME}_merged_filt.vcf.gz ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "mv ${OUTBASENAME}_merged* merge*log $OUTDIR" >> $WORKDIR/mergeVCFs.sbatch
-#echo "find . ! -name 'mergeVCFs.sbatch' -exec rm -rf {} \;" >> $WORKDIR/mergeVCFs.sbatch
+echo "find . ! -name 'mergeVCFs.sbatch' -exec rm -rf {} \;" >> $WORKDIR/mergeVCFs.sbatch
 sbatch --depend=afterok:$id $WORKDIR/mergeVCFs.sbatch
 
