@@ -20,12 +20,12 @@ def get_location(x,hp):
         elif v.posedit.pos.start.base > 0 and v.posedit.pos.start.offset == 0:
             return 'coding' #coding
         elif v.posedit.pos.start.base > 0 and abs(v.posedit.pos.start.offset) >= 100:
-            return 'deepintronic'
+            return 'deepintronic (>100bp)'
         else:
-            return 'splicesite'
+            return 'splicesite_intronic (0to100bp)'
 
     except hgvs.exceptions.HGVSParseError:
-        return 'unknown'
+        return 'likely_promotor_or_intergenic'
 
 
 
