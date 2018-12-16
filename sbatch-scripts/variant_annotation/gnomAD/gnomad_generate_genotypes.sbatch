@@ -23,5 +23,5 @@ srun shifter python $SCRIPT --pop ${pops[$SLURM_ARRAY_TASK_ID]} $PRESENT_IN_GNOM
 srun shifter bcftools sort -Oz gnomad_${pops[$SLURM_ARRAY_TASK_ID]}.vcf > gnomad_${pops[$SLURM_ARRAY_TASK_ID]}.vcf.gz
 #srun shifter --image=ummidock/ubuntu_base:latest bgzip --force gnomad_${pops[$SLURM_ARRAY_TASK_ID]}.vcf
 srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf gnomad_${pops[$SLURM_ARRAY_TASK_ID]}.vcf.gz
-mv gnomad_${pops[$SLURM_ARRAY_TASK_ID]}.vcf.gz $(dirname $PRESENT_IN_GNOMAD)
+mv gnomad_${pops[$SLURM_ARRAY_TASK_ID]}.vcf.gz* $(dirname $PRESENT_IN_GNOMAD)
 rm -rf `ls -la /tmp/ | grep 'pedro.barbosa' | awk ' { print $9 } '`
