@@ -55,6 +55,7 @@ def extractFields(vcf,negInd,fields):
             try:
                 var=[record.CHROM,str(record.POS), record.REF, record.ALT[0],record.INFO["ANN"].split(",")[0].split("|")[tools.index('Existing_variation')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('MAX_AF')],
+                    record.INFO["ANN"].split(",")[0].split("|")[tools.index('MAX_AF_POPS')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('AF')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_nfe')],
@@ -90,12 +91,12 @@ def extractFields(vcf,negInd,fields):
                   "{}\t{}\t{}\t{}\t{}\t"
                   "{}\t{}\t{}\t{}\t{}\t"
                   "{}\t{}\t{}\t{}\t{}\t"
-                  "{}\t{]\n".format('\t'.join(s),"Chrom","Position","Ref_allele","Alt_allele",
-                    "rsID", "MAX_AF","1000G","gnomeAD_MAF_global","gnomeAD_MAF_nfe",
-                    "gnomeAD_MAF_nfe_nwe","GERP(>3.6)","phastCons(>0.71)","phyloP(>0.8)","CADD (>15)",
-                    "dbscSNV (>0.6)","MaxEntScan (>1)","Consequence_1","Impact_1", "Gene_1",
-                    "Transcript_1","HGVSg","HGVSc","HGVSp","location",
-                    "Clinical_Sign_1","Consequence_2..,etc"))
+                  "{}\t{]\t{}\n".format('\t'.join(s),"Chrom","Position","Ref_allele","Alt_allele",
+                    "rsID", "MAX_AF","MAX_AF_POPS","1000G","gnomeAD_MAF_global",
+                    "gnomeAD_MAF_nfe","gnomeAD_MAF_nfe_nwe","GERP(>3.6)","phastCons(>0.71)","phyloP(>0.8)",
+                    "CADD (>15)","dbscSNV (>0.6)","MaxEntScan (>1)","Consequence_1","Impact_1",
+                    "Gene_1","Transcript_1","HGVSg","HGVSc","HGVSp",
+                    "location","Clinical_Sign_1","Consequence_2..,etc"))
         
         for sample,variantSet in sample_based.items():
 
