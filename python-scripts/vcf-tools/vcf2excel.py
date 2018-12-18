@@ -60,6 +60,8 @@ def extractFields(vcf,negInd,fields):
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_nfe')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_nfe_nwe')],
+                    record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_afr')],
+                    record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_eas')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('GERP')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('phastCons')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('phyloP')],
@@ -91,12 +93,12 @@ def extractFields(vcf,negInd,fields):
                   "{}\t{}\t{}\t{}\t{}\t"
                   "{}\t{}\t{}\t{}\t{}\t"
                   "{}\t{}\t{}\t{}\t{}\t"
-                  "{}\t{]\t{}\n".format('\t'.join(s),"Chrom","Position","Ref_allele","Alt_allele",
-                    "rsID", "MAX_AF","MAX_AF_POPS","1000G","gnomeAD_MAF_global",
-                    "gnomeAD_MAF_nfe","gnomeAD_MAF_nfe_nwe","GERP(>3.6)","phastCons(>0.71)","phyloP(>0.8)",
-                    "CADD (>15)","dbscSNV (>0.6)","MaxEntScan (>1)","Consequence_1","Impact_1",
-                    "Gene_1","Transcript_1","HGVSg","HGVSc","HGVSp",
-                    "location","Clinical_Sign_1","Consequence_2..,etc"))
+                  "{}\t{]\t{}\t{}\n".format('\t'.join(s),"Chrom","Position","Ref_allele","Alt_allele","rsID",
+                    "MAX_AF","MAX_AF_POPS","1000G","gnomeADg_MAF_global","gnomeADg_MAF_nfe",
+                    "gnomeADg_MAF_nfe_nwe","gnomADg_MAF_afr", "gnomADg_AF_eas","GERP(>3.6)","phastCons(>0.71)",
+                    "phyloP(>0.8)","CADD (>15)","dbscSNV (>0.6)","MaxEntScan (>1)","Consequence_1",
+                    "Impact_1","Gene_1","Transcript_1","HGVSg","HGVSc",
+                    "HGVSp","location","Clinical_Sign_1","Consequence_2..,etc"))
         
         for sample,variantSet in sample_based.items():
 
