@@ -93,7 +93,7 @@ def extractFields(vcf,negInd,fields):
                   "{}\t{}\t{}\t{}\t{}\t"
                   "{}\t{}\t{}\t{}\t{}\t"
                   "{}\t{}\t{}\t{}\t{}\t"
-                  "{}\t{]\t{}\t{}\n".format('\t'.join(s),"Chrom","Position","Ref_allele","Alt_allele","rsID",
+                  "{}\t{}\t{}\t{}\n".format('\t'.join(s),"Chrom","Position","Ref_allele","Alt_allele","rsID",
                     "MAX_AF","MAX_AF_POPS","1000G","gnomeADg_MAF_global","gnomeADg_MAF_nfe",
                     "gnomeADg_MAF_nfe_nwe","gnomADg_MAF_afr", "gnomADg_AF_eas","GERP(>3.6)","phastCons(>0.71)",
                     "phyloP(>0.8)","CADD (>15)","dbscSNV (>0.6)","MaxEntScan (>1)","Consequence_1",
