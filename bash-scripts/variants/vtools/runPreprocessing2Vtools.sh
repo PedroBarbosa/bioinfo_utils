@@ -6,7 +6,7 @@ display_usage(){
 3rd argument must be a flag to perform null imputation on input VCF. Values: [true|false].
 4th argument must be a flag to indicate wheather samples should be renamed (pos|neg) samples. Values: [true|false]
 5th argument must be the list of Sarcomeric genes.
-6th argument is otpional. If set, gnomad population is treated as control.\n"
+6th argument is otpional. If set, gnomad population is treated as control. Values: [true|false]\n"
 }
 
 if [[ -z "$1" || -z "$2" || -z "$3" || -z "$4" || -z "$5" ]]; then
@@ -52,7 +52,7 @@ if [[ "$4" == "true" && -z "$6" ]];then
 
 elif [[ "$4" == "false" && -z "$6" || "$6" == "false" ]];then
     shifter --image=mcfonsecalab/variantutils:0.4 bcftools query -l $vcfile | awk -v OFS="\t" '{if ($0 ~ /case/) {print $0,1} else {print $0,0}}' > phenotype.txt
-elif [ "$6" == "true" ]; then
+elif [[ "$6" == "true" ]]; then
     shifter --image=mcfonsecalab/variantutils:0.4 bcftools query -l $vcfile | awk -v OFS="\t" '{if ($0 ~ /ind/) {print $0,0} else {print $0,1}}' > phenotype.txt
 else
     printf "Please set valid value for the 4th argument.\n"

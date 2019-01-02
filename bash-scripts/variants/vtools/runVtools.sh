@@ -42,8 +42,8 @@ vtools phenotype --from_file $phenotype_file $phenotype
 vtools use $ann_database -f $gene_mapping
 
 #SINGLE VARIANT TESTS"
-vtools update variant --from_stat 'num_gt_case=#(GT)' 'num_var_alleles_case=#(alt)' --samples "sample_name like 'case%'"
-vtools update variant --from_stat 'num_gt_ctrl=#(GT)' 'num_var_alleles_ctrl=#(alt)' --samples "sample_name like 'ctrl%'"
+vtools update variant --from_stat 'num_gt_case=#(GT)' 'num_var_alleles_case=#(alt)' --samples "sample_name like 'H%'"
+vtools update variant --from_stat 'num_gt_ctrl=#(GT)' 'num_var_alleles_ctrl=#(alt)' --samples "sample_name like 'ind%'"
 vtools update variant --set "prop_pval=Fisher_exact(num_var_alleles_case, num_var_alleles_ctrl, 2*num_gt_case, 2*num_gt_ctrl)"
 vtools output variant chr pos ref alt prop_pval | sort -r -k5 > $outdir/single_variant_fisher.txt
 
