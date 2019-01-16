@@ -64,7 +64,7 @@ else
 fi
 
 OUT_FILE="$3"
-MAPPER="bwa-mem"
+MAPPER="STAR"
 cat > $WORKDIR/generateBamStats.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=getStatsFromBAM
