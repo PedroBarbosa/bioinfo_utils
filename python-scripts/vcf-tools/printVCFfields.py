@@ -8,17 +8,17 @@ def gets_standard_field(record, field):
     elif field == "POS":
         return str(record.POS)
     elif field == "ID":
-        return record.ID
+        return str(record.ID)
     elif field == "REF":
         return record.REF
     elif field == "ALT":
         return ','.join(record.ALT)
     elif field == "QUAL":
-        return record.QUAL
+        return str(record.QUAL)
     elif field == "FILTER":
         return record.FILTER
     elif field == "FORMAT":
-        return record.FORMAT
+        return ','.join(record.FORMAT)
 
 def printFields(vcf,fields,printall):
     standard_fields=["CHROM","POS","ID","REF","ALT","QUAL","FILTER","FORMAT"]
