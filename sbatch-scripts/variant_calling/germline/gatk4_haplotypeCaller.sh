@@ -11,7 +11,8 @@ display_usage(){
     -5th argument is optional. If set to false, GNU parallel will be disabled to run the set of samples provided in the 1st argument. Options: [true|false]. Default: true, GNU parallel is used to parallelize the job.
     -6th argument must be provided when the data comes from a targeted experiment. Refers to the target intervals in bed format. Use '-' to skip this argument.
     -7th argument is optional. Refers to the number of nodes,tasks and cpus per task, respectively, to employ on this slurm job in lobo (tasks will be set in parallel,not in the srun command). Default:1,8,5 if GNU parallel (5th argument) is true; 1,1,40 if GNU parallel is false. '-' skips this argument. Setting this argument will override any settings assumed by GNU parallel option.
-    -8th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID. Must be blocked compressed\n"
+    -8th argument is optional. Refers to run HaplotypeCaller using SPARK or not. Default:true.
+    -9th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID. Must be blocked compressed.\n"
 }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
@@ -47,17 +48,17 @@ fi
 
 ##REFERENCE##
 if [ "$4" = "-" ]; then
-    REF="/mnt/nfs/lobo/IMM-NFS/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa"
+    REF="/mnt/nfs/lobo/IMM-NFS/genomes/hg19/Sequence/WholeGenomeFasta/genome.fa"
 elif [ ! -f "$4" ]; then
     printf "Please provide a valid fasta file in th 4th argument.\n"
     display_usage
     exit 1
-elif [ ! -f "${4}.fai" ]; then
+elif [ ! -f "$(readlink -f ${4}.fai)" ]; then
     printf "Fasta index ${4}.fai not found in the reference directory. Please create one with samtools faidx.\n"
     display_usage
     exit
 else
-    REF="$4"
+    REF="$(readlink -f "$4")"
 fi
 
 re='^[0-9]+$'
@@ -67,7 +68,7 @@ if [[ -z "$7" || "$7" = "-" ]]; then
     if [ -z "$5" ] || [ "$5" = "true" ]; then
         NODES=1
         NTASKS=8
-        CPUS_PER_TASK=5
+        CPUS=5
     elif [ "$5" = "false" ]; then
         NODES=1
         NTASKS=1
@@ -92,7 +93,7 @@ else
         done
         NODES=${array[0]}
         NTASKS=${array[1]}
-        CPUS_PER_TASK=${array[2]}
+        CPUS=${array[2]}
         if [ "$5" = "false" ]; then
             PARALLEL="false"
         elif [ "$5" != "true" ]; then
@@ -107,27 +108,41 @@ else
     fi
 fi
 
-if [ -n "$8" ] && [ -f "$8" ]; then
-    #CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --dbsnp $8"
-    printf "Known variants file provided.\n"
-    dbsnp=$(readlink -f "$8")
-    CMD="gatk ${JAVA_Xmx} HaplotypeCaller --dbsnp $dbsnp"
-elif [ -n "$8" ]; then
-    printf "8th argument is not valid file. If you want to use it, please set it properly.\n"
+isSpark="true"
+if [ -z "$8" ] || [ "$8" == "true" ] || [ "$8" == "-" ]; then
+    CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark"
+#    SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS] --num-executors 7 --executor-cores 5 --executor-memory 32500" #single JVM only allows one executor
+#    SPARK="-- --spark-runner LOCAL --spark-master local-cluster[7,5,32000]" #simulation of a local pseudo-cluster. failed
+    SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS,4]"
+#    SPARK="-- --spark-runner SPARK --spark-master"
+elif [ "$8" == "false" ]; then
+    CMD="gatk ${JAVA_Xmx} HaplotypeCaller"
+    isSpark="false"
+else
+    printf "ERROR. Please set a valid value for the 8th argument. [true|false]\n"
     display_usage
     exit 1
-else
-    #CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark"
-    CMD="gatk ${JAVA_Xmx} HaplotypeCaller"
 fi
+
+if [ -n "$9" ] && [ -f "$9" ]; then
+    printf "Known variants file provided.\n"
+    dbsnp=$(readlink -f "$9")
+    CMD="$CMD --dbsnp $dbsnp"
+elif [ -n "$9" ]; then
+    printf "9th argument is not valid file. If you want to use it, please set it properly.\n"
+    display_usage
+    exit 1
+fi
+
 ##CMD##
 ref_2bit="$(basename $REF)"
 #CMD="$CMD --tmp-dir=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit -ERC GVCF"
-CMD="$CMD --tmp-dir=/home/pedro.barbosa/scratch/gatk --reference $REF -ERC GVCF"
+CMD="$CMD --tmp-dir=/home/mcfonseca/scratch --reference $REF -ERC GVCF"
 #createOutputVariantIndex true [missing this arg. Needed to add extra step of generating index for genomicsDB import through IndexFeatureFile utility]
-#SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS]"
+
 ###MODE####
 analysis=("WGS" "targeted")
+BED=$(readlink -f "$6")
 if [[ !  " ${analysis[@]} " =~ " ${3} " ]]; then
     printf "Please set a valid value for the 3th argument.\n"
     display_usage
@@ -138,36 +153,40 @@ elif [ "$3" != "WGS" ]; then
         display_usage
         exit 1
     elif [[ ${6: -4} == ".bed"  ]]; then
-        BED=$(readlink -f "$6")
         CMD="$CMD --intervals="$BED" --interval-padding 0"
     else
         printf "Invalid bed input for target regions.\n"
         display_usage
         exit 1
     fi  
+else
+    CMD="$CMD --intervals='chr1' --interval-padding 0"
+
+# --strict
 fi
+
 cat > $WORKDIR/haplotypeCaller_GVCF.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=gatk_hc
 #SBATCH --time=72:00:00
-#SBATCH --mem=100G
+#SBATCH --mem=240G
 #SBATCH --nodes=$NODES
 #SBATCH --ntasks=$NTASKS
-#SBATCH --cpus-per-task=$CPUS_PER_TASK
-#SBATCH --image=broadinstitute/gatk:latest
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_gatk_hc.log
-
+#SBATCH --cpus-per-task=$CPUS
+#SBATCH --image=broadinstitute/gatk:4.1.0.0
+##SBATCH --workdir=$WORKDIR
+#SBATCH --output=%j_gatk_hc.log
 
 timestamp() {
     date +"%Y-%m-%d  %T"
 }
 export -f timestamp
+printf "\$(timestamp) -> Job settings\n\$(timestamp) -> isWithParallel=$PARALLEL\n\$(timestamp) -> isSparkjob=$isSpark\n\$(timestamp) -> nodes=$NODES\n\$(timestamp) -> ntasks=$NTASKS\n\$(timestamp) -> cpus=$CPUS\n"
 scratch_out=$WORKDIR/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
 srun="srun -N1 -n1 --slurmd-debug 3 shifter"
-parallel="parallel --delay 0.2 -j \$SLURM_NTASKS  --env timestamp --joblog parallel.log --resume-failed"
+parallel="parallel --delay 0.2 -j \$SLURM_NTASKS  --env timestamp --joblog parallel.log --halt soon,fail=1 --resume-failed"
 echo "\$(timestamp) -> Job started!"
 echo "\$(timestamp) -> Converting reference fasta file to 2bit format for HaplotypeCallerSpark"
 \$srun --image=mcfonsecalab/htstools_plus:latest faToTwoBit $REF ${ref_2bit%.*}.2bit
@@ -179,8 +198,13 @@ if [[ -n "$dbsnp"  && ! -f "${dbsnp}.tbi" ]]; then
 fi
 
 if [ "$PARALLEL" == "true" ]; then
-#    cat $BAM_DATA | \$parallel  'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf $SPARK && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
-    cat $BAM_DATA | \$parallel 'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
+    if [ $isSpark == "true" ]; then
+        cat $BAM_DATA | \$parallel  'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf $SPARK && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
+        #readarray -t bams < $BAM_DATA
+        #srun shifter $CMD -I=${bams[$SLURM_ARRAY_TASK_ID]} -O=${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf $SPARK && echo -e "${bams[$SLURM_ARRAY_TASK_ID]%.*}\\t${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf >> aux_sampleName.map && shifter gatk IndexFeatureFile -F ${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf
+    else
+        cat $BAM_DATA | \$parallel 'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
+    fi
 else
     unique_samples=()
     for j in \$(find $BAM_DATA -exec cat {} \; );do
@@ -192,8 +216,12 @@ else
             out="\${i%.*}"
         fi
         unique_samples+=(\${out})
-#        \$srun $CMD -I=\$j -O=\${out}.g.vcf $SPARK
-        \$srun $CMD -I=\$j -O=\${out}.g.vcf
+        if [ $isSpark == "true" ]; then
+            echo $SLURM_JOB_NODELIST
+            \$srun $CMD -I=\$j -O=\${out}.g.vcf $SPARK 
+        else
+            \$srun $CMD -I=\$j -O=\${out}.g.vcf
+        fi
         echo -e "\${out}\\t\${out}.g.vcf" >> aux_sampleName.map
         \$srun gatk IndexFeatureFile -F \${out}.g.vcf
         printf "\$(timestamp): Done!\n"

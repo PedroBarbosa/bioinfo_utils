@@ -11,5 +11,10 @@
 #header=$(readlink -f "$1")
 export TMPDIR="/home/pedro.barbosa/scratch/"
 file=$(readlink -f "$1")
-#srun cat $header $file | shifter --image=ummidock/ubuntu_base:latest bgzip > dbNSFP4.0b1a.txt.gz
-srun zcat $file | grep -v "^#" | awk '$8 != "."' | sort -k8,8 -k9,9n - | cat h - | shifter --image=ummidock/ubuntu_base:latest bgzip > dbNSFP_hg19.txt.gz
+
+srun unzip $file
+head -n1 dbNSFP3.5a_variant.chr1 > h
+cat dbNSFP3.5a_variant.chr* | grep -v "^#chr" | awk '$8 != "."' | sort -k8,8 -k9,9n - | cat h - | shifter --image=ummidock/ubuntu_base:latest bgzip -c > dbNSFP_hg19.gz
+srun shifter --image=ummidock/ubuntu_base:latest tabix -s 8 -b 9 -e 9 dbNSFP_hg19.gz
+
+#srun zcat $file | grep -v "^#" | awk '$8 != "."' | sort -k8,8 -k9,9n - | cat h - | shifter --image=ummidock/ubuntu_base:latest bgzip > dbNSFP_hg19.txt.gz
