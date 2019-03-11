@@ -23,7 +23,8 @@ def gets_standard_field(record, field):
         if record.INFO.get(field) == None:
             return "."
         else :
-            return record.INFO.get(field)
+            return str(record.INFO.get(field))
+
 
 def printFields(vcf,fields,printall):
     standard_fields=["CHROM","POS","ID","REF","ALT","QUAL","FILTER","FORMAT"]
@@ -93,3 +94,4 @@ def main():
     printFields(args.vcf,args.fields, args.allConsequences)
 if __name__ == "__main__":
     main()
+

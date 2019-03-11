@@ -31,7 +31,7 @@ cat > $PWD/filterVEP_byAuxFile.sbatch <<EOL
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
 #SBATCH --workdir=/home/pedro.barbosa/scratch/vep
-#SBATCH --output=/home/pedro.barbosa/scratch/vep/filterVEP_fromAuxFile_%j.log
+#SBATCH --output=filterVEP_fromAuxFile_%j.log
 #SBATCH --image=ensemblorg/ensembl-vep:latest
 
 mkdir \$SLURM_JOB_ID && cd \$SLURM_JOB_ID

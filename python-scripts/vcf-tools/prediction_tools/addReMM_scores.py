@@ -18,6 +18,7 @@ def processVCF(invcf,remm,dann,out):
     for record in vcf_data:
         try:
             for row in tbx_remm.fetch(record.CHROM, record.start, record.end):
+
                 if int(str(row).split()[1]) == record.POS:
                     record.INFO["ReMM"] = str(row).split()[2]
             if not record.INFO["ReMM"]:
