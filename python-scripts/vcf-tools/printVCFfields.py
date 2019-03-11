@@ -20,7 +20,10 @@ def gets_standard_field(record, field):
     elif field == "FORMAT":
         return ','.join(record.FORMAT)
     else:
-        return record.INFO.get(field)
+        if record.INFO.get(field) == None:
+            return "."
+        else :
+            return record.INFO.get(field)
 
 def printFields(vcf,fields,printall):
     standard_fields=["CHROM","POS","ID","REF","ALT","QUAL","FILTER","FORMAT"]
