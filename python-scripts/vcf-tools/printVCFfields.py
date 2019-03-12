@@ -25,6 +25,7 @@ def gets_standard_field(record, field):
         else :
             return str(record.INFO.get(field))
 
+
 def printFields(vcf,fields,printall):
     standard_fields=["CHROM","POS","ID","REF","ALT","QUAL","FILTER","FORMAT"]
     existing_info=[]

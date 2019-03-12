@@ -63,7 +63,7 @@ elif args.s:
     handle2 = open("correspondingSequenceNames.tsv","w")
     for seq_record in SeqIO.parse(handle,"fasta"):
         old_header = seq_record.description
-        seq_record.id = old_header.rsplit(args.s,1)[0]
+        seq_record.id = old_header.rsplit(args.s,1)[1]
         if len(subsetList) > 0:
             if old_header in subsetList:
                 if seq_record.id:

@@ -13,7 +13,7 @@ def processVCF(invcf,remm,dann,out):
     tbx_remm = pysam.TabixFile(remm)
     tbx_dann = pysam.TabixFile(dann)
     vcf_data.add_info_to_header({'ID': 'ReMM', 'Description': 'The Regulatory Mendelian Mutation (ReMM) for relevance prediction of non-coding variations (SNVs and small InDels)','Type':'String', 'Number': '.'})
-    vcf_data.add_info_to_header({'ID': 'DANN', 'Description': 'A deep neural network aimed to recognize pathogenic variants by annotating genetic variants, especially in noncoding regions. DANN is based on a deep neural network (DNN)','Type': 'String', 'Number': '.'})
+    vcf_data.add_info_to_header({'ID': 'DANN', 'Description': 'A deep neural network aimed to recognize pathogenic variants by annotating genetic variants, especially in noncoding regions.','Type': 'String', 'Number': '.'})
     w = Writer(out, vcf_data)
     for record in vcf_data:
         try:
@@ -28,11 +28,11 @@ def processVCF(invcf,remm,dann,out):
 
         try:
             for row in tbx_dann.fetch(record.CHROM, record.start, record.end):
-                print(str(row.split()))
-                if int(str(row).split()[1]) == record.POS and str(row).split()[2] == record.REF and str(row).split()[3] == record.ALT:
-                    record.INFO["DANN"] = str(row).split()[4]
-            if not record.INFO["DANN"]:
-                record.INFO["DANN"] = "."
+                if int(row.split()[1]) == record.POS and row.split()[2] == record.REF and row.split()[3] == record.ALT[0]:     
+                    record.INFO["DANN"] = round(float(row.split()[4]),3)
+                    break   
+                else:
+                    record.INFO["DANN"] = "."
         except ValueError:
             record.INFO["DANN"] = "."
 
