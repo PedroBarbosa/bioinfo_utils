@@ -28,21 +28,23 @@ def gets_standard_field(record, field):
 
 def printFields(vcf,fields,printall):
     standard_fields=["CHROM","POS","ID","REF","ALT","QUAL","FILTER","FORMAT"]
-    existing_info=[]
+    existing_info, final_final_existing_info=[],[]
     indexes=defaultdict(list)
     vcf_data = VCF(vcf, gts012=True)
     for field in vcf_data.header_iter():
         d = field.info()
         if d['HeaderType'] == "INFO":
             existing_info.append(d['ID'])
-    print("#List of available INFO fields:\n#{}".format(existing_info))
+
+    print("#List of available INFO fields extracted from the header:\n#{}".format(existing_info))
     for field in vcf_data.header_iter():
         if field["HeaderType"] == "INFO" and field["ID"] == "ANN":
             tools = field["Description"].split("Format:")[1][:-1].strip().split("|")
             print("#List of available fields within ANN field:\n#{}".format(tools))
+            final_existing_info = list(set(existing_info) - set(tools))
             for f in fields:
                 try:
-                    if not f in standard_fields and not f in existing_info:
+                    if not f in standard_fields and not f in final_existing_info:
                         indexes[f] = tools.index(f)
                 except ValueError:
                     print("{} field not recognized".format(f))
@@ -69,9 +71,9 @@ def printFields(vcf,fields,printall):
         for f in fields:
             if printall:
                 for i,block in enumerate(info):
-                    d[i].append(gets_standard_field(record,f)) if f in standard_fields or f in existing_info else d[i].append(block.split("|")[indexes[f]])
+                    d[i].append(gets_standard_field(record,f)) if f in standard_fields or f in final_existing_info else d[i].append(block.split("|")[indexes[f]])
             else:
-                if f in standard_fields or f in existing_info:
+                if f in standard_fields or f in final_existing_info:
                     outline.append(gets_standard_field(record,f))
                 else:
                     [outline.append(info[indexes[f]]) if info[indexes[f]] else outline.append('None')]
