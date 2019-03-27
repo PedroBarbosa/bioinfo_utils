@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 display_usage(){
    printf "
            1st argument is the VCF/rsIDs/hgvs/vep_default file to annotate.
@@ -114,13 +115,13 @@ if [ -z "$7" -o "$7" == "-" -o  "$7" == "true" ] && [ "$genome_version" != "mm10
 --plugin Condel,/media/custom_data/condel,b \
 --plugin Carol \
 --plugin CADD,/media/custom_data/cadd/hg19/v1.4/whole_genome_SNVs.tsv.gz,/media/custom_data/cadd/hg19/v1.4/InDels.tsv.gz \
---plugin dbNSFP,'consequence=ALL',/media/custom_data/dbNSFP/hg19/dbNSFP4.0b1a_hg19.txt.gz,GERP++_RS,phyloP30way_mammalian,29way_logOdds,phastCons30way_mammalian,MutationAssessor_score,SIFT4G_score,SIFT_score,Polyphen2_HDIV_score,Polyphen2_HVAR_score,MutationTaster_score,FATHMM_score,fathmm-MKL_coding_score,PROVEAN_score,CADD_phred,DANN_score,Eigen-pred_coding,Eigen-PC-phred_coding,MetaSVM_score,MetaSVM_pred,MetaLR_score,MetaLR_pred,REVEL_score,integrated_fitCons_score,LRT_score,LRT_pred,MutPred_score,VEST4_score,M-CAP_score,LINSIGHT" \
-#--custom /media/custom_data/gnomeAD/hg19/gnomAD_v2.1_justImportantFields.vcf.gz,gnomADg,vcf,exact,0,AF,AF_nfe,AF_nfe_nwe \
+--plugin dbNSFP,'consequence=ALL',/media/custom_data/dbNSFP/hg19/dbNSFP4.0b1a_hg19.txt.gz,GERP++_RS,phyloP30way_mammalian,29way_logOdds,phastCons30way_mammalian,MutationAssessor_score,SIFT4G_score,SIFT_score,Polyphen2_HDIV_score,Polyphen2_HVAR_score,MutationTaster_score,FATHMM_score,fathmm-MKL_coding_score,PROVEAN_score,CADD_phred,DANN_score,Eigen-pred_coding,Eigen-PC-phred_coding,MetaSVM_score,MetaSVM_pred,MetaLR_score,MetaLR_pred,REVEL_score,integrated_fitCons_score,LRT_score,LRT_pred,MutPred_score,VEST4_score,M-CAP_score,LINSIGHT \
+--custom /media/custom_data/gerp/All_hg19_RS.bw,GERP_vep,bigwig,exact,0 \
+--custom /media/custom_data/phyloP100/hg19.100way.phyloP100way.bw,phyloP_vep,bigwig,exact,0 \
+--custom /media/custom_data/phastcons100/hg19.100way.phastCons.bw,phastCons_vep,bigwig,exact,0 \
+--custom /media/custom_data/gnomAD/hg19/gnomAD_v2.1_justImportantFields.vcf.gz,gnomADg,vcf,exact,0,AF,AF_nfe,AF_nfe_nwe" # \
 #--plugin Gwava,region,/media/custom_data/gwava_scores/gwava_scores.bed.gz \
-#--custom /media/custom_data/gerp/All_hg19_RS.bw,Gerp,bigwig" \
-#--custom /media/custom_data/phastcons100/hg19.100way.phastCons.bw,phastCons,bigwig \
-#--custom /media/custom_data/phyloP100/hg19.100way.phyloP100way.bw,phyloP,bigwig"
-    fi
+   fi
 elif [ "$genome_version" == "mm10" ]; then
     printf "INFO. Plugins can't be set when running for mus musculus cache. Skipping this flag whatever the value was.\n"
 
@@ -278,12 +279,13 @@ if [[ -f "$OUT_DIR/${FINAL_OUT}.vcf.bgz" ]]; then
         srun shifter --image=mcfonsecalab/variantutils:0.5 python ~/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/add_prediction_scores.py $OUT_DIR/${FINAL_OUT}.vcf.bgz ${FINAL_OUT}_ReMM_DANN.vcf
         #/home/pedro.barbosa/software/miniconda3/bin/spliceai
         #srun cat ${FINAL_OUT}_ReMM_DANN.vcf | shifter --image=mcfonsecalab/variantutils:0.5 spliceai -R genome.fa -A grch37 | shifter --image=ummidock/ubuntu_base:latest bgzip > ${FINAL_OUT}_ReMM_DANN_spliceAI.vcf.gz
-        srun shifter --image=ummidock/ubuntu_base:latest bgzip ${FINAL_OUT}_ReMM_DANN.vcf
+        srun shifter --image=ummidock/ubuntu_base:latest bgzip --force ${FINAL_OUT}_ReMM_DANN.vcf
 
         printf "Running vcfanno to add remaining scores..\n"
-        job_submission_vcfanno=\$(srun /home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh \$PWD/${FINAL_OUT}_ReMM_DANN.vcf.gz ${FINAL_OUT}_final.vcf.bgz $OUT_DIR -)
-        job_id_vcfanno=\${job_submission_vcfanno##* }
-    #    srun --depend=afterok:\$job_id_vcfanno mv *log *sbatch \$job_id_vcfanno*/*log $OUT_DIR
+        run_vcfanno=\$(/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh \$PWD/${FINAL_OUT}_ReMM_DANN.vcf.gz ${FINAL_OUT}_final.vcf.bgz $OUT_DIR - true)
+        echo \$run_vcfanno
+        \$run_vcfanno
+        mv *sbatch ../*sbatch $OUT_DIR
 # && cd ../ # && rm -rf \${SLURM_JOB_ID}_additionalTools
 
     else

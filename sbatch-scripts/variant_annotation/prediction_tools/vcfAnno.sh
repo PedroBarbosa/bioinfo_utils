@@ -63,7 +63,7 @@ cat <<EOM >>$PWD/anno.conf
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gerp/gerp_hg19.bed.gz"
 columns=[4]
 names=["GERP"]
-ops=["self"]
+ops=["mean"]
 
 EOM
     
@@ -73,7 +73,7 @@ cat <<EOM >>$PWD/anno.conf
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phastcons100/phastCons_hg19.bed.gz"
 columns=[4]
 names=["phastCons"]
-ops=["self"]
+ops=["mean"]
 
 EOM
 
@@ -83,7 +83,7 @@ cat <<EOM >>$PWD/anno.conf
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phyloP100/phyloP_hg19.bed.gz"
 columns=[4]
 names=["phyloP"]
-ops=["self"]
+ops=["mean"]
 
 EOM
 
@@ -93,7 +93,7 @@ cat <<EOM >>$PWD/anno.conf
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/fitConsv1.01/fitcons_v1.01.bed.gz"
 columns = [4]
 names=["fitcons"]
-ops=["self"]
+ops=["mean"]
 
 EOM
     elif [[ $1 == "linsight" ]]; then #nochr
@@ -102,7 +102,7 @@ cat <<EOM >>$PWD/anno.conf
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/LINSIGHT/LINSIGHT_hg19.bed.bgz"
 columns=[4]
 names=["linsight_g"]
-ops=["self"]
+ops=["mean"]
 
 EOM
 
@@ -112,16 +112,16 @@ cat <<EOM >>$PWD/anno.conf
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/SiPhy/SiPhy_hg19.bed.gz"
 columns=[5]
 names=["SiPhy"]
-ops=["self"]
+ops=["mean"]
 
 EOM
     elif [[ $1 == "gwava" ]]; then #nochr
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gwava_scores/gwava_scores.bed.gz"
-columns=[5]
-names=["Gwava"]
-ops=["uniq"]
+columns=[5,5]
+names=["GWAVA","GWAVA_mean"]
+ops=["uniq","mean"]
 
 EOM
       elif [[ $1 == "ReMM" ]]; then #nochr #notworking
@@ -165,9 +165,9 @@ EOM
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/funseq2/funseq216_hg19.bed.gz"
-columns=[6]
-names=["funseq2"]
-ops=["self"]
+columns=[6,6]
+names=["funseq2","funseq2_mean"]
+ops=["self","mean"]
 
 EOM
     elif [[ $1 == "traP" ]]; then #nochr
@@ -191,9 +191,7 @@ EOM
    fi
 }
 
-#ReMM
 #spliceai
-#DANN
 #tools=(spliceai)
 tools=(gerp phastcons phyloP fitcons linsight siphy gwava fathmmMKL eigen funseq traP spidex spliceai)
 if [[ -f "$PWD/anno.conf" ]]; then
@@ -235,6 +233,9 @@ else
     cmd="vcfanno $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > $(basename $outfile)"
 fi
 
+
+
+if [[ -z "$5" || $5 == "false" || $5 == "-" ]]; then
    cat > $PWD/vcfAnno.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=vcfAnnot
@@ -251,11 +252,16 @@ cd /home/pedro.barbosa/scratch/vep
 mkdir \${SLURM_JOB_ID}_vcfAnno && cd \${SLURM_JOB_ID}_vcfAnno
 srun shifter $cmd
 mv $(basename $outfile) $outdir
-#cd ../ && rm -rf \$SLURM_JOB_ID
+cd ../ && rm -rf \$SLURM_JOB_ID
 EOL
-
-if [[ -z "$5" || $5 == "true" || $5 == "-" ]]; then 
     sbatch $PWD/vcfAnno.sbatch
-fi
 
+elif [[ "$5" == "true" ]];then
+    echo "srun shifter --image=mcfonsecalab/variantutils:0.5 $cmd"
+#    shifter --image=mcfonsecalab/variantutils:0.5 $cmd
+else
+    printf "Please set a valid value for the 5th argument\n"
+    display_usage
+    exit 1
+fi
 
