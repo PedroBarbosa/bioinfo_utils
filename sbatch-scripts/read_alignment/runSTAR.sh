@@ -140,9 +140,9 @@ cat > runSTAR.sbatch <<EOL
 SCRATCH_OUTDIR="/home/pedro.barbosa/scratch/star/\$SLURM_JOB_ID"
 mkdir \$SCRATCH_OUTDIR && cd \$SCRATCH_OUTDIR 
 echo "`date`: Analysis started."
-srun="srun --exclusive -N1 -n1"
+srun="srun  -N1 -n1"
 parallel="parallel --tmpdir \$SCRATCH_OUTDIR --halt soon,fail=1 --delay 0.2 -j $NTASKS --joblog parallel.log --resume-failed"
-cat "$FASTQ" | grep -v "R2" | \$parallel 'ulimit -n 2048; \$srun shifter $CMD --readFilesIn {} {=s/R1/R2/=} --outFileNamePrefix {=s{.*/}{};s/\_[^_]+$//;=}_ --outSAMattrRGline ID:{=s{.*/}{};s/\_[^_]+$//;=}_id SM:{=s{.*/}{};s/\_[^_]+$//;=} PL:illumina LB:lib; mv {=s{.*/}{};s/\_[^_]+$//;=}* $OUT'
+cat "$FASTQ" | grep -v "_2.fastq" | \$parallel 'ulimit -n 16384; \$srun shifter $CMD --readFilesIn {} {=s/_1.fastq/_2.fastq/=} --outFileNamePrefix {=s{.*/}{};s/\_[^_]+$//;=}_ --outSAMattrRGline ID:{=s{.*/}{};s/\_[^_]+$//;=}_id SM:{=s{.*/}{};s/\_[^_]+$//;=} PL:illumina LB:lib; mv {=s{.*/}{};s/\_[^_]+$//;=}* $OUT'
 cd ../ && rm -rf \$SLURM_JOB_ID
 EOL
 sbatch runSTAR.sbatch

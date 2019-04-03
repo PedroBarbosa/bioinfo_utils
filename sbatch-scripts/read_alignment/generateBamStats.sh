@@ -109,6 +109,6 @@ sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,
 echo -e "\$(timestamp) -> All done!"
 EOL
 sbatch $WORKDIR/generateBamStats.sbatch
-sleep 1 
+sleep 3 
 cd $WORKDIR
 mv generateBamStats.sbatch $(ls -td -- */ | head -n 1) 
