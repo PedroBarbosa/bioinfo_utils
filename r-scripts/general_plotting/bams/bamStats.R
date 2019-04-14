@@ -1,25 +1,38 @@
 library(ggplot2)
 library(RColorBrewer)
+library(pals)
 
-setwd("C:/Users/PsBBa/Desktop")
-df <- read.table("mappingStats_hg19_preprocessed_withPlateID.tsv", sep="\t",comment.char = "",check.names = FALSE,header=TRUE)
+args = commandArgs(trailingOnly=TRUE)
+
+if (length(args)==0) {
+  infile="/Users/pbarbosa/Desktop/stats_hg38_trim3bp.txt"
+  stop("At least one argument must be supplied (input file).n", call.=FALSE)
+} else {
+  infile = args[1]
+  outbasename = tools::file_path_sans_ext(args[1])
+}
+df <- read.table(infile, sep="\t",comment.char = "",check.names = FALSE,header=TRUE)
 
 #ALIGNMENTS VS UNMAPPED
 #principal component to color the direction of the correlations 
 df$pc <- predict(prcomp(~df$`#alignments`+df$`#unmapped_reads`, df))[,1]
 
-cols  <- brewer.pal(n=9, "Set1")
-length((cols))
-ggplot(df, aes(df$`#alignments`, df$`#unmapped`, color=df$plateID)) + 
- geom_point(shape=16,size=2) + 
-  scale_color_manual(values = cols) +
-  theme_minimal() +
-  theme(legend.title=element_blank()) +
-  theme(legend.text=element_text(size=12)) +
-  theme(axis.text=element_text(size=13),axis.title=element_text(size=14)) +
-  guides(colour = guide_legend(override.aes = list(size=4))) +
-  scale_y_continuous(name="Number of unmapped reads", labels = scales::comma) +
-  scale_x_continuous(name="Number of aligments", label = scales::comma)
+ 
+ncols=nrow(df)
+cols<-colorRampPalette(brewer.pal(name="Set1", n = 9))(ncols)
+if ("plateID" %in% names(df)) {
+  ggplot(df, aes(df$`#alignments`, df$`#unmapped`, color=df$plateID)) + 
+    geom_point(shape=16,size=2) + 
+    scale_color_manual(values = cols) +
+    theme_minimal() +
+    theme(legend.title=element_blank()) +
+    theme(legend.text=element_text(size=12)) +
+    theme(axis.text=element_text(size=13),axis.title=element_text(size=14)) +
+    guides(colour = guide_legend(override.aes = list(size=4))) +
+    scale_y_continuous(name="Number of unmapped reads", labels = scales::comma) +
+    scale_x_continuous(name="Number of aligments", label = scales::comma)
+}
+
 
 
 ###BOXPLOTS###
@@ -42,7 +55,7 @@ color.background = palette[2]
 color.grid.major = palette[5]
 cols  <- colorRampPalette(brewer.pal(8, "Set2"), alpha=TRUE)(ncol(df))
 
-pdf("bamGoodMetrics.pdf",width=5, height = 3)
+pdf(paste(outbasename,"_goodMetrics.pdf"),width=5, height = 3)
 par(bty="o", bg=palette[1], mar=c(2,7,1.5,2))
 boxplot(fraction_primary_q10, fraction_proper, fraction_unique, horizontal=TRUE,  lty=1,  boxwex=0.8,
         boxlwd=1, medlwd=1, outpch=19,col=cols,pars=list(outcol=cols,lwd=1,outbg=cols), yaxt="n", xaxt="n")
@@ -61,7 +74,7 @@ title(xlab="% of alignments", col.lab=palette[7], cex.lab=0.8, mgp=c(1,2,2))
 dev.off()
 
 
-pdf("bamBadMetrics.pdf", width=5, height =3)
+pdf(paste(outbasename,"_badMetrics.pdf"), width=5, height =3)
 par(bty="o", bg=palette[1], mar=c(2,7,1.5,2))
 boxplot(fraction_unmapped, fraction_duplicates, fraction_chimeric,fraction_seconday, horizontal=TRUE,  lty=1,  boxwex=0.8,
         boxlwd=1, medlwd=1, outpch=19,col=cols,pars=list(outcol=cols,lwd=1,outbg=cols), yaxt="n", xaxt="n")
