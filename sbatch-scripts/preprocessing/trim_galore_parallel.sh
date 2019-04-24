@@ -102,10 +102,10 @@ cat > $workdir/runTrimGalore.sbatch <<EOL
 #SBATCH --mail-user=pedro.barbosa@medicina.ulisboa.pt
 #SBATCH --time=72:00:00
 #SBATCH --mem=100G
-#SBATCH --nodes=1
-#SBATCH --ntasks=5
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=6
 #SBATCH --cpus-per-task=6
-#SBATCH --workdir=$workdir
+##SBATCH --workdir=$workdir
 #SBATCH --image=docker:argrosso/htspreprocessing:0.1.1
 #SBATCH --export=ALL
 #SBATCH --output=%j_trimGalore.log

@@ -74,12 +74,13 @@ cat > $WORKDIR/generateBamStats.sbatch <<EOL
 #SBATCH --ntasks=$NTASKS
 #SBATCH --cpus-per-task=$CPUS_PER_TASK
 #SBATCH --image=ummidock/bowtie2_samtools:latest
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_getStats.log
+##SBATCH --workdir=$WORKDIR
+#SBATCH --output=%j_getStats.log
 
 timestamp() {
     date +"%Y-%m-%d  %T"
 }
+#metrics="{=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//;s/\_[^_]+$//=}\t\$reads\t\$aln\t\$unmapped\t\$duplicates\t\$primary_q10\t\$proper\t\$secondary\t\$chimeric\t\$unique"; \
 export -f timestamp
 scratch_out=$WORKDIR/\$SLURM_JOB_ID
 mkdir \$scratch_out
@@ -99,7 +100,7 @@ primary_q10=\$(\$srun shifter samtools view -cF2308q10 -@\$SLURM_CPUS_PER_TASK {
 proper=\$(\$srun shifter samtools view -cf2 -@\$SLURM_CPUS_PER_TASK {}) && \
 secondary=\$(\$srun shifter samtools view -cf256 -@\$SLURM_CPUS_PER_TASK {}) && \
 chimeric=\$(\$srun shifter samtools view -cf2048 -@\$SLURM_CPUS_PER_TASK {}) && \
-metrics="{=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//;s/\_[^_]+$//=}\t\$reads\t\$aln\t\$unmapped\t\$duplicates\t\$primary_q10\t\$proper\t\$secondary\t\$chimeric\t\$unique"; \
+metrics="{/.}\t\$reads\t\$aln\t\$unmapped\t\$duplicates\t\$primary_q10\t\$proper\t\$secondary\t\$chimeric\t\$unique"; \
 echo -e "\$metrics" >> $OUT_FILE && \
 echo -e "\$(timestamp) -> Finished parallel job number {#} (sample {=s{.*/}{};s/\_[^_]+$//;s/\_[^_]+$//=})"'
 mv $OUT_FILE $OUTDIR

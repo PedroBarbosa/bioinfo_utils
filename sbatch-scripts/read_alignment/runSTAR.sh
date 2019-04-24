@@ -44,13 +44,6 @@ if [ ${#array[@]} = 3 ]; then
     NODES=${array[0]}
     NTASKS=${array[1]}
     CPUS_PER_TASK=${array[2]}
-    if [ "$5" = "false" ]; then
-        PARALLEL="false"
-    elif [ "$5" != "true" ]; then
-        printf "Error. Please set a valid value for the 5th argument (gnu parallel flag).\n"
-        display_usage
-        exit 1
-    fi
 else
     printf "ERROR. 3 fields are required for the 9th argument (nodes,tasks,cpus per task). You set a different number.\n"
     display_usage
@@ -142,7 +135,8 @@ mkdir \$SCRATCH_OUTDIR && cd \$SCRATCH_OUTDIR
 echo "`date`: Analysis started."
 srun="srun  -N1 -n1"
 parallel="parallel --tmpdir \$SCRATCH_OUTDIR --halt soon,fail=1 --delay 0.2 -j $NTASKS --joblog parallel.log --resume-failed"
-cat "$FASTQ" | grep -v "_2.fastq" | \$parallel 'ulimit -n 16384; \$srun shifter $CMD --readFilesIn {} {=s/_1.fastq/_2.fastq/=} --outFileNamePrefix {=s{.*/}{};s/\_[^_]+$//;=}_ --outSAMattrRGline ID:{=s{.*/}{};s/\_[^_]+$//;=}_id SM:{=s{.*/}{};s/\_[^_]+$//;=} PL:illumina LB:lib; mv {=s{.*/}{};s/\_[^_]+$//;=}* $OUT'
+cat "$FASTQ" | grep -v "R2" | \$parallel 'ulimit -n 16384; \$srun shifter $CMD --readFilesIn {} {=s/R1/R2/=} --outFileNamePrefix {=s{.*/}{};s/\_[^_]+$//;=}_ --outSAMattrRGline ID:{=s{.*/}{};s/\_[^_]+$//;=}_id SM:{=s{.*/}{};s/\_[^_]+$//;=} PL:illumina LB:lib; mv {=s{.*/}{};s/\_[^_]+$//;=}* $OUT'
+mv parallel* $OUT
 cd ../ && rm -rf \$SLURM_JOB_ID
 EOL
 sbatch runSTAR.sbatch

@@ -6,7 +6,7 @@ display_usage(){
 	   2nd argument is the basename for the output file (vcf.gz extension will be automatically added).
            3rd argument is the output directory.
            4th argument is the genome version to use. Values:[hg19,hg38,mm10]. 
-           5th argument is the cache version to use. Values:[95,94].
+           5th argument is the cache version to use. Values:[96,95,94].
            6th argument is optional. Refers to the set of annotations to use. Default:ensembl. Values:[ensembl|refseq|merged|-]. Set '-' to skip the argument.
            7th argument is optional. Refers whether custom annotations (e.g. gnomAD genomes frequencies, dbNSFP, conservation scores) should be added. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
            8th argument is optional. Refers whether allele frequencies should be added. Only work for human caches. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
@@ -43,7 +43,7 @@ BASE_CMD="srun shifter -V=/mnt/nfs/lobo/IMM-NFS/ensembl_vep:/media --image=ensem
 --cache --dir /media/cache --offline --sift b --polyphen b --numbers --regulatory --variant_class"
 
 genomes=(hg19 hg38 mm10)
-cache=(95 94)
+cache=(96 95 94)
 annotations=(ensembl refseq merged)
 genome_version="$4"
 cache_version="$5"
@@ -68,9 +68,9 @@ elif [[ ! " ${cache[@]} " =~ " $cache_version " ]]; then
 fi
 
 if [[ "$genome_version" == "mm10" ]]; then
-    printf "INFO. When mus musculus cache is used, it does not matter the cache version and the set of annotations set. VEP defaults to the 95 cache, ensembl annotations.\n"
+    printf "INFO. When mus musculus cache is used, it does not matter the cache version and the set of annotations set. VEP defaults to the 96 cache, ensembl annotations.\n"
     ASSEMBLY="GRCm38"
-    FASTA="/media/cache/mus_musculus/95_GRCm38/Mus_musculus.GRCm38.dna.toplevel.fa.gz"
+    FASTA="/media/cache/mus_musculus/96_GRCm38/Mus_musculus.GRCm38.dna.toplevel.fa.gz"
 
 elif [[ "$annotation" == "ensembl" ]]; then
     annot_dir="/media/cache/homo_sapiens"
@@ -88,6 +88,9 @@ if [[ "$genome_version" == "hg19" ]]; then
         FASTA="$annot_dir/94_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
     elif [[ "$cache_version" == "95" ]]; then
         FASTA="$annot_dir/95_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
+    elif [[ "$cache_version" == "96" ]]; then
+        FASTA="$annot_dir/96_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
+
     fi
 
 elif [[ "$genome_version" == "hg38" ]];then
@@ -96,6 +99,8 @@ elif [[ "$genome_version" == "hg38" ]];then
         FASTA="$annot_dir/94_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     elif [[ "$cache_version" == "95" ]]; then
         FASTA="$annot_dir/95_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
+    elif [[ "$cache_version" == "96" ]]; then
+        FASTA="$annot_dir/96_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     fi
 fi
 BASE_CMD="$BASE_CMD --cache_version $cache_version -a $ASSEMBLY --fasta $FASTA"
@@ -232,7 +237,7 @@ mkdir \${SLURM_JOB_ID}_withParallel && cd \${SLURM_JOB_ID}_withParallel
 $BASE_CMD --chr \${chrom_list[\$SLURM_ARRAY_TASK_ID]} --output_file \${chrom_list[\$SLURM_ARRAY_TASK_ID]}.vcf.bgz --vcf --vcf_info_field ANN --compress_output bgzip
 srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf \${chrom_list[\$SLURM_ARRAY_TASK_ID]}.vcf.bgz
 mv \${chrom_list[\$SLURM_ARRAY_TASK_ID]}.vcf.bgz* ../
-#cd ../ && rm -rf \$SLURM_JOB_ID*
+cd ../ && rm -rf \$SLURM_JOB_ID*
 EOF
 
 elif [[ "${11}" != "false" && "$11" != "-" ]]; then
@@ -257,6 +262,7 @@ if [[ $PARALLEL == "true" ]]; then
     echo -e "srun shifter bcftools concat -a -Oz *.vcf.bgz | shifter bcftools sort -Oz -o ${FINAL_OUT}.vcf.bgz\n" >> $WORKDIR/concatVCFs_vep.sbatch
     echo -e "srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${FINAL_OUT}.vcf.bgz\n" >> $WORKDIR/concatVCFs_vep.sbatch
     echo -e "mv ${FINAL_OUT}* $OUT_DIR" >> $WORKDIR/concatVCFs_vep.sbatch
+    echo -e "rm *.vcf.bgz" >> $WORKDIR/concatVCFs_vep.sbatch
     job_submission_concat=$(sbatch --depend=afterok:$job_id_vep $WORKDIR/concatVCFs_vep.sbatch)
     job_id_concat=${job_submission_concat##* }
 fi
