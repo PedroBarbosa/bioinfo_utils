@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=bamInsight
-#SBATCH --array=0-12%1
+#SBATCH --array=0-1%1
 #SBATCH --time=72:00:00
 #SBATCH --mem=240G
 #SBATCH --nodes=1
@@ -25,3 +25,4 @@ srun shifter baminsight stranded $genome pedro.barbosa@medicina.ulisboa.pt --nam
 
 #-add_bam
 rm -rf /tmp/*
+sleep 30

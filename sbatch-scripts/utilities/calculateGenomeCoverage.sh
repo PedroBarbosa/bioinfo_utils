@@ -52,7 +52,8 @@ fi
 ##REFERENCE##
 reference=$(readlink -f "$3")
 if [ "$3" = "-" ]; then
-    reference="/mnt/nfs/lobo/IMM-NFS/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa"
+#    reference="/mnt/nfs/lobo/IMM-NFS/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa"
+    reference="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/GRCh38.primary.genome.fa"
 elif [ ! -f "$3" ]; then
     printf "Please provide a valid fasta file in th 4th argument.\n"
     display_usage
@@ -158,8 +159,8 @@ elif [ "$4" = "targeted" ]; then
 #SBATCH --ntasks=$NTASKS
 #SBATCH --cpus-per-task=$CPUS_PER_TASK
 #SBATCH --image=broadinstitute/gatk:latest
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_getTargetCoverage.log
+##SBATCH --workdir=$WORKDIR
+#SBATCH --output=%j_getTargetCoverage.log
 
 ulimit -c ulimited
 timestamp() {

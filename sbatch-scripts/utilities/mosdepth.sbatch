@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=mosdepth
-#SBATCH --array=0-3%4
+#SBATCH --array=0-4%5
 #SBATCH --time=24:00:00
 #SBATCH --mem=50G
 #SBATCH --nodes=1

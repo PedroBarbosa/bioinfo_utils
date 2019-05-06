@@ -125,7 +125,7 @@ fi
 if [[ $SPARK == "false" ]]; then
     CMD="gatk ${JAVA_Xmx} MarkDuplicates --ASSUME_SORT_ORDER $SORT_ORDER --CREATE_INDEX=true --REMOVE_DUPLICATES $DUP"
 elif [[ $SPARK == "true" ]]; then
-    CMD="gatk ${JAVA_Xmx} MarkDuplicatesSpark --remove-sequencing-duplicates $DUP"
+    CMD="gatk ${JAVA_Xmx} MarkDuplicatesSpark --tmp-dir /home/pedro.barbosa/scratch/gatk/markDup/ --remove-sequencing-duplicates $DUP"
 fi
 
 cat > $WORKDIR/runGATKmarkDup.sbatch <<EOL

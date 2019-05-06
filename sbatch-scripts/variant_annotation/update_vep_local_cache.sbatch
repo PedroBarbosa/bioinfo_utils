@@ -63,7 +63,7 @@ cat > $PWD/update_vep_local_cache.sbatch <<EOL
 ##SBATCH --workdir=/home/pedro.barbosa/scratch/vep
 #SBATCH --output=%j_vep_cache.log
 
-mkdir /home/pedro.barbosa/scratch/vep/$SLURM_JOB_ID && cd /home/pedro.barbosa/scratch/vep/$SLURM_JOB_ID
+mkdir /home/pedro.barbosa/scratch/vep/\$SLURM_JOB_ID && cd /home/pedro.barbosa/scratch/vep/\$SLURM_JOB_ID
 
 if [[ -z "$CACHE_VERSION" ]]; then
     srun shifter -V=$CACHE_DIR:/media --image=ensemblorg/ensembl-vep:latest INSTALL.pl -c /media -a cfp -s $SPECIES -y $ASSEMBLY -g all

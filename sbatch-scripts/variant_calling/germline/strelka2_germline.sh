@@ -126,8 +126,8 @@ cat > $WORKDIR/configureStrelka.sbatch <<EOL
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=40
 #SBATCH --image=mcfonsecalab/strelka:2.8.4
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_strelka2.log
+##SBATCH --workdir=$WORKDIR
+#SBATCH --output=%j_strelka2.log
 
 timestamp() {
     date +"%Y-%m-%d  %T"

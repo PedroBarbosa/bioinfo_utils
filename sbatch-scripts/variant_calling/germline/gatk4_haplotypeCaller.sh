@@ -48,7 +48,8 @@ fi
 
 ##REFERENCE##
 if [ "$4" = "-" ]; then
-    REF="/mnt/nfs/lobo/IMM-NFS/genomes/hg19/Sequence/WholeGenomeFasta/genome.fa"
+#    REF="/mnt/nfs/lobo/IMM-NFS/genomes/hg19/Sequence/WholeGenomeFasta/genome.fa"
+     REF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/GRCh38.primary.genome.fa"
 elif [ ! -f "$4" ]; then
     printf "Please provide a valid fasta file in th 4th argument.\n"
     display_usage
@@ -173,7 +174,7 @@ cat > $WORKDIR/haplotypeCaller_GVCF.sbatch <<EOL
 #SBATCH --nodes=$NODES
 #SBATCH --ntasks=$NTASKS
 #SBATCH --cpus-per-task=$CPUS
-#SBATCH --image=broadinstitute/gatk:4.1.0.0
+#SBATCH --image=broadinstitute/gatk:latest
 ##SBATCH --workdir=$WORKDIR
 #SBATCH --output=%j_gatk_hc.log
 

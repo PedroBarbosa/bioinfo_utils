@@ -85,8 +85,7 @@ srun="srun -N1 -n1"
 readarray -t samples < $WORKDIR/listSamples.txt
 
 \$srun shifter bcftools view -Oz -s \${samples[\$SLURM_ARRAY_TASK_ID]} -o \${samples[\$SLURM_ARRAY_TASK_ID]}.vcf.gz $VCF
-\$srun shifter bcftools view --exclude-uncalled -i 'FMT/DP >= 20 & FMT/GQ > 30 & (FMT/GT="0/0" & FMT/AD[0:0] >= 20 || MIN(FMT/AD) > 7)' -Oz -o \${samples[\$SLURM_ARRAY_TASK_ID]}_filt.vcf.gz \${samples[\$SLURM_ARRAY_TASK_ID]}.vcf.gz
-\$srun shifter bcftools view --exclude-uncalled -Oz -o \${samples[\$SLURM_ARRAY_TASK_ID]}_filt.vcf.gz \${samples[\$SLURM_ARRAY_TASK_ID]}.vcf.gz
+\$srun shifter bcftools view --exclude-uncalled -i 'FMT/DP >= 20 & FMT/GQ > 30 & (FMT/GT="0/0" & FMT/AD[0:0] >= 20 || GT="het" & MIN(FMT/AD) > 7 || GT="AA" || GT="Aa" & MIN(FMT/AD) > 7 ||  GT="aA" & MIN(FMT/AD) > 7 )' -Oz -o \${samples[\$SLURM_ARRAY_TASK_ID]}_filt.vcf.gz \${samples[\$SLURM_ARRAY_TASK_ID]}.vcf.gz
 \$srun shifter bcftools index \${samples[\$SLURM_ARRAY_TASK_ID]}_filt.vcf.gz
 
 mv *_filt.vcf.gz* ../
@@ -112,6 +111,8 @@ echo -e "#!/bin/bash
 echo -e "srun shifter bcftools merge --missing-to-ref --merge all -Oz -i DP:min *_filt.vcf.gz | shifter bcftools norm -Oz -f $REF_FASTA -m- | shifter bcftools norm -d none -Oz -f $REF_FASTA -o ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools index ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "srun shifter bcftools view --min-ac 1 -Oz -o ${OUTBASENAME}_merged_filt.vcf.gz ${OUTBASENAME}_merged.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
+echo -e "srun shifter bcftools index ${OUTBASENAME}_merged_filt.vcf.gz\n" >> $WORKDIR/mergeVCFs.sbatch
+#echo -e "mv * $OUTDIR" >> $WORKDIR/mergeVCFs.sbatch
 echo -e "mv ${OUTBASENAME}_merged* merge*log $OUTDIR" >> $WORKDIR/mergeVCFs.sbatch
 echo "find . ! -name 'mergeVCFs.sbatch' -exec rm -rf {} \;" >> $WORKDIR/mergeVCFs.sbatch
 sbatch --depend=afterok:$id $WORKDIR/mergeVCFs.sbatch
