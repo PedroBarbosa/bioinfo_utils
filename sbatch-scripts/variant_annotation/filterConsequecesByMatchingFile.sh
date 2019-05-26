@@ -30,10 +30,11 @@ cat > $PWD/filterVEP_byAuxFile.sbatch <<EOL
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
-#SBATCH --workdir=/home/pedro.barbosa/scratch/vep
+##SBATCH --workdir=/home/pedro.barbosa/scratch/vep
 #SBATCH --output=filterVEP_fromAuxFile_%j.log
 #SBATCH --image=ensemblorg/ensembl-vep:latest
 
+cd /home/pedro.barbosa/scratch/vep 
 mkdir \$SLURM_JOB_ID && cd \$SLURM_JOB_ID
 srun shifter filter_vep -i $vcf --only_matched --vcf_info_field ANN -f "$filter" | $bgzip > $outfile
 mv $outfile ../*\${SLURM_JOB_ID}.log $outdir

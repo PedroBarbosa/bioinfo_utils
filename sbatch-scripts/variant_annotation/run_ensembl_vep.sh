@@ -187,7 +187,7 @@ if [[ "${11}" != "true" ]]; then
 #!/bin/bash
 #SBATCH --job-name=runVEP
 #SBATCH --time=72:00:00
-#SBATCH --mem=150G
+#SBATCH --mem=120G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5

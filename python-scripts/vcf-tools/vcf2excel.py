@@ -22,7 +22,7 @@ def get_location(x,hp):
         elif v.posedit.pos.start.base > 0 and abs(v.posedit.pos.start.offset) >= 100:
             return 'deepintronic (>100bp)'
         else:
-            return 'splicesite_intronic (0to100bp)'
+            return 'intronic (10to100bp)'
 
     except hgvs.exceptions.HGVSParseError:
         return 'likely_promotor_or_intergenic'
@@ -50,18 +50,27 @@ def extractFields(vcf,negInd,fields):
         heterozygous = (record.gt_types == 1).nonzero()[0].tolist()
         hom_alt = (record.gt_types == 2).nonzero()[0].tolist()
         merged=heterozygous+hom_alt
-        for i in merged:
+        if leng(fields) > 0:
+            for i in merged:
+                try:
+                    var=[record.CHROM,str(record.POS), record.REF, record.ALT[0],record.INFO["ANN"].split(",")[0].split("|")[tools.index('Existing_variation')]
+                    sample_based[samples[i]].append(tuple(var))
+                except KeyError:
+                    print("Record {},{},{},{} does not have ANN field.".format(record.CHROM,str(record.POS), record.REF, record.ALT[0]))
 
-            try:
-                var=[record.CHROM,str(record.POS), record.REF, record.ALT[0],record.INFO["ANN"].split(",")[0].split("|")[tools.index('Existing_variation')],
+        else:
+            for i in merged:
+
+                try:
+                    var=[record.CHROM,str(record.POS), record.REF, record.ALT[0],record.INFO["ANN"].split(",")[0].split("|")[tools.index('Existing_variation')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('MAX_AF')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('MAX_AF_POPS')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('AF')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_nfe')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_nfe_nwe')],
-                    record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_afr')],
-                    record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_eas')],
+                    #record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_afr')],
+                    #record.INFO["ANN"].split(",")[0].split("|")[tools.index('gnomADg_AF_eas')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('GERP')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('phastCons')],
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('phyloP')],
@@ -69,9 +78,9 @@ def extractFields(vcf,negInd,fields):
                     max(record.INFO["ANN"].split(",")[0].split("|")[tools.index('ada_score')],record.INFO["ANN"].split(",")[0].split("|")[tools.index('rf_score')]),
                     record.INFO["ANN"].split(",")[0].split("|")[tools.index('MaxEntScan_diff')]]
 
-                for cons in record.INFO["ANN"].split(","):
-                    fields=cons.split("|")
-                    var.extend((fields[tools.index('Consequence')],fields[tools.index('IMPACT')],fields[tools.index('SYMBOL')],
+                    for cons in record.INFO["ANN"].split(","):
+                        fields=cons.split("|")
+                        var.extend((fields[tools.index('Consequence')],fields[tools.index('IMPACT')],fields[tools.index('SYMBOL')],
                                 fields[tools.index('Feature')],
                                 fields[tools.index('HGVSg')],
                                 fields[tools.index('HGVSc')],
@@ -80,9 +89,9 @@ def extractFields(vcf,negInd,fields):
                                 fields[tools.index('CLIN_SIG')],
                                 ))
 
-                sample_based[samples[i]].append(tuple(var))
-            except KeyError:
-                print("Record {},{},{},{} does not have ANN field.".format(record.CHROM,str(record.POS), record.REF, record.ALT[0]))
+                    sample_based[samples[i]].append(tuple(var))
+                except KeyError:
+                    print("Record {},{},{},{} does not have ANN field.".format(record.CHROM,str(record.POS), record.REF, record.ALT[0]))
 
 
 

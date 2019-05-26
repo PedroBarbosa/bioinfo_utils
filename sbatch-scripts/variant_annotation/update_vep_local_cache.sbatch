@@ -8,7 +8,11 @@ This is the args allowed, all of them are optional.
 4rd argument is the cache version. Default: latest.\n"
 }
 
-display_usage
+if [[ $1 == "--help" ]]; then
+    display_usage
+    exit 1
+fi
+
 if [[ -z "$1" || "$1" == "-" ]]; then
     SPECIES="homo_sapiens"  
 elif [[ "$1" == "mus_musculus" ]]; then
