@@ -13,7 +13,7 @@ plotheatmap <- function(x) {
             #breaks=col_breaks,    # enable color transition at specified limits
             dendrogram="col",     # only draw a row dendrogram
             Colv=TRUE, 
-            Rowv = TRUE # turn off column clustering
+            Rowv = FALSE # turn off column clustering
             #,scale="row"
   )   
 }
