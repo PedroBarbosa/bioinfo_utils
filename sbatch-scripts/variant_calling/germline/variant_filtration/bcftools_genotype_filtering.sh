@@ -72,7 +72,7 @@ cat > $WORKDIR/bcftools_genotypes_hardFiltering.sbatch <<EOL
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --image=mcfonsecalab/variantutils:0.4
+#SBATCH --image=mcfonsecalab/variantutils:0.5
 #SBATCH --workdir=$WORKDIR
 #SBATCH --output=$WORKDIR/%j_hardFiltbcftools.log
 

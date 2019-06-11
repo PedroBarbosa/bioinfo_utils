@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=20
 ##SBATCH --workdir=/home/pedro.barbosa/scratch
 #SBATCH --output=%j_createStartIdx.log
-#SBATCH --image=argrosso/star:2.6.0b
+#SBATCH --image=dceoy/star:latest
 
 fasta=$(readlink -f "$1")
 annotation=$(readlink -f "$2")

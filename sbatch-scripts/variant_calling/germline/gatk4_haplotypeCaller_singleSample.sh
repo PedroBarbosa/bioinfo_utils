@@ -6,9 +6,8 @@ display_usage(){
     -2nd argument must be the name of the final ouptut directory.
     -3rd argument must refer to the type of analysis in hand. Values:[WGS|targeted].
     -4th argument must be the fasta reference for which the reads were aligned. If '-' is set, the existing hg38 version in lobo will be used. Be aware that a fasta index file (.fai) must also be present in the fasta directory.
-    -5th argument is optional. If set to false, GNU parallel will be disabled to run the set of samples provided in the 1st argument. Options: [true|false]. Default: true, GNU parallel is used to parallelize the job.
-    -6th argument must be provided when the data comes from a targeted experiment. Refers to the target intervals in bed format. Use '-' to skip this argument.
-    -7th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID.\n"
+    -5th argument must be provided when the data comes from a targeted experiment. Refers to the target intervals in bed format. Use '-' to skip this argument.
+    -6th argument is optional. If set, refers to a known variants file (e.g dbsnp) with IDs.  Its purpose is to annotate our variants with the corresponding reference ID.\n"
 }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
@@ -44,7 +43,7 @@ fi
 
 ##REFERENCE##
 if [ "$4" = "-" ]; then
-    REF="/mnt/nfs/lobo/IMM-NFS/genomes/hg38/Sequence/WholeGenomeFasta/genome.fa"
+    REF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/GRCh38.primary.genome.fa"
 elif [ ! -f "$4" ]; then
     printf "Please provide a valid fasta file in th 4th argument.\n"
     display_usage
@@ -57,24 +56,12 @@ else
     REF="$4"
 fi
 
-###PARALLEL####
-if [ -z "$5" ] || [ "$5" = "true" ]; then
-    NODES=1 #2 #1
-    NTASKS=5 #10 #4
-    CPUS=7 #8 #10
-    JAVA_Xmx="--java-options '-Xmx45G'"
-    PARALLEL=true
-elif [ "$5" = "false" ]; then
-    NODES=1
-    NTASKS=1
-    CPUS=40
-    JAVA_Xmx="--java-options '-Xmx240G -DGATK_STACKTRACE_ON_USER_EXCEPTION=true'"
-    PARALLEL=false
-else
-    printf "Please set a valid value for the 5th argument\n"
-    display_usage
-    exit 1
-fi
+NODES=1
+NTASKS=1
+CPUS=40
+JAVA_Xmx="--java-options '-Xmx240G -DGATK_STACKTRACE_ON_USER_EXCEPTION=true'"
+PARALLEL=false
+
 ##CMD##
 ref_2bit="$(basename $REF)"
 CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit"
@@ -88,12 +75,12 @@ if [[ !  " ${analysis[@]} " =~ " ${3} " ]]; then
     display_usage
     exit 1
 elif [ "$3" != "WGS" ]; then
-    if [ -z "$6" ]; then
-        printf "When exome or targeted sequencing, you should provide the target regions in the 6th argument as a single bed file.\n"
+    if [ -z "$5" ]; then
+        printf "When exome or targeted sequencing, you should provide the target regions in the 5th argument as a single bed file.\n"
         display_usage
         exit 1
-    elif [[ ${6: -4} == ".bed"  ]]; then
-        BED=$(readlink -f "$6")
+    elif [[ ${5: -4} == ".bed"  ]]; then
+        BED=$(readlink -f "$5")
         CMD="$CMD --intervals="$BED" --interval-padding 0"
     else
         printf "Invalid bed input for target regions.\n"
@@ -145,8 +132,8 @@ else
             out="\${i%.*}"
         fi
         unique_samples+=(\${out})
-        \$srun $CMD -I=\$j -O=\${out}.vcf -L chr1 $SPARK
-#        \$srun $CMD -I=\$j -O=\${out}.vcf
+#        \$srun $CMD -I=\$j -O=\${out}.vcf -L chr1 $SPARK
+        \$srun $CMD -I=\$j -O=\${out}.vcf
         \$srun gatk IndexFeatureFile -F \${out}.vcf
         printf "\$(timestamp): Done!\n"
     done

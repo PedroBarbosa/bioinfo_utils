@@ -49,7 +49,7 @@ cat > salmon.sbatch <<EOL
 #SBATCH --image=mcfonsecalab/rna_quantification:latest
 #SBATCH --output=%j_salmon.log
 
-readarray -t pair1 < <(cat $(readlink -f "$1") | grep -e "R1.fastq" -e "R1.fq" -e "_1.fastq" -e "_1.fq")
+readarray -t pair1 < <(cat \$(readlink -f "$1") | grep -e "R1.fastq" -e "R1.fq" -e "_1.fastq" -e "_1.fq")
 scratch_out=/home/pedro.barbosa/scratch/rna_seq/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
