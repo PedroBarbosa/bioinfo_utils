@@ -5,7 +5,10 @@ library("apeglm")
 library("pheatmap")
 library(fgsea)
 library(ggplot2)
-
+library(tidyverse)
+ensembl_genes <- read.table("~/Downloads/ensembl_genes_with_description.txt", quote = "", row.names = 1,sep="\t", header=TRUE)
+names(ensembl_genes)[names(ensembl_genes) == "Gene.name"] <- "symbol"
+names(ensembl_genes)[names(ensembl_genes) == "Gene.description"] <- "description"
 explore_data_based_on_transformed_variance <- function(dds, cond){
   #Deseq2 offers 2 transformation methods to stabilize variance across the mean
   #Which method to choose, good discussion in the vignette
@@ -56,10 +59,11 @@ run_DEseq_tests <- function(dds, test_contrast, coefficient, log2cutoff, padjcut
   dds_2 <- DESeq(dds)
   res <- results(dds_2, contrast=test_contrast, alpha=padjcutoff, test="Wald", independentFiltering = TRUE, pAdjustMethod="BH")
   summary(res)
-  #res_24_0 <- results(dds, contrast=c("timepoints","24","0"), alpha=0.05, pAdjustMethod="BH")
   if (length(resultsNames(res)) > 0) {
+    #res <- lfcShrink(dds_2, type="apeglm", res= res)
     res <- lfcShrink(dds_2, coef = coefficient, type="apeglm", res= res)
   } else {
+    #res <- lfcShrink(dds_2, coef = coefficient, type="apeglm", res= res)
     res <- lfcShrink(dds_2, type="ashr", contrast = test_contrast)
   }
 
@@ -89,7 +93,7 @@ plot_single_gene_variation <- function(dds, group, gene){
 
 
 plot_ma <- function(res_shrinked, padjcutoff){
-  plotMA(res_shrinked, alpha=padjcutoff, xlab="mean of normalized counts", ylim = c(-5, 5))
+  DESeq2::plotMA(res_shrinked, padjcutoff, xlab="mean of normalized counts",ylim = c(-5, 5))
   
   #with individual labels
   #topGene <- rownames(ma_12_0)[which.min(ma_12_0$padj)]
@@ -211,6 +215,7 @@ run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname){
 
 run_goseq_analysis <- function(de_table_annotated, genome, DE_genes){
   library(goseq)
+  de_table_annotated <- column_to_rownames(de_table_annotated, 'Row.names')
   genes=as.integer(as.logical(rownames(de_table_annotated) %in% DE_genes))
   names(genes) = rownames(de_table_annotated)
   
@@ -221,7 +226,7 @@ run_goseq_analysis <- function(de_table_annotated, genome, DE_genes){
   supportedOrganisms()[supportedOrganisms()$Genome==genome,]
   pwf=nullp(genes,genome,"ensGene")
   
-  go.results=goseq(pwf,genome,"ensGene", test.cats=c("GO:BP"), use_genes_without_cat=TRUE)
+  go.results=goseq(pwf,genome,"ensGene", test.cats=c("GO:BP"), use_genes_without_cat=FALSE)
   plot(go.results %>% 
     top_n(10, wt=-over_represented_pvalue) %>% 
     mutate(hitsPerc=numDEInCat*100/numInCat) %>% 
@@ -231,26 +236,58 @@ run_goseq_analysis <- function(de_table_annotated, genome, DE_genes){
                size=numDEInCat)) +
     geom_point() +
     expand_limits(x=0) +
-    labs(x="Hits (%)", y="GO term", colour="p value", size="Count"))
+    labs(x="Hits (%)", y="Over represented GO term", colour="p value", size="Count"))
+  
+  plot(go.results %>% 
+         top_n(10, wt=-under_represented_pvalue) %>% 
+         mutate(hitsPerc=numDEInCat*100/numInCat) %>% 
+         ggplot(aes(x=hitsPerc, 
+                    y=term, 
+                    colour=under_represented_pvalue, 
+                    size=numDEInCat)) +
+         geom_point() +
+         expand_limits(x=0) +
+         labs(x="Hits (%)", y="Under represented GO term", colour="p value", size="Count"))
   return(go.results)
 }
 
-run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff, genome){
+#RuvSEQ specific
+plot_umwanted_variation_factors <-function(pdata_normalized, groups, ksize) {
+  par(mfrow = c(ksize, 1), mar = c(3,5,3,1))
+  for (i in 1:ksize) {
+    stripchart(pdata_normalized[, i] ~ groups, vertical = TRUE, main = paste0("W", i))
+    abline(h = 0)
+  }
+  par(mfrow = c(1, 1))
+}
+
+
+run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff, genome, explore_data=FALSE){
   library(ggplot2)
+  
   #Data exploration
-  explore_data_based_on_transformed_variance(dds, group_combination[[1]])
-  
-  
+  if (explore_data == TRUE){
+    show("Data exploration is set to TRUE..")
+    explore_data_based_on_transformed_variance(dds, group_combination[[1]])  
+  }
+
   #Diff expression
+  show("Running DE tests and shrinking log2FC..")
   out <-run_DEseq_tests(dds, group_combination,
                         paste(group_combination[[1]], group_combination[[2]], "_vs_", group_combination[[3]]), log2cutoff, padjcutoff)
-  out_sign_annot <- annotate_results(out[[2]], genome)            
+
+  #out_sign_annot <- annotate_results(out[[2]], genome)
+  rownames(out[[2]]) <- gsub("\\..*", "", rownames(out[[2]]))
+  out_sign_annot <- merge(as(out[[2]], "data.frame") , ensembl_genes, all.x = T, by=0)
   outbasename <- paste(group_combination[[2]], "_vs_", group_combination[[3]], sep="")
   print(paste0("Number of genes in the ", outbasename, ": ", nrow(out[[2]])))
   write.table(out_sign_annot[,c("symbol","description","log2FoldChange","padj")], quote= FALSE, sep="\t", 
-              file=paste0(outbasename,".csv", sep=""),row.names=TRUE)
+              file=paste0(outbasename,".csv", sep=""),row.names=FALSE)
+  
+  show("Generating MA Plot")
   plot_ma(out[[1]] , padjcutoff)
   
+  show("Generating Volcano Plot!!")
   #Volcano
   plot_volcano(as.data.frame(out[[1]]), padjcutoff, log2cutoff, outbasename)
   

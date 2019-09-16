@@ -204,7 +204,7 @@ run_DEseq_tests <- function(dds, test_contrast, coefficient, log2cutoff, padjcut
   dds_2 <- DESeq(dds)
   res <- results(dds_2, contrast=test_contrast, alpha=0.05, independentFiltering = TRUE, pAdjustMethod="BH")
   #res_24_0 <- results(dds, contrast=c("timepoints","24","0"), alpha=0.05, pAdjustMethod="BH")
-  show(resultNames(res))
+
   if (length(resultsNames(res)) > 1) {
     res <- lfcShrink(dds_2, type="apeglm", res= res)
         
@@ -258,7 +258,7 @@ cluster_sign_genes <- function(dds, sigGenes, group){
   DESeq2::plotPCA(counts_justSigGenes, intgroup = group)
 }
 
-annotate_results <- function(res){
+  annotate_results <- function(res){
   library(biomaRt)
   ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
   genedesc <-  getBM(attributes=c('ensembl_gene_id_version','external_gene_name','description'), 
@@ -386,7 +386,7 @@ design(dds) <- ~ W2 + W1 + timepoints
 #Data exploration
 explore_data_based_on_transformed_variance(dds, c("timepoints"))
 
-log2cutoff <- 2
+log2cutoff <- 1.5
 padjcutoff <- 0.05
 read_counts <- read.table("featureCounts.txt", row.names = "Geneid", sep="\t",header = TRUE)
 read_counts <- read_counts[,! colnames(read_counts) %in% c("Geneid","Chr","Start","End","Strand","Length")]
@@ -446,4 +446,3 @@ upset(fromList(list(t12_vs_0=out_12_0_sign_annot$symbol, t24_vs_0=out_24_0_sign_
 ##############################################
 dds <- DESeq(dds, test="LRT")
 
-d

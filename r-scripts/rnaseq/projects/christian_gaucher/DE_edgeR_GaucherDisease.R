@@ -130,18 +130,21 @@ log2cutoff <- 1
 padjcutoff <- 0.01
 
 group_combination <- c("groups","CBE", "CTRL")
-list_de <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38")
-all_annot_cbe <- annotate_results(list_de[[1]], "hg38") 
-write.table(all_annot_cbe, quote= FALSE, row.names = TRUE,  sep="\t",file="CBE_vs_Controls_all_annotated.csv")
+list_de <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38",TRUE)
+#all_annot_cbe <- annotate_results(list_de[[1]], "hg38") 
+write.table(all_annot_cbe, quote= FALSE, row.names = TRUE, sep="\t",file="CBE_vs_Controls_all_annotated.csv")
+all_annot_cbe <- read.table("CBE_vs_Controls_all_annotated.csv", row.names = 1, sep="\t", header=TRUE)
 
 ##FGSEA###
 source("~/git_repos/bioinfo_utils/r-scripts/rnaseq/exploratory_rna_seq.R")
-fgseaResTidy <- run_fgsea_analysis(all_annot_cbe, "~/Downloads/h.all.v6.2.symbols.gmt", "Hallmark_pathways")
+fgseaResTidy <- run_fgsea_analysis(all_annot_cbe, "~/Downloads/c2.cp.reactome.v6.2.symbols.gmt", "Hallmark_pathways")
+write.table(fgseaResTidy$pathway, quote = FALSE,row.names = FALSE,file="enriched_pathways_CBE_vs_Controls.csv")
 fgseaResTidy <- run_fgsea_analysis(all_annot_cbe, "~/Downloads/c5.bp.v6.2.symbols.gmt", "GO_Biological_process")
 
 
 ##GO over representation analysis
 goseq.results <- run_goseq_analysis(all_annot_cbe, "hg19", rownames(list_de[[2]]))
+
 head(goseq.results[goseq.results$term == "negative chemotaxis",])
 
 upset(fromList(list(GD_vs_CTR_edgeR=final_CBE_control_edgeR$gene_name, GD_vs_CTR_deseq2=final_CBE_control_deseq2$gene_name)),
