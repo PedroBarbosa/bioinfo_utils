@@ -44,7 +44,8 @@ else
     exit 1
 fi
 
-CMD="rmats.py --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001"
+CMD="rmats.py --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --nthread 10"
+
 #--enable-unicode=ucs4
 if [[ $LIBTYPE == "paired" ]];then
     CMD="$CMD -libType $LIBTYPE"
@@ -58,7 +59,7 @@ cat > rmats.sbatch <<EOL
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=40
-#SBATCH --image=mcfonsecalab/splicing_tools_py27:latest
+#SBATCH --image=mcfonsecalab/rmats:latest
 #SBATCH --output=%j_rmats.log
 
 workdir="/home/pedro.barbosa/scratch/rna_seq/splicing/\$SLURM_JOB_ID"

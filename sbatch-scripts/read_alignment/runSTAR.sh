@@ -80,7 +80,7 @@ fi
 if [ "$7" == "true" ]; then
     PAIRS_MERGE="--peOverlapNbasesMin 10 --chimOutType WithinBAM"
 elif [ -z "$7" ] || [ "$7" == "false" ] || [ "$7" == "-" ]; then
-    PAIRS_MERGE="--peOverlapNbasesMin 0"
+    PAIRS_MERGE="--peOverlapNbasesMin 0 --chimOutType WithinBAM SoftClip"
 else
     printf "Please set a valid value for the 7th argument.\n"
     display_usage
@@ -131,7 +131,7 @@ else
     exit 1
 fi
 
-CMD="STAR --runThreadN 20 --readFilesCommand gunzip -c --runMode alignReads --genomeDir $INDEX --outSAMattributes All --outSAMstrandField $CUFFLINKS_COMPATIBLE --outFilterIntronMotifs $NON_CANONICAL_JUNCTIONS $WIGGLE --outSAMtype BAM SortedByCoordinate --chimSegmentMin 20 --outReadsUnmapped Fastx --quantMode GeneCounts --twopassMode $TWO_PASS_MAPPING $PAIRS_MERGE $SMALL_INSERT"
+CMD="STAR --runThreadN 20 --readFilesCommand gunzip -c --runMode alignReads --genomeDir $INDEX --outSAMattributes All $CUFFLINKS_COMPATIBLE --outFilterIntronMotifs $NON_CANONICAL_JUNCTIONS $WIGGLE --outSAMtype BAM SortedByCoordinate --chimSegmentMin 20 --outReadsUnmapped Fastx --quantMode GeneCounts --twopassMode $TWO_PASS_MAPPING $PAIRS_MERGE $SMALL_INSERT"
 
 cat > runSTAR.sbatch <<EOL
 #!/bin/bash

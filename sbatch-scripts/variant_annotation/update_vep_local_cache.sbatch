@@ -24,7 +24,7 @@ else
 fi      
 
 
-if [[ -z "$2" || "$2" == "-" ]]; then
+if [[ -z "$2" || "$2" == "-" || "$2" == "GRCh38" ]]; then
     if [[ "$SPECIES" == "homo_sapiens" ]]; then
         ASSEMBLY="GRCh38"
     else

@@ -7,7 +7,7 @@ def processFastaFiles(inputFile,removeSpaces):
 
     dup=0
     final_dict = {}
-    handle=open(inputFile, "rU")
+    handle=open(inputFile, "r")
     sequences = SeqIO.parse(handle,'fasta')
     with open("duplicatedReadIds.txt", 'w') as outfile:
         for record in sequences:

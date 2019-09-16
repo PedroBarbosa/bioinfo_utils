@@ -64,8 +64,8 @@ PARALLEL=false
 
 ##CMD##
 ref_2bit="$(basename $REF)"
-CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --TMP_DIR=/home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit"
-#CMD="gatk ${JAVA_Xmx} HaplotypeCaller --TMP_DIR=/home/pedro.barbosa/scratch --reference $REF -ERC GVCF"
+#CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark --tmp-dir /home/pedro.barbosa/scratch --reference ${ref_2bit%.*}.2bit"
+CMD="gatk ${JAVA_Xmx} HaplotypeCaller --tmp-dir /home/pedro.barbosa/scratch --reference $REF"
 #createOutputVariantIndex true [missing this arg. Needed to add extra step of generating index for genomicsDB import through IndexFeatureFile utility]
 SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS]"
 ###MODE####
@@ -100,8 +100,7 @@ cat > $WORKDIR/haplotypeCaller.sbatch <<EOL
 #SBATCH --ntasks=$NTASKS
 #SBATCH --cpus-per-task=$CPUS
 #SBATCH --image=broadinstitute/gatk:latest
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_gatk_hc.log
+#SBATCH --output=%j_gatk_hc.log
 
 
 timestamp() {
@@ -119,8 +118,8 @@ echo "\$(timestamp) -> Converting reference fasta file to 2bit format for Haplot
 echo "\$(timestamp) -> Done"
 echo "\$(timestamp) -> Running HaplotypeCaller in normal mode"
 if [ "$PARALLEL" == "true" ]; then
-    cat $BAM_DATA | \$parallel '\$srun $CMD -I={} -O={/.}.vcf $SPARK && echo -e "{/.}\\t{/.}.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.vcf'
-#    cat $BAM_DATA | \$parallel '\$srun $CMD -I={} -O={/.}.vcf && shifter gatk IndexFeatureFile -F {/.}.vcf'
+#    cat $BAM_DATA | \$parallel '\$srun $CMD -I={} -O={/.}.vcf $SPARK && echo -e "{/.}\\t{/.}.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.vcf'
+    cat $BAM_DATA | \$parallel '\$srun $CMD -I={} -O={/.}.vcf && shifter gatk IndexFeatureFile -F {/.}.vcf'
 else
     unique_samples=()
     for j in \$(find $BAM_DATA -exec cat {} \; );do
@@ -139,6 +138,7 @@ else
     done
 fi
 echo -e "\$(timestamp) -> All done!"
+mv * $OUTDIR
 EOL
 sbatch $WORKDIR/haplotypeCaller.sbatch
 sleep 1 
