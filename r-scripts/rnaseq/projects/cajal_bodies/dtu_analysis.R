@@ -325,7 +325,6 @@ for(i in 1:nrow(cb_genes)){
     }
   }
   else if(g %in% all_cb_de_genes){ #genes with DE but no DTU
-    print(g)
     cb_DE_withNO_DTU <- append(cb_DE_withNO_DTU,g)
   }
 }
@@ -378,7 +377,7 @@ for (g in as.character(cb_DE_withNO_DTU)){
 
 
 
-  ##################################
+##################################
 ###############DEXseq#############
 ##################################
 library(DEXSeq)

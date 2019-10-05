@@ -4,13 +4,13 @@ import os
 
 def read_groups(groups, infiles):
 
-    d = {}
+    d = defaultdict(list)
     with open(groups, 'r') as f:
         for line in f:
             l = line.rstrip()
             items = l.split("\t")
             key, values = items[0], items[1]
-            d[key] = values
+            d[key].append(values)
 
     if len(d) != len(infiles):
         raise SystemExit("Number of files given is different from the number put in the groups file. ({} vs {})".format(
@@ -68,7 +68,7 @@ def process_voila_files(files, sample_groups = None, threshold = 0.2):
                 if sample_groups:
                     lsv[lsv_id].append([gname, gid, lsv_type, max_delta, delta, njunctions, nexons,
                                         str(number_known_junctions), str(has_new_junction),
-                                        str(number_new_junctions), sample_groups[f]])
+                                        str(number_new_junctions), sample_groups[f][0]])
                 else:
                     lsv[lsv_id].append([gname, gid, lsv_type, max_delta, delta, njunctions, nexons,
                                         str(number_known_junctions), str(has_new_junction),
@@ -89,17 +89,17 @@ def write_output(lsvs, header, outbasename, groups=None):
                 else:
                     out.write("\t" + '\t'.join(v) + "\n")
     out.close()
-
-    with open(outbasename + "_lsvs_group_maps.csv", "w") as out:
-        for k,v in d.items():
-            out.write(k + "\t" + ";".join(v) + "\n")
+    if groups:
+        with open(outbasename + "_lsvs_group_maps.csv", "w") as out:
+            for k,v in d.items():
+                out.write(k + "\t" + ";".join(v) + "\n")
 
 
 def main():
     parser = argparse.ArgumentParser(description='Script to produce readable LSV between two conditions using voila')
     parser.add_argument(dest='voila', nargs="+", help='Path to the voila file(s)')
     parser.add_argument("-o", "--outbasename", required=True, help='Basename to the output file')
-    parser.add_argument("-g", "--groups", help='Tab delimited file with Path to the output file')
+    parser.add_argument("-g", "--groups", help='Tab delimited file with groups mapping filenames')
     args = parser.parse_args()
 
     if args.groups:
