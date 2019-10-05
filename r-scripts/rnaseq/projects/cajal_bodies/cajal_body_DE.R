@@ -43,7 +43,7 @@ set <- newSeqExpressionSet(counts(dds))
 #Data exploration
 colors <- brewer.pal(8, "Set2")
 set <- betweenLaneNormalization(set, which="upper")
-plotRLE(set, outline=FALSE, ylim=c(-4, 4), col=colors)
+plotRLE(set, outline=FALSE, ylim=c(-4, 4))
 plotPCA(set, col=colors, cex=1.2)
 
 #Remove variation using spike-in control genes

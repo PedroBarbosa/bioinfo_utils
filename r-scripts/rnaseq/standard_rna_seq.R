@@ -6,9 +6,10 @@ library("pheatmap")
 library(fgsea)
 library(ggplot2)
 library(tidyverse)
-ensembl_genes <- read.table("~/Downloads/ensembl_genes_with_description.txt", quote = "", row.names = 1,sep="\t", header=TRUE)
-names(ensembl_genes)[names(ensembl_genes) == "Gene.name"] <- "symbol"
-names(ensembl_genes)[names(ensembl_genes) == "Gene.description"] <- "description"
+
+#ensembl_genes <- read.table("~/Downloads/ensembl_genes_with_description.txt", quote = "", row.names = 1,sep="\t", header=TRUE)
+#names(ensembl_genes)[names(ensembl_genes) == "Gene.name"] <- "symbol"
+#ßnames(ensembl_genes)[names(ensembl_genes) == "Gene.description"] <- "description"
 explore_data_based_on_transformed_variance <- function(dds, cond){
   #Deseq2 offers 2 transformation methods to stabilize variance across the mean
   #Which method to choose, good discussion in the vignette
