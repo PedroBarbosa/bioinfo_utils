@@ -9,7 +9,9 @@ echo 'Script to run rMATs for multiple BAM files.
 -5th argument must be the labels for each group, split by ",".
 -6th argument is optional. Refers to the read type. Values [paired|single|-]. Default: paired.
 -7th argument is optional. Refers to the library type of the RNA. Values: [fr-firstsrand|fr-secondstrand|fr-unstranded|-]. Default: fr-firststrand.
--8th argument is optional. Refers to whether statistical analysis should be performed. Values: [true|false|-]. Default: true'
+-8th argument is optional. Refers to whether statistical analysis should be performed. Values: [true|false|-]. Default: true
+-9th argument is optional. Refers to the threshold for significance to apply, each separated by comma (min_avg_reads, fdr_threshold, deltaPSI_threshold). Default:10,0.05,0.2
+-10th argument is optional. If a previous rmats run was performed, pipeline will start from output files stored in the output directory (4th argument). Values:[true|false].Default:false'
 
 }
 
@@ -55,7 +57,7 @@ else
     exit 1
 fi
 
-if [[ -z "$8" || "$8" == "true" ]]; then
+if [[ -z "$8" || "$8" == "true" || "$8" == "-" ]]; then
     DO_STAT_ANALYSIS="true"
 elif [[ "$8" == "false" ]]; then
     DO_STAT_ANALYSIS="false"
@@ -77,6 +79,29 @@ if [[ $DO_STAT_ANALYSIS == "false" ]]; then
     CMD="$CMD --statoff"
 fi
 
+
+if [[ -z "$9" || "$9" == "-" ]]; then
+    min_avg_reads=10
+    fdr_threshold=0.05
+    deltaPSI_threshold=0.2
+else
+    IFS=","
+    read -r -a array <<< "$9"
+    min_avg_reads=${array[0]}
+    fdr_threshold=${array[1]}
+    deltaPSI_threshold=${array[2]}
+fi
+
+if [[ -z "${10}" || "${10}" == "false" ]]; then
+    previous_run="false"
+elif [[ "${10}" == "true" ]]; then
+    previous_run="true"
+else
+    printf "Please set a valid value for the 10th argument.\n"
+    display_usage
+    exit 1
+fi
+
 cat > rmats.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=rmats
@@ -88,12 +113,15 @@ cat > rmats.sbatch <<EOL
 #SBATCH --image=mcfonsecalab/rmats:latest
 #SBATCH --output=%j_rmats.log
 
-workdir="/home/pedro.barbosa/scratch/rna_seq/splicing/\$SLURM_JOB_ID"
-mkdir \$workdir && cd \$workdir
-srun shifter $CMD
-
+if [[ $previous_run == "false" ]];then
+    workdir="/home/pedro.barbosa/scratch/rna_seq/splicing/\$SLURM_JOB_ID"
+    mkdir \$workdir && cd \$workdir
+    srun shifter $CMD
+elif [[ $previous_run == "true" ]];then
+    cd $OUTDIR
+fi
 printf "Producing tables of significant events\n"
-srun shifter Rscript /python_env/run_maser.R $label1 $label2 
+srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold
 
 printf "Done\nGenerating sashimi plots from all significant events..\n"
 events=("SE" "A5SS" "A3SS" "RI" "MXE")
