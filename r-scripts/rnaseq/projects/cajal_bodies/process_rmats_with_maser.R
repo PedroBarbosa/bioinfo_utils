@@ -7,22 +7,22 @@ cb_genes <- read.table("/Users/pbarbosa/analysis/cajal_bodies/all_interesting_ge
 ########################################
 ############# maser objects #############
 ########################################
-setwd("~/Desktop/t12_vs_t0_rmats/")
+setwd("~/Desktop/t0_t12_rmats/")
 maser_t12_t0 <- maser(".", c("t0h", "t12h"), ftype = "JC")
-maser_cov_filt_t12_t0 <- filterByCoverage(maser_t12_t0, avg_reads = 5)
-maser_top_t12_t0 <- topEvents(maser_cov_filt_t12_t0, fdr = 0.05, deltaPSI = 0.1)
+maser_cov_filt_t12_t0 <- filterByCoverage(maser_t12_t0, avg_reads = 10)
+maser_top_t12_t0 <- topEvents(maser_cov_filt_t12_t0, fdr = 0.05, deltaPSI = 0.2)
 print(maser_top_t12_t0)
 
 setwd("~/Desktop/t0_t24_rmats/")
 maser_t24_t0 <- maser(".", c("t0h", "t24h"), ftype = "JC")
-maser_cov_filt_t24_t0 <- filterByCoverage(maser_t24_t0, avg_reads = 5)
-maser_top_t24_t0 <- topEvents(maser_cov_filt_t24_t0, fdr = 0.05, deltaPSI = 0.1)
+maser_cov_filt_t24_t0 <- filterByCoverage(maser_t24_t0, avg_reads = 10)
+maser_top_t24_t0 <- topEvents(maser_cov_filt_t24_t0, fdr = 0.05, deltaPSI = 0.2)
 print(maser_top_t24_t0)
 
 setwd("~/Desktop/t0_t48_rmats/")
 maser_t48_t0 <- maser(".", c("t0h", "t48h"), ftype = "JC")
-maser_cov_filt_t48_t0 <- filterByCoverage(maser_t48_t0, avg_reads = 5)
-maser_top_t48_t0 <- topEvents(maser_cov_filt_t48_t0, fdr = 0.05, deltaPSI = 0.1)
+maser_cov_filt_t48_t0 <- filterByCoverage(maser_t48_t0, avg_reads = 10)
+maser_top_t48_t0 <- topEvents(maser_cov_filt_t48_t0, fdr = 0.05, deltaPSI = 0.2)
 print(maser_top_t48_t0)
 
 setwd("~/analysis/cajal_bodies/rmats")
