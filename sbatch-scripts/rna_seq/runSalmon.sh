@@ -18,7 +18,8 @@ fi
 readarray FASTQ < $(readlink -f "$1")
 JOBS=$(( ${#FASTQ[@]} / 2 ))
 if [[ $2 == "-" ]]; then
-    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v29_k31/"
+    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v31_k31_with_spike_in/"
+#    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v29_k31/"
 else
     INDEX=$(readlink -f "$2")
 fi

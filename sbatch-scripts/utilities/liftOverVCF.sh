@@ -29,7 +29,7 @@ if [ ! -d $OUTDIR ];then
     mkdir $OUTDIR
 fi
 
-CMD="gatk LiftoverVcf --CHAIN $CHAIN --REFERENCE_SEQUENCE $REF"
+CMD="gatk LiftoverVcf --CHAIN $CHAIN --REFERENCE_SEQUENCE $REF --WARN_ON_MISSING_CONTIG=true"
 cat > $WORKDIR/gatk4_liftOverVCFs.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=vcfLiftOver
@@ -39,8 +39,8 @@ cat > $WORKDIR/gatk4_liftOverVCFs.sbatch <<EOL
 #SBATCH --ntasks=5
 #SBATCH --cpus-per-task=8
 #SBATCH --image=broadinstitute/gatk:latest
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_vcfLiftOver.log
+##SBATCH --workdir=$WORKDIR
+#SBATCH --output=%j_vcfLiftOver.log
 
 
 scratch_out=$WORKDIR/\$SLURM_JOB_ID
@@ -50,7 +50,7 @@ srun="srun -N1 -n1"
 
 cat $VCFs | parallel --tmpdir $WORKDIR -j \$SLURM_NTASKS --joblog parallel.log --resume-failed "\$srun shifter $CMD --REJECT {/.}.rejected.vcf --INPUT {} --OUTPUT {/.}_liftOver.vcf"
 
-mv * ../\${SLURM_JOB_ID}_liftOver.log $OUTDIR
+mv * $OUTDIR
 cd ../ && rm -rf \$scratch_out
 EOL
 sbatch $WORKDIR/gatk4_liftOverVCFs.sbatch

@@ -35,7 +35,6 @@ def printFields(vcf,fields,printall):
         d = field.info()
         if d['HeaderType'] == "INFO":
             existing_info.append(d['ID'])
-
     print("#List of available INFO fields extracted from the header:\n#{}".format(existing_info))
     for field in vcf_data.header_iter():
         if field["HeaderType"] == "INFO" and field["ID"] == "ANN":
@@ -49,35 +48,45 @@ def printFields(vcf,fields,printall):
                 except ValueError:
                     print("{} field not recognized".format(f))
                     exit(1)
-
-
+        else:
+            final_existing_info = existing_info
+    
     print("#{}".format("\t".join(fields)))
     for record in vcf_data:
         d=defaultdict(list)
         outline=[]
         try:
-            if printall:
-                info = record.INFO.get("ANN").split(",")
-            else:
-                info = record.INFO.get("ANN").split(",")[0].split("|")
-
+            info_obj = record.INFO
         except AttributeError:
             standard_where_no_info=[]
             [standard_where_no_info.append(gets_standard_field(record,f)) for f in fields if f in standard_fields]
             if len(standard_where_no_info) > 0:
                 print('\t'.join(standard_where_no_info))
             continue
-
-        for f in fields:
+        
+        try:
             if printall:
-                for i,block in enumerate(info):
+                info_vep = info_obj.get("ANN").split(",")
+            else:
+                info_vep = info_obj.get("ANN").split(",")[0].split("|")
+        except AttributeError:
+            info_vep=[]
+        
+        for f in fields:
+            if printall and not info_vep:
+                print("No ANN field found in VCF, therefore --printAll argument is useless.\n")
+                exit(1)
+            elif printall:
+                for i,block in enumerate(info_vep):
                     d[i].append(gets_standard_field(record,f)) if f in standard_fields or f in final_existing_info else d[i].append(block.split("|")[indexes[f]])
             else:
                 if f in standard_fields or f in final_existing_info:
                     outline.append(gets_standard_field(record,f))
+                elif info_vep:
+                    [outline.append(info_vep[indexes[f]]) if info_vep[indexes[f]] else outline.append('None')]
                 else:
-                    [outline.append(info[indexes[f]]) if info[indexes[f]] else outline.append('None')]
-
+                    print("{} field not in VCF".format(f))
+                    exit(1)
         if len(d) > 0:
             for block in d.keys():
                 print('\t'.join(d[block]))

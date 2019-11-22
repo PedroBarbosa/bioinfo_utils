@@ -2,9 +2,9 @@
 display_usage(){
     printf "
 1st argument is the VCF file to annotate.
-2nd argument is the output file. 
+2nd argument is the output file. (output will be automatically gzipped) 
 3rd argument is the output directory.
-4th argument is the models to annotate, comma separated. Default: no model annotation.
+4h argument is the models to annotate, comma separated. Default: no model annotation.
 5th argument are the result files of each model. Must come in the same order as the previous argument.
 6th argument is optional. Do not reate and run a slurm sbatch script on the fly. Default: false, it creates. Values: [true|false|-]. Set '-' to skip the argument.\n
 
@@ -17,6 +17,7 @@ kipoisplice_4
 kipoisplice_4cons
 maxentscan_5
 maxentscan_3
+rbp_clip/TARGET_NAME
 SCAP
 "
 }
@@ -30,7 +31,7 @@ invcf=$(readlink -f $1)
 outfile=$(readlink -f $2)
 outdir=$(readlink -f $3)
 
-possible_models=(HAL mmsplice_deltaLogitPSI mmsplice_pathogenicity mmsplice_efficiency kipoisplice_4 kipoisplice_4cons maxentscan_5 maxentscan_3 SCAP)
+possible_models=(HAL mmsplice_deltaLogitPSI mmsplice_pathogenicity mmsplice_efficiency kipoisplice_4 kipoisplice_4cons maxentscan_5 maxentscan_3 SCAP rbp_eclip)
 annotate(){
 
     if [[ $1 == "HAL" ]]; then
@@ -114,6 +115,16 @@ ops=["self"]
 
 EOM
 
+    elif [[ $1 == "rbp_eclip" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="$2"
+fields=["KV:kipoi:$3:DIFF"]
+names=["$3"]
+ops=["self"]
+
+EOM
+
     elif [[ $1 == "SCAP" ]]; then 
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
@@ -145,9 +156,15 @@ else
     for elem in "${array[@]}"
         do
             if [[ ! " ${possible_models[@]} " =~ " ${elem} " ]]; then
-                printf "${elem} is not included in the list of available models"
-                display_usage
-                exit 1
+                if [[ "${elem}"  == *"rbp_eclip"* ]]; then
+                    fullpath_file=$(readlink -f ${files[$i]})
+                    annotate rbp_eclip $fullpath_file ${elem}
+                    i=$((i + 1))
+                else
+                    printf "${elem} is not included in the list of available models"
+                    display_usage
+                    exit 1
+                fi
             elif [[ "$elem" == "SCAP" ]]; then #if models with precomputed scores
                 annotate $elem
             else
