@@ -4,7 +4,10 @@ display_usage(){
  Usage:
     -1st argument must the bam files to process.
     -2nd argument must the output directory.
-    -3rd argument is optional. Refers to the annotation in bed format. Default(hg38 gencode v31 obtained with bedops). Use '-' to skip this argument.\n"
+    -3rd argument is optional. Refers to the annotation in bed format. Default(hg38 gencode v31 obtained with bedops). Use '-' to skip this argument.
+    -4th argument is optional. Refers to the annotation of rRNA in bed format. Default (hg38 from rseqc website). Use '-' to skip this argument.
+    -5th argument is optional. Refers to whether split_bam process should be run (to split rRNA contamination). Default: true. Values:[true|false|-]\n"
+ 
 }
 
 if [ -z "$1" ] || [ -z "$2" ]; then
@@ -27,10 +30,27 @@ if [[ ! -d $(readlink -f "$2") ]]; then
 fi
 OUT=$(readlink -f "$2")
 
+if [[ -z "$4" || "$4" == "-" ]];then
+    bed_rRNA="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/rRNA_hg38_rseqc.bed"
+else
+    bed_rRNA=$(readlink -f "$4")
+fi
+
+if [[ -z "$5" || "$5" == "-" || "$5" == "true" ]];then
+    do_split_bam="true"
+elif [[ "$5" == "false" ]]; then
+    do_split_bam="false"
+else
+    printf "Please set a valid value for the 5th argument.\n"
+    display_usage
+    exit 1
+fi
+
+
 cat > runRSeQC.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=rseqc
-#SBATCH --array=0-$(( $JOBS - 1 ))%10
+#SBATCH --array=0-$(( $JOBS - 1 ))%20
 #SBATCH --time=72:00:00
 #SBATCH --mem=50G
 #SBATCH --nodes=1
@@ -48,6 +68,11 @@ OUT_BASENAME=\$(basename \${bams[\$SLURM_ARRAY_TASK_ID]})
 OUT_BASENAME=\${OUT_BASENAME/Aligned.sortedByCoord.out.bam/}
 
 echo "\$OUT_BASENAME SAMPLE!" 
+if [[ $do_split_bam == "true" ]]; then 
+    echo "Splitting BAMs containing rRNA alignments.."
+    srun shifter split_bam.py -i \${bams[\$SLURM_ARRAY_TASK_ID]} -r $bed_rRNA -o \${OUT_BASENAME}_rRNA_check
+fi
+
 echo "Inferring type of experiment.."
 srun shifter infer_experiment.py -r $bed  -i \${bams[\$SLURM_ARRAY_TASK_ID]} -s 500000 -q 20 > \${OUT_BASENAME}_experiment.txt
 
@@ -65,6 +90,7 @@ srun shifter read_duplication.py -i \${bams[\$SLURM_ARRAY_TASK_ID]} -q 20 -o \${
 
 echo "Estimating RNA fragment size.."
 srun shifter RNA_fragment_size.py -r $bed -i \${bams[\$SLURM_ARRAY_TASK_ID]} > \${OUT_BASENAME}_fragment_size.txt
+
 
 rm *\.r
 mv * $OUT

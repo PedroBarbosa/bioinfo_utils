@@ -54,7 +54,7 @@ fi
 
 
 ##Cufflinks compatibility###
-if [ -z "$5" ] || [ "$5" = "false" ] ; then
+if [ -z "$5" ] || [ "$5" = "false" ] || [ "$5" == "-" ]; then
     CUFFLINKS_COMPATIBLE="None"
 elif [ "$5" = "true" ]; then
     CUFFLINKS_COMPATIBLE="intronMotif"
@@ -68,7 +68,7 @@ fi
 if [ "$6" = "true" ]; then
     #--alignEndsProtrude 30 ConcordantPair
     SMALL_INSERT="--outFilterScoreMinOverLread 0.4 --outFilterMatchNminOverLread 0.4 --outFilterMatchNmin 60"
-elif [ -z "$6" ] || [ "$6" = "false" ]; then
+elif [ -z "$6" ] || [ "$6" = "false" ] || [ "$6" == "-" ]; then
     SMALL_INSERT=""
 else
     printf "Please set a valid value for the 6th argument.\n"
@@ -90,7 +90,7 @@ fi
 ###wiggle###
 if [ "$8" = "true" ]; then
     WIGGLE="--outWigType wiggle"
-elif [ -z "$8" ] || [ "$8" = "false" ]; then
+elif [ -z "$8" ] || [ "$8" == "false" ] || [ "$8" == "-" ]; then
     WIGGLE="None"
 else
     printf "Please set a valid value for the 8th argument.\n"
@@ -99,7 +99,7 @@ else
 fi
 
 ###2-pass mappings###
-if [ -z "$9" ] || [ "$9" = "false" ] ; then
+if [ -z "$9" ] || [ "$9" == "false" ] || [ "$9" == "-" ]; then
     TWO_PASS_MAPPING="None"
 elif [ "$9" = "true" ]; then
     TWO_PASS_MAPPING="Basic"
@@ -110,7 +110,7 @@ else
 fi
 
 ###Remove canonical junctions###
-if [ -z "${10}" ] || [ "${10}" = "false" ] ; then
+if [ -z "${10}" ] || [ "${10}" == "false" ] || [ "${10}" == "-" ]; then
     NON_CANONICAL_JUNCTIONS="RemoveNoncanonical"
 elif [ "${10}" = "true" ]; then
     NON_CANONICAL_JUNCTIONS="None"
@@ -121,7 +121,7 @@ else
 fi
 
 ###Express transcriptome aligments compatibility###
-if [ -z "${11}" ] || [ "${11}" = "false" ] ; then
+if [ -z "${11}" ] || [ "${11}" == "false" ] || [ "${11}" == "-" ]; then
     EXPRESS_COMPATIBLE="IndelSoftclipSingleend"
 elif [ "${11}" = "true" ]; then
     EXPRESS_COMPATIBLE="Singleend"

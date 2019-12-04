@@ -6,7 +6,7 @@ Read groups are automatically added to each output based on the sample basename.
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
 -2nd argument must be the directory of the reference indexed database.
 -3rd argument must be the output directory.
--4th argument is optional. It is the identifier to extract the sample pair names from fastq files. Default: "_1.fastq"'
+-4th argument is optional. It is the identifier to extract the sample pair names from fastq files. Default: "_R1.fq"'
 }
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ] ; then
@@ -31,8 +31,8 @@ fi
 OUT=$(readlink -f "$3")
 
 if [[ -z "$4" ]]; then
-    DEL="_1.fastq"
-    p2="_2.fastq"
+    DEL="_R1.fq"
+    p2="_R2.fq"
 else
     DEL="$4"
     p2=${DEL/1/2}
@@ -41,7 +41,7 @@ fi
 cat > salmon.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=salmon
-#SBATCH --array=0-$JOBS%5
+#SBATCH --array=0-$(( $JOBS -1 ))%20
 #SBATCH --time=72:00:00
 #SBATCH --mem=50G
 #SBATCH --nodes=1
@@ -55,15 +55,14 @@ scratch_out=/home/pedro.barbosa/scratch/rna_seq/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
 srun="srun -N1 -n1"
-OUT_BASENAME=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]} | cut -f1,2,3 -d "_")
-
+OUT_BASENAME=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]} | cut -f1 -d "_")
 dir=\$(dirname \${pair1[\$SLURM_ARRAY_TASK_ID]})
 pair2=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]/$DEL/$p2})
 fullpathpair2="\$dir/\$pair2"
 
 \$srun shifter salmon quant -i $INDEX --validateMappings --numBootstraps 100 --seqBias --gcBias --writeUnmappedNames --libType A -o \$PWD -p \$SLURM_CPUS_PER_TASK -1 \${pair1[\$SLURM_ARRAY_TASK_ID]} -2 \$fullpathpair2
 for i in *; do mv "\$i" "\${OUT_BASENAME}_\$i"; done
-mv * $OUT
+mv *json *sf $OUT
 cd ../ && rm -rf \$SLURM_JOB_ID
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID

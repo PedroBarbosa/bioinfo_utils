@@ -2,8 +2,8 @@
 #SBATCH --time=10:00:00
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=15
-#SBATCH --array=0-8%5
+#SBATCH --cpus-per-task=7
+#SBATCH --array=0-127%20
 #SBATCH --mem=100G
 #SBATCH --job-name="stringtie"
 #SBATCH --output=%j_stringtie.out
@@ -23,7 +23,7 @@ cd /home/pedro.barbosa/scratch/rna_seq/stringtie/$SLURM_JOB_ID
 
 readarray -t bams < <(cat $(readlink -f "$listbams"))
 srun="srun -N1 -n1"
-OUT_BASENAME=$(basename ${bams[$SLURM_ARRAY_TASK_ID]} | cut -f1,2 -d "_")
+OUT_BASENAME=$(basename ${bams[$SLURM_ARRAY_TASK_ID]} | cut -f1,2,3,4,5 -d "_")
 OUT_BASENAME=${OUT_BASENAME/Aligned.sortedByCoord.out.bam/}
 
 srun shifter stringtie -p $SLURM_CPUS_PER_TASK -A ${OUT_BASENAME}_quantification.tsv -C ${OUT_BASENAME}_transcripts.tsv -b ${OUT_BASENAME}_ballgown -e -G $annotation -o ${OUT_BASENAME}.gtf ${bams[$SLURM_ARRAY_TASK_ID]}
