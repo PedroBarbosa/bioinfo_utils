@@ -146,7 +146,7 @@ cd \$SCRATCH_OUTDIR
 if [ "$PARALLEL" = "true" ]; then
 	srun="srun --exclusive -N1 -n1"
 	parallel="parallel --tmpdir \$SCRATCH_OUTDIR --delay 0.2 -j $NTASKS --joblog parallel.log --resume-failed"	
-        cat "$BAM_DATA" | \$parallel '\$srun shifter $CMD -I={} -M={/.}_dup.metrics -O={/.}_DUP.bam && mv {/.}* $OUTDIR'
+        cat "$BAM_DATA" | \$parallel '\$srun -v shifter $CMD -I={} -M={/.}_dup.metrics -O={/.}_DUP.bam && mv {/.}* $OUTDIR'
 else
 	for j in \$(find $BAM_DATA -exec cat {} \; );do
 	    printf "\$(date): Processing \$(basename \$j) file.\n"
@@ -154,9 +154,9 @@ else
 	    outbam="\${i}_DUP.bam"
             metrics="\${i}_dup.metrics"
             if [ $SPARK == "true" ]; then
-	        srun shifter $CMD -I=\$j -O=\$outbam -- --spark-runner LOCAL --spark-master local[$CPUS]
+	        srun -v shifter $CMD -I=\$j -O=\$outbam -- --spark-runner LOCAL --spark-master local[$CPUS]
             else
-                srun shifter $CMD -I=\$j -O=\$outbam -M=\$metrics
+                srun -v shifter $CMD -I=\$j -O=\$outbam -M=\$metrics
             fi
             if [ $OUTDIR = "{//}" ]; then
                 mv \${i}* \$(dirname \$j)
@@ -175,6 +175,7 @@ if [ $OUTDIR != "{//}" ]; then
 else
     echo "Since you set the output directory to be different for each sample, the run logs weren't moved anywhere. You can find them in the $WORKDIR folder."
 fi
+cd ../ && rm -rf \$SLURM_JOB_ID
 echo "\$(date): All done."
 EOL
 sbatch $WORKDIR/runGATKmarkDup.sbatch

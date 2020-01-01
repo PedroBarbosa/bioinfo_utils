@@ -78,7 +78,10 @@ def printFields(vcf,fields,printall):
                 exit(1)
             elif printall:
                 for i,block in enumerate(info_vep):
-                    d[i].append(gets_standard_field(record,f)) if f in standard_fields or f in final_existing_info else d[i].append(block.split("|")[indexes[f]])
+                    try:
+                        d[i].append(gets_standard_field(record,f)) if f in standard_fields or f in final_existing_info else d[i].append(block.split("|")[indexes[f]])
+                    except IndexError:
+                        continue
             else:
                 if f in standard_fields or f in final_existing_info:
                     outline.append(gets_standard_field(record,f))

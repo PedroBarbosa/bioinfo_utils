@@ -6,7 +6,7 @@ display_usage(){
 	   2nd argument is the basename for the output file (vcf.gz extension will be automatically added).
            3rd argument is the output directory.
            4th argument is the genome version to use. Values:[hg19,hg38,mm10]. 
-           5th argument is the cache version to use. Values:[97,96,95].
+           5th argument is the cache version to use. Values:[97,96,98].
            6th argument is optional. Refers to the set of annotations to use. Default:ensembl. Values:[ensembl|refseq|merged|-]. Set '-' to skip the argument.
            7th argument is optional. Refers whether custom annotations (e.g. gnomAD genomes frequencies, dbNSFP, conservation scores) should be added. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
            8th argument is optional. Refers whether allele frequencies should be added. Only work for human caches. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
@@ -44,7 +44,7 @@ BASE_CMD="srun shifter -V=/mnt/nfs/lobo/IMM-NFS/ensembl_vep:/media --image=ensem
 --cache --dir /media/cache  --sift b --polyphen b --numbers --regulatory --variant_class"
 
 genomes=(hg19 hg38 mm10)
-cache=(97 96 95)
+cache=(97 96 98)
 annotations=(ensembl refseq merged)
 genome_version="$4"
 cache_version="$5"
@@ -85,8 +85,8 @@ fi
 
 if [[ "$genome_version" == "hg19" ]]; then
     ASSEMBLY="GRCh37"
-    if [[ "$cache_version" == "95" ]]; then
-        FASTA="$annot_dir/95_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
+    if [[ "$cache_version" == "98" ]]; then
+        FASTA="$annot_dir/98_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
     elif [[ "$cache_version" == "96" ]]; then
         FASTA="$annot_dir/96_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
     elif [[ "$cache_version" == "97" ]]; then
@@ -96,8 +96,8 @@ if [[ "$genome_version" == "hg19" ]]; then
 
 elif [[ "$genome_version" == "hg38" ]];then
     ASSEMBLY="GRCh38"
-    if [[ "$cache_version" == "95" ]]; then
-        FASTA="$annot_dir/95_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
+    if [[ "$cache_version" == "98" ]]; then
+        FASTA="$annot_dir/98_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     elif [[ "$cache_version" == "96" ]]; then
         FASTA="$annot_dir/96_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     elif [[ "$cache_version" == "97" ]]; then
@@ -125,8 +125,8 @@ if [ -z "$7" -o "$7" == "-" -o  "$7" == "true" ] && [ "$genome_version" != "mm10
 --custom /media/custom_data/gerp/All_hg19_RS.bw,GERP_vep,bigwig,exact,0 \
 --custom /media/custom_data/gerp/All_hg19_RS.bw,GERP_vep_all,bigwig,overlap,0 \
 --custom /media/custom_data/phyloP100/hg19.100way.phyloP100way.bw,phyloP_vep,bigwig,exact,0 \
---custom /media/custom_data/phastcons100/hg19.100way.phastCons.bw,phastCons_vep,bigwig,exact,0 \
---custom /media/custom_data/gnomAD/hg19/gnomAD_v2.1_justImportantFields.vcf.gz,gnomADg,vcf,exact,0,AF,AF_nfe,AF_nfe_nwe" # \
+--custom /media/custom_data/phastcons100/hg19.100way.phastCons.bw,phastCons_vep,bigwig,exact,0"
+#--custom /media/custom_data/gnomAD/hg19/gnomAD_v2.1_justImportantFields.vcf.gz,gnomADg,vcf,exact,0,AF,AF_nfe,AF_nfe_nwe" # \
 #--plugin Gwava,region,/media/custom_data/gwava_scores/gwava_scores.bed.gz \
    fi
 elif [ "$genome_version" == "mm10" ]; then
@@ -162,7 +162,7 @@ fi
 
 
 #### IF input is ID ####
-if [[ -z "${12}" || "${12}" == "false" ]]; then
+if [[ -z "${12}" || "${12}" == "false" || "${12}" == "-" ]]; then
     BASE_CMD="$BASE_CMD --offline"
 else
     printf "INFO. Input file is based on IDs. Offline mode will be disabled.\n"
@@ -179,15 +179,28 @@ fi
 
 BASE_CMD="$BASE_CMD -i $IN_VCF"
 PARALLEL=false
+IS_VCF_OUTPUT=true
 FINAL_OUT=$OUT
+
 ##### OUTPUT #####
 if [[ "${11}" != "true" ]]; then
     if [[ -z "${10}" || ${10} == "vcf" || ${10} == "-" ]]; then
         BASE_CMD="$BASE_CMD --vcf --vcf_info_field ANN --compress_output bgzip --output_file ${OUT}.vcf.bgz"
     elif [[ ${10} == "tab" ]]; then
+        if [[ $runTools == "true" ]]; then
+            printf "INFO. You set 10th argument to write output in tab format. Therefore only prediction tools bundled with VEP will be run. Additional tools (run through vcfanno) require input file in VCF format.\n"
+        fi
+        IS_VCF_OUTPUT="false"
         BASE_CMD="$BASE_CMD --tab --compress_output gzip --output_file ${OUT}.tsv.gz"
+    
+
     elif [[ ${10} == "json" ]]; then
+        if [[ $runTools == "true" ]]; then
+             printf "INFO. You set 10th argument to write output in json format. Therefore only prediction tools bundled with VEP will be run. Additional tools (run through vcfanno) require input file in VCF format.\n"
+        fi
+        IS_VCF_OUTPUT="false"
         BASE_CMD="$BASE_CMD --json --output_file ${OUT}.json"
+    
     else
         printf "ERROR. Please set a valid output format in the 10th argument.\n"
         display_usage
@@ -206,14 +219,18 @@ if [[ "${11}" != "true" ]]; then
 
 cd $WORKDIR && mkdir \${SLURM_JOB_ID}_noParallel && cd \${SLURM_JOB_ID}_noParallel
 $BASE_CMD
-zcat ${FINAL_OUT}.vcf.bgz | awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' | shifter --image=ummidock/ubuntu_base:latest bgzip > ${FINAL_OUT}_tmp.vcf.bgz
-#zgrep '^#' ${FINAL_OUT}.vcf.bgz > ${FINAL_OUT}_tmp.vcf && zgrep -v '^#' ${FINAL_OUT}.vcf.bgz |  sort -k1,1 -k2,2n -V >> ${FINAL_OUT}_tmp.vcf
-#srun shifter --image=ummidock/ubuntu_base:latest bgzip ${FINAL_OUT}_tmp.vcf
-#srun shifter --image=mcfonsecalab/variantutils:0.5 bcftools sort -Oz -o ${FINAL_OUT}_tmp.vcf.bgz ${FINAL_OUT}.vcf.bgz 
-mv ${FINAL_OUT}_tmp.vcf.bgz ${FINAL_OUT}.vcf.bgz
-srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${OUT}.vcf.bgz
-mv ${OUT}.vcf.bgz* $OUT_DIR
-#cd ../ && rm -rf \$SLURM_JOB_ID*
+if [[ "$IS_VCF_OUTPUT" == "true" ]];then
+    zcat ${FINAL_OUT}.vcf.bgz | awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' | shifter --image=ummidock/ubuntu_base:latest bgzip > ${FINAL_OUT}_tmp.vcf.bgz
+    #zgrep '^#' ${FINAL_OUT}.vcf.bgz > ${FINAL_OUT}_tmp.vcf && zgrep -v '^#' ${FINAL_OUT}.vcf.bgz |  sort -k1,1 -k2,2n -V >> ${FINAL_OUT}_tmp.vcf
+    #srun shifter --image=ummidock/ubuntu_base:latest bgzip ${FINAL_OUT}_tmp.vcf
+    #srun shifter --image=mcfonsecalab/variantutils:0.5 bcftools sort -Oz -o ${FINAL_OUT}_tmp.vcf.bgz ${FINAL_OUT}.vcf.bgz 
+    mv ${FINAL_OUT}_tmp.vcf.bgz ${FINAL_OUT}.vcf.bgz
+    srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${OUT}.vcf.bgz
+    mv ${OUT}.vcf.bgz* $OUT_DIR
+else
+    mv * ../*sbatch $OUT_DIR
+fi
+cd ../ && rm -rf \$SLURM_JOB_ID*
 EOL
 
 #### PARALLEL RUN ####
@@ -283,8 +300,8 @@ if [[ $PARALLEL == "true" ]]; then
     job_id_concat=${job_submission_concat##* }
 fi
 
-if [[ "$runTools" == "true" ]]; then
-    cat << EOF >> $WORKDIR/runAdditionalTools.sbatch 
+if [[ "$runTools" == "true" && "$IS_VCF_OUTPUT" == "true" ]]; then
+    cat << EOF > $OUT_DIR/runAdditionalTools.sbatch 
 #!/bin/bash
 #SBATCH --job-name=runAdditionalTools
 #SBATCH --time=72:00:00
@@ -295,34 +312,27 @@ if [[ "$runTools" == "true" ]]; then
 #SBATCH --image=mcfonsecalab/variantutils:0.5
 #SBATCH --output=%j_runAdditionalTools.log
 
-cd $WORKDIR && mkdir \${SLURM_JOB_ID}_additionalTools && cd \${SLURM_JOB_ID}_additionalTools
 if [[ -f "$OUT_DIR/${FINAL_OUT}.vcf.bgz" ]]; then
     if [[ $genome_version == "hg19" ]]; then
-        printf "Adding ReMM and DANN scores..\n"
-        srun shifter --image=mcfonsecalab/variantutils:0.5 python ~/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/add_prediction_scores.py $OUT_DIR/${FINAL_OUT}.vcf.bgz ${FINAL_OUT}_ReMM_DANN.vcf
-        #/home/pedro.barbosa/software/miniconda3/bin/spliceai
-        #srun cat ${FINAL_OUT}_ReMM_DANN.vcf | shifter --image=mcfonsecalab/variantutils:0.5 spliceai -R genome.fa -A grch37 | shifter --image=ummidock/ubuntu_base:latest bgzip > ${FINAL_OUT}_ReMM_DANN_spliceAI.vcf.gz
-        srun shifter --image=ummidock/ubuntu_base:latest bgzip --force ${FINAL_OUT}_ReMM_DANN.vcf
-
         printf "Running vcfanno to add remaining scores..\n"
-        run_vcfanno=\$(/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh \$PWD/${FINAL_OUT}_ReMM_DANN.vcf.gz ${FINAL_OUT}_final.vcf.bgz $OUT_DIR - true)
+        run_vcfanno="/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh $OUT_DIR/${FINAL_OUT}.vcf.bgz ${FINAL_OUT}_final.vcf.gz $OUT_DIR"
         echo \$run_vcfanno
         \$run_vcfanno
-        mv *sbatch ../*sbatch $OUT_DIR
-# && cd ../ # && rm -rf \${SLURM_JOB_ID}_additionalTools
-
     else
         printf "Additional tools can't be run (yet) on the latest genome build. Skipping this step.\n"
     fi
+
 else
-    printf "$OUT_DIR/${FINAL_OUT}.vcf.bgz does not exist. Additional scores won't be added.\n"
-fi
+        printf "$OUT_DIR/${FINAL_OUT}.vcf.bgz does not exist. Additional scores won't be added.\n"
+    fi
 EOF
 
-    if [[ "$PARALLEL" == "true" ]]; then
-        sbatch --depend=afterok:$job_id_concat $WORKDIR/runAdditionalTools.sbatch
-    else
-        sbatch --depend=afterok:$job_id_vep $WORKDIR/runAdditionalTools.sbatch
-    fi
- 
+else
+    printf "We wont' annotate adiditonal tools. Either you set false to this argument or output format was not set to be VCF, which hampers vcfanno to be run.\n"
+fi
+
+if [[ "$PARALLEL" == "true" ]]; then
+    sbatch --depend=afterok:$job_id_concat $OUT_DIR/runAdditionalTools.sbatch
+else
+    sbatch --depend=afterok:$job_id_vep $OUT_DIR/runAdditionalTools.sbatch
 fi

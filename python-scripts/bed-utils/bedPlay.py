@@ -33,17 +33,21 @@ def add_bp_negative_feature(f,n,gnm_d):
         f.end = gnm_d[f.chrom]
     return str(f)
 
-def apply_subset(f,l):
+def apply_subset(f,l, keep_small):
     if len(f) <= l*2:
-        print("{}\tfeature can't be subset. Too small".format(str(f).rstrip()))
+        if keep_small:
+            return f
+        else:
+            print("{}\tfeature won't be subset. Too small".format(str(f).rstrip()))
     else:
         f.start = f.start + l
         f.end = f.end - l
         return f
 
-def subset(bed,n,out):
+def subset(bed,n,keep_small,out):
+    print("Applying subset")
     bedobj = BedTool(bed)
-    bedobj.each(apply_subset, n).saveas(out)
+    bedobj.each(apply_subset, n, keep_small).saveas(out)
 
 def promoter(bed,n,genome,delimiter,index,out):
     if os.path.exists(out):
@@ -94,7 +98,7 @@ def main():
     parser.add_argument('-g', '--genome', help='Genome size file required for bedtools slop. (Required if -p is set)')
     parser.add_argument('-d', '--delimiter', help='Delimiter character to split discriminative feature/subfeature names. Default: Use all name columns')
     parser.add_argument("-i", "--positionFeature", type=int, help='Position index (0-based) where gene names are located in the "-c" columns, when splitted by "-d" delimiter')
-
+    parser.add_argument('-k', "--keep_small", action='store_true', help='Flag to keep intervals that can not be subset due to their short length (smaller than n*2). Default: discard.')
     m = parser.add_mutually_exclusive_group()
     m.add_argument('-s','--subset', action='store_true', help='Subtract a given number of bp on each feature. E.g: Get deep intronic bed.')
     m.add_argument('-p','--promoter', action='store_true',help='Extend exonic bed file to span likely promotor region. This flag will just look at the first exon of each gene.')
@@ -110,7 +114,7 @@ def main():
         index=None
 
     if args.subset:
-        subset(args.bed,args.number,args.out)
+        subset(args.bed,args.number,args.keep_small, args.out)
 
     if args.promoter and not args.genome:
         print("Please set '--genome' argument")
@@ -120,7 +124,6 @@ def main():
             print("Please set a valid genome file")
             exit(1)
         promoter(args.bed,args.number,args.genome, delimiter, index,args.out)
-
 
 if __name__ == "__main__":
     main()

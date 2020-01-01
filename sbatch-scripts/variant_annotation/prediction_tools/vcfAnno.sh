@@ -17,12 +17,13 @@ siphy
 gwava
 eigen
 fathmmMKL
+remm
+dann
 funseq
 traP
 spidex
-traP
 spliceai
-"
+gnomad_genomes"
 }
 
 if [[ -z $1 || -z $2 || -z $3 ]]; then
@@ -44,17 +45,24 @@ annotate(){
 #EOM
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/spliceai/whole_genome_filtered_spliceai_scores.vcf.gz"
-fields=["SYMBOL","DS_AG","DS_AL","DS_DG","DS_DL","DP_AG","DP_AL","DP_DG","DP_DL"]
-names=["gene_name","DS_AG","DS_AL","DS_DG","DS_DL","DP_AG","DP_AL","DP_DG","DP_DL"]
-ops=["self","self","self","self","self","self","self","self","self"]
+#file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/spliceai/whole_genome_filtered_spliceai_scores.vcf.gz"
+file="mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/spliceai/v1.3/hg19/spliceai_scores.raw.snv.hg19.vcf.gz"
+fields=["SpliceAI"]
+names=["SpliceAI"]
+ops=["self"]
 
 #[[postannotation]]
 #name="SpliceAI"
 #fields=["gene_name","DS_AG","DS_AL","DS_DG","DS_DL","DP_AG","DP_AL","DP_DG","DP_DL"]
 #op="lua:join({gene_name, DS_AS, DS_AL, DS_DG, DS_DL, DP_AG, DP_AL, DP_DG, DP_DL}, '|')"
 #type="String"
-Description="Format: SpliceAIv1.2.1 variant annotation. These include delta scores (DS) and delta positions (DP) for acceptor gain (AG), acceptor loss (AL), donor gain (DG), and donor loss (DL). Format: ALLELE|SYMBOL|DS_AG|DS_AL|DS_DG|DS_DL|DP_AG|DP_AL|DP_DG|DP_DL"
+Description="Format: SpliceAIv1.3 variant annotation. These include delta scores (DS) and delta positions (DP) for acceptor gain (AG), acceptor loss (AL), donor gain (DG), and donor loss (DL). Format: ALLELE|SYMBOL|STRAND|DS_AG|DS_AL|DS_DG|DS_DL|DP_AG|DP_AL|DP_DG|DP_DL"
+
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/spliceai/v1.3/hg19/spliceai_scores.raw.indel.hg19.vcf.gz"
+fields=["SpliceAI"]
+names=["SpliceAI_ind"]
+ops=["self"]
 
 EOM
     elif [[ $1 == "gerp" ]]; then
@@ -124,13 +132,13 @@ names=["GWAVA","GWAVA_mean"]
 ops=["uniq","mean"]
 
 EOM
-      elif [[ $1 == "ReMM" ]]; then #nochr #notworking
+      elif [[ $1 == "remm" ]]; then #nochr #notworking
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/reMM_genomiser/ReMM.v0.3.1.txt.bgz"
 columns=[3]
 names=["ReMM"]
-ops=["self"]
+ops=["mean"]
 
 EOM
     elif [[ $1 == "eigen" ]];then #nochr
@@ -142,7 +150,7 @@ names=["Eigen","Eigen-PC"]
 ops=["self","self"]
 
 EOM
-    elif [[ $1 == "DANN" ]];then #nochr noheader, lets see if there is problems. same problem as fathmmMKL
+    elif [[ $1 == "dann" ]];then #nochr noheader, lets see if there is problems. same problem as fathmmMKL
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
 file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/DANN/DANN_hg19.txt.gz"
@@ -173,9 +181,9 @@ EOM
     elif [[ $1 == "traP" ]]; then #nochr
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/traP/traP_v2.txt.gz"
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/traP/v3/TraP_v3.txt.gz"
 columns=[6]
-names=["traP"]
+names=["TraP"]
 ops=["self"]
 
 EOM
@@ -188,12 +196,20 @@ names=["dpsi_max_tissue","dpsi_zscore"]
 ops=["self","self"]
 
 EOM
+   elif [[ $1 == "gnomad_genomes" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gnomAD/hg19/gnomAD_v2.1_justImportantFields.vcf.gz"
+fields=["AF","AF_nfe","AF_nfe_nwe"]
+names=["gnomADg_AF", "gnomADg_AF_nfe", "gnomADg_AF_nwe"]
+ops=["self", "self", "self"]
+
+EOM
    fi
 }
 
-#spliceai
-#tools=(spliceai)
-tools=(gerp phastcons phyloP fitcons linsight siphy gwava fathmmMKL eigen funseq traP spidex spliceai)
+tools=(gerp phastcons phyloP fitcons linsight siphy gwava fathmmMKL eigen remm dann funseq traP spidex spliceai gnomad_genomes)
+
 if [[ -f "$PWD/anno.conf" ]]; then
     rm "$PWD/anno.conf"
 fi
@@ -214,6 +230,7 @@ else
                 display_usage
                 exit 1
             else
+                echo "elem"
                 annotate $elem
 	    fi
         done
@@ -244,15 +261,14 @@ if [[ -z "$5" || $5 == "false" || $5 == "-" ]]; then
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
-##SBATCH --workdir=/home/pedro.barbosa/scratch/vep
 #SBATCH --output=%j_vcfanno.log
 #SBATCH --image=mcfonsecalab/variantutils:0.5
 
-cd /home/pedro.barbosa/scratch/vep
-mkdir \${SLURM_JOB_ID}_vcfAnno && cd \${SLURM_JOB_ID}_vcfAnno
 srun shifter $cmd
-mv $(basename $outfile) $outdir
-cd ../ && rm -rf \$SLURM_JOB_ID
+srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf $outfile
+if [ ! -f "${outdir}/$(basename $outfile)"  ];then
+    mv ${outfile}* $outdir
+fi
 EOL
     sbatch $PWD/vcfAnno.sbatch
 

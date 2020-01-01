@@ -4,7 +4,7 @@ display_usage(){
 1st argument is the input VCF.
 2nd argument is the output basename. 
 3rd argument is the output directory.
-4th argument is optional. Refers to the models to run, comma separated. Default: all (except eclip models)
+4th argument is optional. Refers to the models to run, comma separated. Default: all (except eclip models and labranchor)
 5th argument is optional. Refers to the fasta file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr.genome.fa'
 6th argument is optional. Refers to the gtf file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.nochr.gtf'
 7th argument should be a file referring which RBPs will be tested (one per line). Only needed when rbp_eclip models are set. 
@@ -19,6 +19,7 @@ kipoisplice_4
 kipoisplice_4cons
 maxentscan_5prime
 maxentscan_3prime
+labranchor
 rbp_eclip\n"
 }
 
@@ -44,7 +45,7 @@ if [[ ! -d "$outdir" ]]; then
     mkdir $outdir
 fi 
 outfinal="$outdir/$outbasename"
-possible_models=(HAL kipoisplice_4 kipoisplice_4cons maxentscan_5prime maxentscan_3prime mmsplice_deltalogitPSI mmsplice_pathogenicity mmsplice_efficiency mmsplice rbp_eclip)
+possible_models=(HAL kipoisplice_4 kipoisplice_4cons maxentscan_5prime maxentscan_3prime mmsplice_deltalogitPSI mmsplice_pathogenicity mmsplice_efficiency mmsplice labranchor rbp_eclip)
 
 base_sbatch (){
 cat > $PWD/runKipoi.sbatch <<EOL
@@ -60,7 +61,6 @@ cat > $PWD/runKipoi.sbatch <<EOL
 
 cd /home/pedro.barbosa/scratch/vep
 mkdir \${SLURM_JOB_ID}_kipoi && cd \${SLURM_JOB_ID}_kipoi
-source activate kipoi-shared__envs__kipoi-py3-keras2
 EOL
 
 }
@@ -72,7 +72,6 @@ EOL
 rbp_eclip () {
 cat >> $PWD/runKipoi.sbatch << EOL
 printf "`date`INFO: rbp_eclip started.\n"
-conda deactivate
 source activate kipoi-rbp_eclip
 awk '{if(\$0 !~ /^#/) print "chr"\$0; else print \$0}' "$1" > ${4}_eclip_specific.vcf
 while read line; do
@@ -82,117 +81,129 @@ while read line; do
     shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_\${line}_rbp_eclip.vcf
     shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_\${line}_rbp_eclip.vcf.gz
 done < "$5"
+conda deactivate
+EOL
+}
+
+labranchor () {
+cat >> $PWD/runKipoi.sbatch << EOL
+printf "`date`INFO: labranchor started.\n"
+source activate kipoi-shared__envs__kipoi-py3-keras2
+kipoi veff score_variants labranchor -o ${4}_labranchor.vcf --dataloader_args='{"gtf_file":"$3", "fasta_file":"$2"}' -i "$1"
+conda deactivate
+printf "`date` INFO: labranchor finished.\n
+
 EOL
 }
 
 HAL () {
 cat >> $PWD/runKipoi.sbatch <<EOL
-printf "`date` INFO: HAL started.\n"
-conda deactivate 
+printf "`date` INFO: HAL started.\n" 
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi veff score_variants HAL -o ${4}_HAL.vcf --dataloader_args='{"gtf_file":"$3", "fasta_file":"$2"}' -i "$1"
+conda deactivate
 awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_HAL.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_HAL.vcf.gz
 shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_HAL.vcf.gz
 printf "`date` INFO: HAL finished.\n"
-
 EOL
 }
 
 kipoiSplice_4 () {
 cat >> $PWD/runKipoi.sbatch <<EOL
-printf "`date` INFO: kipoiSplice_4 started.\n"
-conda deactivate 
+printf "`date` INFO: kipoiSplice_4 started.\n" 
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi predict KipoiSplice/4 -o ${4}_kipoisplice_4.tsv --dataloader_args='{"fasta_file":"$2", "gtf_file":"$3", "vcf_file":"$1"}'
+conda deactivate
 awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4_to_annotate.tsv
 sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_kipoisplice_4_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -s1 -b2 -e2 ${4}_kipoisplice_4_to_annotate.tsv.gz
 printf "`date` INFO: kipoiSplice_4 finished.\n"
-
 EOL
 }
 
 kipoiSplice_4cons () {
 cat >> $PWD/runKipoi.sbatch <<EOL
 printf "`date` INFO: kipoiSplice_4cons started.\n"
-conda deactivate
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi predict KipoiSplice/4cons -o ${4}_kipoisplice_4cons.tsv --dataloader_args='{"fasta_file":"$2", "gtf_file":"$3", "vcf_file":"$1"}'
+conda deactivate
 awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4cons.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4cons_to_annotate.tsv
 sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4cons_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_kipoisplice_4cons_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -s1 -b2 -e2 ${4}_kipoisplice_4cons_to_annotate.tsv.gz
 printf "`date` INFO: kipoiSplice_4cons finished.\n"
-
 EOL
 }
 
 maxentscan_5 () {
 cat >> $PWD/runKipoi.sbatch <<EOL
 printf "`date` INFO: maxentscan_5 started.\n"
-conda deactivate
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi veff score_variants MaxEntScan/5prime -o ${4}_maxentscan_5.vcf --dataloader_args='{"gtf_file":"$3", "fasta_file":"$2"}' -i "$1"
-awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_5.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_maxentscan_5.vcf.gz
-shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_maxentscan_5.vcf.gz
-printf "`date` INFO: maxentscan_5 finished.\n"
-
+conda deactivate
+if [[ ! -f "${4}_maxentscan_5.vcf" ]]; then
+    printf "`date` INFO: maxentscan_5 did not score any variant"
+else
+    awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_5.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_maxentscan_5.vcf.gz
+    shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_maxentscan_5.vcf.gz
+    printf "`date` INFO: maxentscan_5 finished.\n"
+fi
 EOL
 }
 
 maxentscan_3 () {
 cat >> $PWD/runKipoi.sbatch <<EOL
 printf "`date` INFO: maxentscan_3 started.\n"
-conda deactivate
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi veff score_variants MaxEntScan/3prime -o ${4}_maxentscan_3.vcf --dataloader_args='{"gtf_file":"$3", "fasta_file":"$2"}' -i "$1"
-awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_3.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_maxentscan_3.vcf.gz
-shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_maxentscan_3.vcf.gz
-printf "`date` INFO: maxentscan_3 finished.\n"
-
+conda deactivate
+if [[ ! -f "${4}_maxentscan_3.vcf" ]] ;then
+    printf "`date` INFO: maxentscan_3 did not score any variant"
+else
+    awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_3.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_maxentscan_3.vcf.gz
+    shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_maxentscan_3.vcf.gz
+    printf "`date` INFO: maxentscan_3 finished.\n"
+fi
 EOL
 }
 
 mmsplice_deltalogitPSI (){
 cat >> $PWD/runKipoi.sbatch <<EOL
-conda deactivate
 source activate kipoi-MMSplice
 printf "`date` INFO: mmsplice delta logit PSI started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_deltaLogitPSI.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
+conda deactivate
 awk -v OFS="\t" '{ print \$21, \$23, \$24, \$20, \$26}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip  ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice delta logit PSI finished.\n"
-
 EOL
 }
 
 
 mmsplice_efficiency (){
 cat >> $PWD/runKipoi.sbatch << EOL
-conda deactivate
 source activate kipoi-MMSplice
 printf "`date` INFO: mmsplice efficiency started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_efficiency.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
+conda deactivate
 awk -v OFS="\t" '{ print \$21, \$23, \$24, \$20, \$26}' ${4}_mmsplice_efficiency.tsv | tail -n+2 > ${4}_mmsplice_efficiency_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_efficiency_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_efficiency_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_efficiency_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice efficiency finished.\n"
-
 EOL
 }
 
 
 mmsplice_pathogenicity (){
 cat >> $PWD/runKipoi.sbatch << EOL
-conda deactivate
 source activate kipoi-MMSplice
 printf "`date` INFO: mmsplice pathogenicity started.\n"
 kipoi predict MMSplice/pathogenicity -o ${4}_mmsplice_pathogenicity.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
+conda deactivate
 awk -v OFS="\t" '{ print \$21, \$23, \$24, \$20, \$27}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 > ${4}_mmsplice_pathogenicity_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_pathogenicity_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_pathogenicity_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_pathogenicity_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice pathogenicity finished.\n"
-
 EOL
 }
 
@@ -263,6 +274,9 @@ else
                         display_usage
                         exit 1
                     fi
+                elif [[ "$elem" == "labranchor" ]]; then
+                    labranchor $invcf $fasta $gtf $outfinal
+
                 fi
             fi
     done

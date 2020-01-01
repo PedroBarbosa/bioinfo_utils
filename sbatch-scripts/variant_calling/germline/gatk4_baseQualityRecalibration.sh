@@ -6,7 +6,7 @@ display_usage(){
     -2nd argument must be the name of the final ouptut directory.
     -3th argument must be the fasta reference for which the reads were aligned. If '-' is set, the existing hg38 version in lobo will be used.
      Be aware that a fasta index file (.fai) must also be present in the fasta directory.
-    -4th argument is optional. It refers to an additional resource of known sites to use in the calibration step. By default, hg38 1000Genomes and dbSNP SNPs are used."
+    -4th argument is optional. It refers to an additional resource of known sites to use in the calibration step. By default, hg38 1000Genomes and dbSNP SNPs are used.\n"
  }
 
 
@@ -17,7 +17,7 @@ if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
 fi
 
 BAMS=$(readlink -f "$1")
-OUTDIR=$(readlink -f "$2")
+JOBS=$(cat $BAMS | wc -l)
 WORKDIR="/home/pedro.barbosa/scratch/gatk/BQSR"
 if [ ! -d $WORKDIR ];then
     mkdir $WORKDIR
@@ -57,10 +57,10 @@ cat > $WORKDIR/gatk4_baseRecalibration.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=BQSR
 #SBATCH --time=72:00:00
-#SBATCH --mem=240G
+#SBATCH --mem=120G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --array=0-0%1
+#SBATCH --array=0-$(( $JOBS - 1 ))%5
 #SBATCH --cpus-per-task=40
 #SBATCH --image=broadinstitute/gatk:latest
 ##SBATCH --workdir=$WORKDIR
@@ -88,7 +88,7 @@ CMD_APPLY_BQSR="gatk ApplyBQSR -bqsr  \${OUTBASENAME/bam/bqsr.table} -I \${bams[
 
 \$srun \$CMD_APPLY_BQSR
 echo -e "\$(timestamp) -> Finished job."
-mv * $OUTDIR
+#mv * $OUTDIR
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 echo -e "\$(timestamp) -> All done!"

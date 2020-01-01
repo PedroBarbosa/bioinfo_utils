@@ -28,9 +28,13 @@ if [[ -z $1 || -z $2 || -z $3 ]]; then
     exit 1
 fi
 invcf=$(readlink -f $1)
-outfile=$(readlink -f $2)
+outfile=$(readlink -f "$2")
+if [[ -z "$outfile" ]];then
+    printf "Error on the output file. Please set a different string. Perhaps remove the gz extension at the end?\n"
+    display_usage
+    exit 1
+fi
 outdir=$(readlink -f $3)
-
 possible_models=(HAL mmsplice_deltaLogitPSI mmsplice_pathogenicity mmsplice_efficiency kipoisplice_4 kipoisplice_4cons maxentscan_5 maxentscan_3 SCAP rbp_eclip)
 annotate(){
 
@@ -168,6 +172,7 @@ else
             elif [[ "$elem" == "SCAP" ]]; then #if models with precomputed scores
                 annotate $elem
             else
+                
                 fullpath_file=$(readlink -f ${files[$i]})
                 annotate $elem $fullpath_file
                 i=$((i + 1))
@@ -176,7 +181,7 @@ else
 fi
 
 config=$(readlink -f $PWD/anno.conf)
-cmd="vcfanno $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > $(basename $outfile)"
+cmd="vcfanno $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > ${outfile}"
 
 if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
    cat > $PWD/vcfAnnoSplicing.sbatch <<EOL
@@ -191,10 +196,14 @@ if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
 #SBATCH --output=%j_vcfannoSplicing.log
 #SBATCH --image=mcfonsecalab/variantutils:0.5
 
-cd /home/pedro.barbosa/scratch/vep
-mkdir \${SLURM_JOB_ID}_vcfAnno && cd \${SLURM_JOB_ID}_vcfAnno
+echo "$cmd"
 srun shifter $cmd
-mv $(basename $outfile) $outdir
+srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${outfile}
+if [ ! -f "${outdir}/$(basename $outfile)"  ];then
+    echo "${outdir}/$(basename $outfile)"
+    mv ${outfile}* $outdir
+fi
+
 cd ../ && rm -rf \$SLURM_JOB_ID
 EOL
     sbatch $PWD/vcfAnnoSplicing.sbatch

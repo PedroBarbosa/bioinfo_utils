@@ -111,7 +111,7 @@ fi
 
 isSpark="true"
 if [ -z "$8" ] || [ "$8" == "true" ] || [ "$8" == "-" ]; then
-    CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark"
+    CMD="gatk ${JAVA_Xmx} HaplotypeCallerSpark" # --linked-de-bruijn-graph"
 #    SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS] --num-executors 7 --executor-cores 5 --executor-memory 32500" #single JVM only allows one executor
 #    SPARK="-- --spark-runner LOCAL --spark-master local-cluster[7,5,32000]" #simulation of a local pseudo-cluster. failed
     SPARK="-- --spark-runner LOCAL --spark-master local[$CPUS,4]"
@@ -121,6 +121,7 @@ elif [ "$8" == "false" ]; then
     isSpark="false"
 else
     printf "ERROR. Please set a valid value for the 8th argument. [true|false]\n"
+    printf "Value given: $8\n"
     display_usage
     exit 1
 fi
@@ -186,25 +187,25 @@ printf "\$(timestamp) -> Job settings\n\$(timestamp) -> isWithParallel=$PARALLEL
 scratch_out=$WORKDIR/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
-srun="srun -N1 -n1 --slurmd-debug 3 shifter"
+srun="srun -N1 -n1 --slurmd-debug 1 shifter"
 parallel="parallel --delay 0.2 -j \$SLURM_NTASKS  --env timestamp --joblog parallel.log --halt soon,fail=1 --resume-failed"
 echo "\$(timestamp) -> Job started!"
-echo "\$(timestamp) -> Converting reference fasta file to 2bit format for HaplotypeCallerSpark"
+echo "\$(timestamp) -> Converting reference fasta file to 2bit format for HaplotypeCaller"
 \$srun --image=mcfonsecalab/htstools_plus:latest faToTwoBit $REF ${ref_2bit%.*}.2bit
 echo "\$(timestamp) -> Done"
 if [[ -n "$dbsnp"  && ! -f "${dbsnp}.tbi" ]]; then
     echo "\$(timestamp) -> Known variants file was provided, but there is not index. It will be created now.."
-    \$srun gatk IndexFeatureFile -F "$dbsnp"
+    \$srun gatk IndexFeatureFile -I "$dbsnp"
     echo "\$(timestamp) -> Done."
 fi
 
 if [ "$PARALLEL" == "true" ]; then
     if [ $isSpark == "true" ]; then
-        cat $BAM_DATA | \$parallel  'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf $SPARK && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
+        cat $BAM_DATA | \$parallel  'srun -N1 -n1 --slurmd-debug 1 shifter $CMD -I={} -O={/.}.g.vcf $SPARK && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -I {/.}.g.vcf'
         #readarray -t bams < $BAM_DATA
-        #srun shifter $CMD -I=${bams[$SLURM_ARRAY_TASK_ID]} -O=${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf $SPARK && echo -e "${bams[$SLURM_ARRAY_TASK_ID]%.*}\\t${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf >> aux_sampleName.map && shifter gatk IndexFeatureFile -F ${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf
+        #srun shifter $CMD -I=${bams[$SLURM_ARRAY_TASK_ID]} -O=${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf $SPARK && echo -e "${bams[$SLURM_ARRAY_TASK_ID]%.*}\\t${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf >> aux_sampleName.map && shifter gatk IndexFeatureFile -I ${bams[$SLURM_ARRAY_TASK_ID]%.*}.g.vcf
     else
-        cat $BAM_DATA | \$parallel 'srun -N1 -n1 --slurmd-debug 3 shifter $CMD -I={} -O={/.}.g.vcf && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -F {/.}.g.vcf'
+        cat $BAM_DATA | \$parallel 'srun -N1 -n1 --slurmd-debug 1 shifter $CMD -I={} -O={/.}.g.vcf && echo -e "{/.}\\t{/.}.g.vcf" >> aux_sampleName.map && shifter gatk IndexFeatureFile -I {/.}.g.vcf'
     fi
 else
     unique_samples=()
@@ -224,7 +225,7 @@ else
             \$srun $CMD -I=\$j -O=\${out}.g.vcf
         fi
         echo -e "\${out}\\t\${out}.g.vcf" >> aux_sampleName.map
-        \$srun gatk IndexFeatureFile -F \${out}.g.vcf
+        \$srun gatk IndexFeatureFile -I \${out}.g.vcf
         printf "\$(timestamp): Done!\n"
     done
 fi

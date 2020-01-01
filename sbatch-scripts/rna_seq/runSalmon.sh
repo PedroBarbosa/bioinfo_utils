@@ -62,7 +62,7 @@ fullpathpair2="\$dir/\$pair2"
 
 \$srun shifter salmon quant -i $INDEX --validateMappings --numBootstraps 100 --seqBias --gcBias --writeUnmappedNames --libType A -o \$PWD -p \$SLURM_CPUS_PER_TASK -1 \${pair1[\$SLURM_ARRAY_TASK_ID]} -2 \$fullpathpair2
 for i in *; do mv "\$i" "\${OUT_BASENAME}_\$i"; done
-mv *json *sf $OUT
+mv * $OUT
 cd ../ && rm -rf \$SLURM_JOB_ID
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
