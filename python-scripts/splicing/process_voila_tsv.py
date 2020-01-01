@@ -37,12 +37,14 @@ def get_new_junctions(junctions_flag):
                                                                                              number_new_junctions)
 
 
-def process_voila_files(files, sample_groups = None, threshold = 0.2):
+def process_voila_files(files, threshold, probability_threshold, sample_groups=None):
 
     lsv = defaultdict(list)
-    header = ["#lsv_id", "gene_name", "gene_id", "lsv_type", "max_deltaPSI_observed", "delta_PSIs_oberved",
-              "total_number_junction_in_lsv", "number_exons_involved", "#relevant_known_junctions(>threshold)",
-              "is_there_any_new_relevant_junction", "#relevant_new_junctions(>threshold)"]
+    header = ["#lsv_id", "gene_name", "gene_id", "lsv_type", "max_deltaPSI_observed", "prob_max_deltaPSI",
+              "delta_PSIs_oberved", "prob_deltaPSIs_observed", "total_number_junction_in_lsv", "number_exons_involved",
+              "#relevant_known_junctions(>threshold)", "is_there_any_new_relevant_junction",
+              "#relevant_new_junctions(>threshold)"]
+
     if sample_groups:
         header.append("groups_with_lsv")
 
@@ -57,8 +59,15 @@ def process_voila_files(files, sample_groups = None, threshold = 0.2):
                 gid = l[1]
                 lsv_id = l[2]
                 delta = l[3]
-                idx_delta_relevant = [i for i, v in enumerate(delta.split(";")) if abs(float(v)) > threshold]
+                probability = l[4]
+                idx_delta_relevant = [i for i, v in enumerate(delta.split(";")) if abs(float(v)) > threshold and
+                                      float(probability.split(";")[i]) > probability_threshold]
+
                 max_delta = str(max([float(x) for x in delta.split(";")], key=abs))
+                prob_max = probability.split(";")[delta.split(";").index(max_delta)]
+                if abs(float(max_delta)) < threshold or float(prob_max) < probability_threshold:
+                    continue
+
                 lsv_type = ';'.join(get_relevant_type(l[9:12]))
                 njunctions = l[12]
                 nexons = l[13]
@@ -66,12 +75,12 @@ def process_voila_files(files, sample_groups = None, threshold = 0.2):
                 number_known_junctions, has_new_junction, number_new_junctions = get_new_junctions(is_junction_new)
 
                 if sample_groups:
-                    lsv[lsv_id].append([gname, gid, lsv_type, max_delta, delta, njunctions, nexons,
-                                        str(number_known_junctions), str(has_new_junction),
+                    lsv[lsv_id].append([gname, gid, lsv_type, max_delta, prob_max, delta, probability, njunctions,
+                                        nexons, str(number_known_junctions), str(has_new_junction),
                                         str(number_new_junctions), sample_groups[f][0]])
                 else:
-                    lsv[lsv_id].append([gname, gid, lsv_type, max_delta, delta, njunctions, nexons,
-                                        str(number_known_junctions), str(has_new_junction),
+                    lsv[lsv_id].append([gname, gid, lsv_type, max_delta, prob_max, delta, probability, njunctions,
+                                        nexons, str(number_known_junctions), str(has_new_junction),
                                         str(number_new_junctions)])
     return lsv, header
 
@@ -100,14 +109,17 @@ def main():
     parser.add_argument(dest='voila', nargs="+", help='Path to the voila file(s)')
     parser.add_argument("-o", "--outbasename", required=True, help='Basename to the output file')
     parser.add_argument("-g", "--groups", help='Tab delimited file with groups mapping filenames')
+    parser.add_argument("-t", "--threshold", type=float, default=0.2, help='dPSI threshold. Default:0.2')
+    parser.add_argument("-p", "--probability", type=float, default=0, help='probability threshold. Only LSVs with higher probability than this'
+                                                    'value will be kept. Default:0')
     args = parser.parse_args()
 
     if args.groups:
         groups = read_groups(args.groups, args.voila)
-        lsvs, header = process_voila_files(args.voila, sample_groups=groups)
+        lsvs, header = process_voila_files(args.voila, args.threshold, args.probability, sample_groups=groups)
         write_output(lsvs, header, args.outbasename, groups=groups)
     else:
-        lsvs, header = process_voila_files(args.voila)
+        lsvs, header = process_voila_files(args.voila, args.threshold, args.probability)
         write_output(lsvs, header, args.outbasename)
 
 

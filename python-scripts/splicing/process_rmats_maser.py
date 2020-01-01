@@ -31,10 +31,10 @@ def read_groups(groups, dir):
     return d
 
 
-def process_rmats_files(dir, groups):
+def process_rmats_files(dir, groups, psi_threshold, fdr_threshold):
 
-    events=["SE", "MXE", "A3SS", "A5SS", "RI"]
-    header = ["#gene_id", "gene_name", "event_type", "deltaPSI", "PSI_1", "PSI_2",
+    events = ["SE", "MXE", "A3SS", "A5SS", "RI"]
+    header = ["#gene_id", "gene_name", "event_type", "deltaPSI", "pvalue", "FDR", "PSI_1", "PSI_2",
               "coordinates"]
     if groups:
         header.append("group")
@@ -50,15 +50,22 @@ def process_rmats_files(dir, groups):
                     l = line.rstrip().split("\t")
                     geneid = l[1]
                     genesymbol = l[2]
+                    pvalue = l[3]
+                    fdr = l[4]
                     deltapsi = l[5]
                     psi_1 = l[6]
                     psi_2 = l[7]
                     coordinates = ':'.join(l[8:14])
+
+                    if float(deltapsi) < psi_threshold or float(fdr) > fdr_threshold:
+
+                        continue
+
                     if groups:
-                        sign_events[geneid].append([genesymbol, ev, deltapsi, psi_1, psi_2, coordinates,
+                        sign_events[geneid].append([genesymbol, ev, deltapsi, pvalue, fdr, psi_1, psi_2, coordinates,
                                                     groups[os.path.basename(f)]])
                     else:
-                        sign_events[geneid].append([genesymbol, ev, deltapsi, psi_1, psi_2, coordinates])
+                        sign_events[geneid].append([genesymbol, ev, deltapsi, pvalue, fdr, psi_1, psi_2, coordinates])
             infile.close()
     return sign_events, header
 
@@ -85,11 +92,17 @@ def write_output(events, header, outbasename, groups):
 
 def main():
     parser = argparse.ArgumentParser(description='Script to produce readable rmats significant events between two(or more)'
-                                                 'conditions')
+                                                 'conditions. It picks from already filtered events through maser so'
+                                                 'it\'s possible that by changing thresholds you wont see any'
+                                                 'differences.')
     parser.add_argument(dest='rmats_sign', help='Path to the rmats files (each file represent a event type and '
                                                            'comparison')
     parser.add_argument("-o", "--outbasename", required=True, help='Basename to the output file')
     parser.add_argument("-g", "--groups", help='Tab delimited file with groups mapping filenames')
+    parser.add_argument("-t", "--threshold", type=float, default=0.2, help='dPSI threshold. Default:0.2')
+    parser.add_argument("-f", "--fdr", type=float, default=0.05, help='FDR threshold. Only events with lower FDR value'
+                                                                      'will be kept. Default: 0.05')
+
     args = parser.parse_args()
 
     if os.path.isdir(args.rmats_sign):
@@ -98,7 +111,7 @@ def main():
         else:
             groups = None
 
-        sign_events, header = process_rmats_files(args.rmats_sign, groups)
+        sign_events, header = process_rmats_files(args.rmats_sign, groups, args.threshold, args.fdr)
         write_output(sign_events, header, args.outbasename, groups)
 
     else:
