@@ -89,8 +89,8 @@ cat > $WORKDIR/gatk4_hardFiltering.sbatch <<EOL
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=40
 #SBATCH --image=broadinstitute/gatk:latest
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_hardFiltgatk.log
+##SBATCH --workdir=$WORKDIR
+#SBATCH --output=%j_hardFiltgatk.log
 
 
 scratch_out=$WORKDIR/\$SLURM_JOB_ID

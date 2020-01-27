@@ -4,7 +4,7 @@ display_usage(){
  Usage:.
     -1st argument must be the list of input VCF files to liftover.
     -2nd argument must be the name of the final ouptut directory.
-    -3rd argument must be the fasta reference sequence.
+    -3rd argument must be the fasta reference sequence (target sequence).
     -4th argument must be the chain file.\n" 
 }
 
