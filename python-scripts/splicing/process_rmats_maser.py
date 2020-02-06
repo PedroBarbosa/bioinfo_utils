@@ -34,8 +34,7 @@ def read_groups(groups, dir):
 def process_rmats_files(dir, groups, psi_threshold, fdr_threshold):
 
     events = ["SE", "MXE", "A3SS", "A5SS", "RI"]
-    header = ["#gene_id", "gene_name", "event_type", "deltaPSI", "pvalue", "FDR", "PSI_1", "PSI_2",
-              "coordinates"]
+    header = ["#coordinates_event_id", "gene_name", "gene_id", "event_type", "deltaPSI", "pvalue", "FDR", "PSI_1", "PSI_2"]
     if groups:
         header.append("group")
     sign_events = defaultdict(list)
@@ -58,14 +57,13 @@ def process_rmats_files(dir, groups, psi_threshold, fdr_threshold):
                     coordinates = ':'.join(l[8:14])
 
                     if float(deltapsi) < psi_threshold or float(fdr) > fdr_threshold:
-
                         continue
 
                     if groups:
-                        sign_events[geneid].append([genesymbol, ev, deltapsi, pvalue, fdr, psi_1, psi_2, coordinates,
+                        sign_events[coordinates].append([genesymbol, geneid, ev, deltapsi, pvalue, fdr, psi_1, psi_2,
                                                     groups[os.path.basename(f)]])
                     else:
-                        sign_events[geneid].append([genesymbol, ev, deltapsi, pvalue, fdr, psi_1, psi_2, coordinates])
+                        sign_events[coordinates].append([genesymbol, geneid, ev, deltapsi, pvalue, fdr, psi_1, psi_2])
             infile.close()
     return sign_events, header
 
@@ -74,12 +72,12 @@ def write_output(events, header, outbasename, groups):
     d = defaultdict(list)
     with open(outbasename + "_rmats.csv", 'w') as out:
         out.write('\t'.join(header) + "\n")
-        for geneid, data in events.items():
+        for coordinates_id, data in events.items():
             for i, v in enumerate(data):
                 if groups:
-                    d[v[0] + ":" + v[1] + ":" + v[-2]].append(v[-1])
+                    d[v[0] + ":" + v[2] + ":" + coordinates_id].append(v[-1])
                 if i == 0:
-                    out.write(geneid + "\t" + '\t'.join(v) + "\n")
+                    out.write(coordinates_id + "\t" + '\t'.join(v) + "\n")
                 else:
                     out.write("\t" + '\t'.join(v) + "\n")
 
