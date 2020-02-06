@@ -4,7 +4,7 @@ library(tidyverse)
 library(dplyr)
 library(biomaRt)
 library(RColorBrewer)
-
+library(ggrepel)
 #Input from nextflow
 args = commandArgs(trailingOnly=TRUE)
 #features_counts_data=read.table(args[1], header=TRUE,sep="\t")
@@ -107,17 +107,19 @@ zeb2_CBE_vs_controls =dplyr::filter(all_data, grepl("GBA",gene_name))
 
 
 #############DESEQ2###############
-setwd("~/Downloads/christian/featureCounts/")
-source("~/git_repos/bioinfo_utils/r-scripts/rnaseq/exploratory_rna_seq.R")
-features_counts_data=read.table("genes_feature_counts.txt", header=TRUE,sep="\t")
+setwd("/Users/pbarbosa/analysis/christian/human/")
+source("~/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
+features_counts_data=read.table("merged_gene_counts.txt", header=TRUE,sep="\t")
 df_numbers = features_counts_data[ , -which(names(features_counts_data) %in% c("gene_name"))]
 
 #Set gene id as rowname and reorder columns
 rownames(df_numbers) = df_numbers[,'Geneid']
 df_numbers[,'Geneid'] <- NULL
 
-df_numbers <- df_numbers[, c("GD1", "GD2", "GD3", "S_3y_CTRL", "S_10y_CTRL", "S_11y_CTRL", "S_3y_CBE", "S_10y_CBE", "S_11y_CBE")]
-groups <- as.factor(rep(c("GD","CTRL", "CBE"), each=3))
+colnames(df_numbers) <- gsub("_1Aligned.sortedByCoord.out.bam", "", colnames(df_numbers))
+df_numbers <- df_numbers[, c("S_3y_CTRL", "S_10y_CTRL", "S_11y_CTRL", "S_3y_CBE", "S_10y_CBE", "S_11y_CBE","GD1", "GD2", "GD3")]
+
+groups <- as.factor(rep(c("CTRL", "CBE", "GD"), each=3))
 coldata <- data.frame(groups, row.names=colnames(df_numbers))
 dds <- DESeqDataSetFromMatrix(countData = df_numbers,
                               colData = coldata,
@@ -127,24 +129,41 @@ dds <- dds[keep,]
 
 dds$groups<-relevel(dds$groups,ref="CTRL")
 log2cutoff <- 1
-padjcutoff <- 0.01
+padjcutoff <- 0.05
 
 group_combination <- c("groups","CBE", "CTRL")
-list_de <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38",TRUE)
+
+list_de <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38", explore_data = T)
 #all_annot_cbe <- annotate_results(list_de[[1]], "hg38") 
-write.table(all_annot_cbe, quote= FALSE, row.names = TRUE, sep="\t",file="CBE_vs_Controls_all_annotated.csv")
-all_annot_cbe <- read.table("CBE_vs_Controls_all_annotated.csv", row.names = 1, sep="\t", header=TRUE)
+#write.table(all_annot_cbe, quote= FALSE, row.names = TRUE, sep="\t",file="CBE_vs_Controls_all_annotated.csv")
+all_annot_cbe <- read_tsv("CBE_vs_Controls_all_annotated.csv") 
+all_annot_cbe$gene_id <- gsub("\\..*", "", all_annot_cbe$gene_id)
+
 
 ##FGSEA###
-source("~/git_repos/bioinfo_utils/r-scripts/rnaseq/exploratory_rna_seq.R")
-fgseaResTidy <- run_fgsea_analysis(all_annot_cbe, "~/Downloads/c2.cp.reactome.v6.2.symbols.gmt", "Hallmark_pathways")
+fgseaResTidy_hallmarks <- run_fgsea_analysis(all_annot_cbe, "~/analysis/genome_utilities/GSEA/h.all.v7.0.symbols.gmt", "Hallmark_genesets", is_deseq = T, top_n_value = 30)
+fgseaResTidy_reactome <- run_fgsea_analysis(all_annot_cbe, "~/analysis/genome_utilities/GSEA/c2.cp.reactome.v7.0.symbols.gmt", "reactome_genesets", top_n_value = 30)
+fgseaResTidy_kegg <-  run_fgsea_analysis(all_annot_cbe, "~/analysis/genome_utilities/GSEA/c2.cp.kegg.v7.0.symbols.gmt", "kegg_genesets", top_n_value = 20)
+fgseaResTidy_GO_BP <- run_fgsea_analysis(all_annot_cbe, "~/analysis/genome_utilities/GSEA/c5.bp.v7.0.symbols.gmt", "GO_Biological_process")
+fgseaResTidy_GO_BP <- run_fgsea_analysis(all_annot_cbe, "~/analysis/genome_utilities/GSEA/c5.mf.v7.0.symbols.gmt", "GO_Molecular_Function")
 write.table(fgseaResTidy$pathway, quote = FALSE,row.names = FALSE,file="enriched_pathways_CBE_vs_Controls.csv")
-fgseaResTidy <- run_fgsea_analysis(all_annot_cbe, "~/Downloads/c5.bp.v6.2.symbols.gmt", "GO_Biological_process")
 
+
+all_annot_cbe$up <- all_annot_cbe$log2FoldChange > log2cutoff & all_annot_cbe$padj < padjcutoff
+all_annot_cbe$down <- all_annot_cbe$log2FoldChange < -log2cutoff & all_annot_cbe$padj < padjcutoff
+all_annot_cbe$threshold <- as.factor(abs(all_annot_cbe$log2FoldChange) > log2cutoff & res_shrinked$padj < padjcutoff)
+genes_to_highlight_in_volcano <- c("ENSG00000213694", "ENSG00000136048", "ENSG00000119699", "ENSG00000164188", "ENSG00000113722", "ENSG00000251258")
 
 ##GO over representation analysis
-goseq.results <- run_goseq_analysis(all_annot_cbe, "hg19", rownames(list_de[[2]]))
+final_de_genes <- list_de[[2]]
+final_de_genes_up = final_de_genes[final_de_genes$log2FoldChange > 0,]
+final_de_genes_down = final_de_genes[final_de_genes$log2FoldChange < 0,]
 
+goseq_up_de_genes <- run_goseq_analysis(all_annot_cbe, "hg19", final_de_genes_up$Row.names)
+goseq_down_de_genes <- run_goseq_analysis(all_annot_cbe, "hg19", final_de_genes_down$Row.names)
+goseq.results <- run_goseq_analysis(all_annot_cbe, "hg19", final_de_genes$Row.names)
+
+head(list_de[[2]]$Row.names)
 head(goseq.results[goseq.results$term == "negative chemotaxis",])
 
 upset(fromList(list(GD_vs_CTR_edgeR=final_CBE_control_edgeR$gene_name, GD_vs_CTR_deseq2=final_CBE_control_deseq2$gene_name)),
@@ -209,13 +228,13 @@ GD_CBE_vs_CBE_CTRL <- intersect(DE_genes_GD_CBE, DE_genes_CBE_CTRL)
 intersect(DE_genes_GD_CTRL_DOWN, DE_genes_CBE_CTRL_UP)
 intersect(DE_genes_GD_CTRL_UP, DE_genes_CBE_CTRL_DOWN)
 genes_GD_CTRL_intercept_GD_CBE <- getBM(attributes=c('external_gene_name','description'), 
-                  filters = 'external_gene_name', values = GD_CTRL_vs_GD_CBE, mart =ensembl)
+                                        filters = 'external_gene_name', values = GD_CTRL_vs_GD_CBE, mart =ensembl)
 
 genes_GD_CTRL_intercept_CBE_CTRL <- getBM(attributes=c('external_gene_name','description'), 
-                                        filters = 'external_gene_name', values = GD_CTRL_vs_CBE_CTRL, mart =ensembl)
+                                          filters = 'external_gene_name', values = GD_CTRL_vs_CBE_CTRL, mart =ensembl)
 
 genes_GD_CBE_intercept_CBE_CTRL <- getBM(attributes=c('external_gene_name','description'), 
-                                        filters = 'external_gene_name', values = GD_CBE_vs_CBE_CTRL, mart =ensembl)
+                                         filters = 'external_gene_name', values = GD_CBE_vs_CBE_CTRL, mart =ensembl)
 setwd("~/Downloads/christian/")
 write.table(genes_GD_CTRL_intercept_GD_CBE, quote= FALSE, sep="\t",file="GD_CTRL_intercept_GD_CBE",row.names=FALSE)
 write.table(genes_GD_CTRL_intercept_CBE_CTRL, quote= FALSE, sep="\t",file="GD_CTRL_intercept_CBE_CTRL",row.names=FALSE)
@@ -243,7 +262,6 @@ names(final_df) <- c("geneID", "geneName",gsub('_1Aligned.sortedByCoord.out.gene
 n_occur <- data.frame(table(final_df$geneID))
 print(n_occur[n_occur$Freq > 1,])
 final_df <- final_df[!final_df$geneID == 'ENSG00000275395.5',]
-
 #Iterate over list of dfs to merge counts from all the samples
 i = 1
 for (df in df_counts) {
@@ -297,20 +315,20 @@ library(heatmap3)
 colors=brewer.pal(n = 8, name = "Blues")
 plotheatmap <- function(x) {
   heatmap3(x,
-            #main = "Genes correlation", # heat map title
-            #density.info="none",  # turns off density plot inside color legend
-            #trace="none",         # turns off trace lines inside the heat map
-            #margins =c(3,5),     # widens margins around plot
-            col=colors,       # use on color palette defined earlier
-            #breaks=col_breaks,    # enable color transition at specified limits
-            #dendrogram="col",     # only draw a row dendrogram
-            Colv=FALSE, 
-            Rowv = FALSE, # turn off column clustering
-            showRowDendro = FALSE,
-            scale="row",
-            cexRow=0.1,
-            cexCol=0.8,
-            breaks = c(-3,-2,-1,-0.5, 0, 0.5, 1, 2, 3)
+           #main = "Genes correlation", # heat map title
+           #density.info="none",  # turns off density plot inside color legend
+           #trace="none",         # turns off trace lines inside the heat map
+           #margins =c(3,5),     # widens margins around plot
+           col=colors,       # use on color palette defined earlier
+           #breaks=col_breaks,    # enable color transition at specified limits
+           #dendrogram="col",     # only draw a row dendrogram
+           Colv=FALSE, 
+           Rowv = FALSE, # turn off column clustering
+           showRowDendro = FALSE,
+           scale="row",
+           cexRow=0.1,
+           cexCol=0.8,
+           breaks = c(-3,-2,-1,-0.5, 0, 0.5, 1, 2, 3)
   )
 }
 pdf("TPM_heatmap_DE_genes.pdf")

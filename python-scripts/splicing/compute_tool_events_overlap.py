@@ -2,13 +2,14 @@ import argparse
 from collections import Counter, defaultdict
 from matplotlib_venn import venn2, venn3
 import matplotlib.pyplot as plt
+import upsetplot
 
 def process_vasttools(vastfile):
 
     try:
         with open(vastfile, 'r') as infile:
             infile.readline()
-            genes = [line.split('\t')[0] for line in infile]
+            genes = [line.split('\t')[1] if not line.split('\t')[0] else line.split('\t')[0] for line in infile]
             vasttools_counter = Counter(genes)
         infile.close()
         return vasttools_counter
@@ -67,8 +68,13 @@ def compute_overlaps(d):
     just_sets = [v[1] for v in sets]
     if len(just_sets) == 2:
         venn2(just_sets, tuple(labels))
+    elif len(just_sets) > 3:
+        data = upsetplot.from_contents(d)
+        upset = upsetplot.UpSet(data, subset_size="count", intersection_plot_elements=4, show_counts='%d')
+        upset.plot()
     else:
         venn3(just_sets, tuple(labels))
+
     plt.savefig(out)
     plt.close()
 
@@ -84,6 +90,9 @@ def main():
     parser.add_argument("-r", "--rmats", help='Path to the output file of process_rmats_maser script where all splicing'
                                               ' events are presented (il multiple conditions tested, results come '
                                               'processed')
+    parser.add_argument("-p", "--psichomics", help='Path to the output file of psichomics processing pipeline where all'
+                                                   'relevant splicing events are presented (il multiple conditions tested,'
+                                                   ' results come concatenated.')
     args = parser.parse_args()
     is_given = 0
     for arg in vars(args):
@@ -97,7 +106,8 @@ def main():
     vast = process_vasttools(args.vasttools)
     rmats = process_rmats(args.rmats)
     majiq = process_majiq(args.majiq)
-    d = {"vasttools" : vast, "rmats" : rmats, "majiq" : majiq}
+    psichomics = process_rmats(args.psichomics)
+    d = {"vasttools": vast, "rmats": rmats, "majiq": majiq, "psichomics": psichomics}
     filtered = {k: v for k, v in d.items() if v is not None}
     d.clear()
     d.update(filtered)

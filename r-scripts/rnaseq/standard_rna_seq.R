@@ -6,10 +6,12 @@ library("pheatmap")
 library(fgsea)
 library(ggplot2)
 library(tidyverse)
+library(goseq)
 
-#ensembl_genes <- read.table("~/Downloads/ensembl_genes_with_description.txt", quote = "", row.names = 1,sep="\t", header=TRUE)
-#names(ensembl_genes)[names(ensembl_genes) == "Gene.name"] <- "symbol"
-#ßnames(ensembl_genes)[names(ensembl_genes) == "Gene.description"] <- "description"
+ensembl_genes <- read_tsv("/Users/pbarbosa/analysis/genome_utilities/hg38/mart_hg38.txt") 
+names(ensembl_genes)[names(ensembl_genes) == "Gene name"] <- "symbol"
+names(ensembl_genes)[names(ensembl_genes) == "Gene description"] <- "description"
+names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"
 explore_data_based_on_transformed_variance <- function(dds, cond){
   #Deseq2 offers 2 transformation methods to stabilize variance across the mean
   #Which method to choose, good discussion in the vignette
@@ -65,7 +67,8 @@ run_DEseq_tests <- function(dds, test_contrast, coefficient, log2cutoff, padjcut
     res <- lfcShrink(dds_2, coef = coefficient, type="apeglm", res= res)
   } else {
     #res <- lfcShrink(dds_2, coef = coefficient, type="apeglm", res= res)
-    res <- lfcShrink(dds_2, type="ashr", contrast = test_contrast)
+    #res <- lfcShrink(dds_2, type="ashr", contrast = test_contrast)
+    res <- lfcShrink(dds_2, type="normal", contrast = test_contrast)
   }
 
   res_sign <- subset(res, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
@@ -166,10 +169,19 @@ plot_umwanted_variation_factors <-function(pdata_normalized, groups, ksize) {
   par(mfrow = c(1, 1))
 }
 
-run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname){
+run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname, is_deseq = T, is_psichomics = F, top_n_value = 50){
   #Note to GSEA users: Gene set enrichment analysis identifies gene sets consisting of co-regulated genes;
   #GO gene sets are based on ontologies and do not necessarily comprise co-regulated genes.
-  de_table_annotated$stat <- de_table_annotated$log2FoldChange / de_table_annotated$lfcSE
+  if(is_deseq){
+    de_table_annotated$stat <- de_table_annotated$log2FoldChange / de_table_annotated$lfcSE    
+  }
+  else if(is_psichomics){
+    pvalueThreshold <- de_table_annotated$`p-value(BH_adjusted)` < 0.1
+    de_table_annotated = de_table_annotated[pvalueThreshold, ]
+    show(paste("Genes to be ranked by LogFC after setting a p-value adjusted cutoff:",nrow(de_table_annotated)))
+    de_table_annotated = de_table_annotated %>% rename("symbol" = "Gene name", "stat" = "log2_Fold_change")
+  }
+
   de_table_annotated <- as_tibble(de_table_annotated)
   res <- de_table_annotated %>% 
     dplyr::select(symbol, stat) %>% 
@@ -177,7 +189,6 @@ run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname){
     distinct() %>% 
     group_by(symbol) %>% 
     summarize(stat=mean(stat))
-  
   
   ranks <- deframe(res)
   #pathways.reactome <- reactomePathways(names(ranks))
@@ -201,11 +212,15 @@ run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname){
     arrange(padj) %>% 
     DT::datatable()
   
-  if (nrow(fgseaResTidy) > 50){
-    fgseaResTidy <- fgseaResTidy %>% top_n(50, wt=abs(-NES)) 
+  if (nrow(fgseaResTidy) > top_n_value){
+    fgseaResTidy <- fgseaResTidy %>% top_n(top_n_value, wt=abs(NES)) 
+    #fgseaResTidy <- fgseaResTidy %>% top_n(top_n_value, wt=-padj) 
   }
+  
+  fgseaResTidy$sig = factor(fgseaResTidy$padj<0.05, levels = c(TRUE, FALSE))
   plot(ggplot(fgseaResTidy, aes(reorder(pathway, NES), NES)) +
-    geom_col(aes(fill=padj<0.05)) +
+    geom_col(aes(fill = padj < 0.05)) +
+    scale_fill_discrete(limits = c('FALSE', 'TRUE')) + 
     coord_flip() +
     labs(x="Term", y="Normalized Enrichment Score",
          title=paste0(genesetname, " NES from GSEA")) + 
@@ -214,12 +229,12 @@ run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname){
   return(fgseaResTidy)
 }
 
-run_goseq_analysis <- function(de_table_annotated, genome, DE_genes){
-  library(goseq)
-  de_table_annotated <- column_to_rownames(de_table_annotated, 'Row.names')
+run_goseq_analysis <- function(de_table_annotated, genome, DE_genes, is_deseq=T){
+
+  if(is_deseq) de_table_annotated <- de_table_annotated %>% remove_rownames() %>% column_to_rownames(var='gene_id')
   genes=as.integer(as.logical(rownames(de_table_annotated) %in% DE_genes))
-  names(genes) = rownames(de_table_annotated)
-  
+  names(genes) = rownames(de_table_annotated)   
+
   #genes=as.integer(de_table_annotated$padj[!is.na(de_table_annotated$padj)])
   #names(genes)=row.names(de_table_annotated[!is.na(de_table_annotated$padj),])
   names(genes) <- gsub("\\..*", "", names(genes))
@@ -229,7 +244,7 @@ run_goseq_analysis <- function(de_table_annotated, genome, DE_genes){
   
   go.results=goseq(pwf,genome,"ensGene", test.cats=c("GO:BP"), use_genes_without_cat=FALSE)
   plot(go.results %>% 
-    top_n(10, wt=-over_represented_pvalue) %>% 
+    top_n(30, wt=-over_represented_pvalue) %>% 
     mutate(hitsPerc=numDEInCat*100/numInCat) %>% 
     ggplot(aes(x=hitsPerc, 
                y=term, 
@@ -240,7 +255,7 @@ run_goseq_analysis <- function(de_table_annotated, genome, DE_genes){
     labs(x="Hits (%)", y="Over represented GO term", colour="p value", size="Count"))
   
   plot(go.results %>% 
-         top_n(10, wt=-under_represented_pvalue) %>% 
+         top_n(30, wt=-under_represented_pvalue) %>%
          mutate(hitsPerc=numDEInCat*100/numInCat) %>% 
          ggplot(aes(x=hitsPerc, 
                     y=term, 
@@ -264,8 +279,6 @@ plot_umwanted_variation_factors <-function(pdata_normalized, groups, ksize) {
 
 
 run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff, genome, explore_data=FALSE){
-  library(ggplot2)
-  
   #Data exploration
   if (explore_data == TRUE){
     show("Data exploration is set to TRUE..")
@@ -279,10 +292,11 @@ run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff, genome,
 
   #out_sign_annot <- annotate_results(out[[2]], genome)
   rownames(out[[2]]) <- gsub("\\..*", "", rownames(out[[2]]))
-  out_sign_annot <- merge(as(out[[2]], "data.frame") , ensembl_genes, all.x = T, by=0)
+  out_sign_annot <- merge(as(out[[2]], "data.frame") , ensembl_genes, all.x = T, by.x=0, by.y="gene_id") 
+  out_sign_annot <-out_sign_annot[!duplicated(out_sign_annot$Row.names),]
   outbasename <- paste(group_combination[[2]], "_vs_", group_combination[[3]], sep="")
   print(paste0("Number of genes in the ", outbasename, ": ", nrow(out[[2]])))
-  write.table(out_sign_annot[,c("symbol","description","log2FoldChange","padj")], quote= FALSE, sep="\t", 
+  write.table(out_sign_annot[,c("Row.names", "symbol","description","log2FoldChange","padj")], quote= FALSE, sep="\t", 
               file=paste0(outbasename,".csv", sep=""),row.names=FALSE)
   
   show("Generating MA Plot")
