@@ -170,7 +170,7 @@ write_xlsx(final_df, path  = "all_concat_vs_Ctrl.xlsx", col_names=T, format_head
 #######################
 ####GENE EXPRESSION####
 #######################
-geneExprFiltered <- geneExpr[rowSums(geneExpr)>10,]
+geneExprFiltered <- geneExpr[rowSums(geneExpr)>100,]
 geneExprNorm <- normaliseGeneExpression(geneExprFiltered, log2transform=TRUE)
 pcaGE_all <- performPCA(t(geneExprNorm))
 plotPCA(pcaGE_all, groups=groups)
@@ -198,6 +198,7 @@ p
 #############
 ####groups###
 #############
+####PATIENTS VS CONTROLS######
 to_match <- c("DCM", "ICM")
 groups_sick_vs_ctrl <- list("Ctrl"=grep("Ctrl", colnames(geneExpr), value=TRUE), 
                "Patient"= grep("Ctrl", colnames(geneExpr), invert = T, value=TRUE))
@@ -205,18 +206,28 @@ groups_sick_vs_ctrl <- list("Ctrl"=grep("Ctrl", colnames(geneExpr), value=TRUE),
 pgenes <- rownames(geneExprNorm)
 plotDistribution(geneExprNorm["ENSG00000163359", ], groups, psi=FALSE)
 
+groups_dcm_vs_icm <- list("DCM"=grep("DCM", colnames(geneExpr), value = TRUE),
+                      "ICM"=grep("ICM", colnames(geneExpr), value = TRUE))
 
-ge_sick_ctrl <- geneExprNorm[ , unlist(groups_sick_vs_ctrl), drop=FALSE]
+ge_dcm_icm <- geneExprNorm[, unlist(groups_dcm_vs_icm), drop=FALSE]
+ge_sick_ctrl <- geneExprNorm[, unlist(groups_sick_vs_ctrl), drop=FALSE]
+
 isFromGroup1 <- colnames(ge_sick_ctrl) %in% groups_sick_vs_ctrl[[1]]
+isFromGroup1 <- colnames(ge_dcm_icm) %in% groups_dcm_vs_icm[[1]]
+
 design <- cbind(1, ifelse(isFromGroup1, 0, 1))
 fit <- lmFit(ge_sick_ctrl, design = design)
+fit <- lmFit(ge_dcm_icm, design = design)
+
 ebayes_fit <- eBayes(fit, trend=T)
 pvalueAdj <- "BH"
 summary <- topTable(ebayes_fit, number=nrow(fit), coef=2, sort.by = "none", adjust.method = pvalueAdj, confint = T)
 names(summary) <- c("log2_Fold_change", "conf_int1", "conf_int2", "moderated_t-statistics", "avg_expression","p-value", 
                     paste0("p-value(",pvalueAdj,"_adjusted)"), "B-statistics")
 attr(summary, "groups") <- groups_sick_vs_ctrl
+attr(summary, "groups") <- groups_dcm_vs_icm
 stats <- diffAnalyses(ge_sick_ctrl, groups_sick_vs_ctrl, "basicStats", geneExpr = T, pvalueAdjust = NULL)
+stats <- diffAnalyses(ge_dcm_icm, groups_dcm_vs_icm, "basicStats", geneExpr = T, pvalueAdjust = NULL)
 final <- cbind(stats, summary)
 
 
@@ -257,6 +268,7 @@ ggplot(final, aes(log2_Fold_change,
                  box.padding = 0.4, size=5) +
   theme_light(16) +
   ylab("-log10(|p-value (BH adjusted)|)")
+
 
 ##################################
 ##########Functional analysis ####
