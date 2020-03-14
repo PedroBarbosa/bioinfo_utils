@@ -4,7 +4,7 @@ echo 'Script to run Kallisto for multiple fastq files.
 Read groups are automatically added to each output based on the sample basename.
 
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
--2nd argument must be the directory of the reference indexed database.
+-2nd argument must be the directory of the reference indexed database. (Default hg38 gencode v33 with spike-ins)
 -3rd argument must be the output directory.
 -4th argument is optional. It is the identifier to extract the sample pair names from fastq files. Default: "_1.fastq"'
 }
@@ -19,7 +19,7 @@ fi
 readarray FASTQ < $(readlink -f "$1")
 JOBS=$(( ${#FASTQ[@]} / 2 ))
 if [[ $2 == "-" ]]; then
-    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/kallisto/gencodev29/kallisto.gencode.v29.idx"
+    INDEX="/home/mcfonseca/shared/genomes/human/hg38/kallisto/gencode_v33_with_spike_ins/gencode.v33.with.spikes.idx"
 else
     INDEX=$(readlink -f "$2")
 fi

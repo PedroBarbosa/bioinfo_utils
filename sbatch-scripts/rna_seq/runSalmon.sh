@@ -4,7 +4,7 @@ echo 'Script to run Salmon for multiple fastq files.
 Read groups are automatically added to each output based on the sample basename.
 
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
--2nd argument must be the directory of the reference indexed database.
+-2nd argument must be the directory of the reference indexed database. (default: hg38 gencode v33)
 -3rd argument must be the output directory.
 -4th argument is optional. It is the identifier to extract the sample pair names from fastq files. Default: "_R1.fq"'
 }
@@ -18,7 +18,7 @@ fi
 readarray FASTQ < $(readlink -f "$1")
 JOBS=$(( ${#FASTQ[@]} / 2 ))
 if [[ $2 == "-" ]]; then
-    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v31_k31_with_spike_in/"
+    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v33/"
 #    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v29_k31/"
 else
     INDEX=$(readlink -f "$2")
@@ -43,7 +43,7 @@ cat > salmon.sbatch <<EOL
 #SBATCH --job-name=salmon
 #SBATCH --array=0-$(( $JOBS -1 ))%20
 #SBATCH --time=72:00:00
-#SBATCH --mem=50G
+#SBATCH --mem=100G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
@@ -55,7 +55,7 @@ scratch_out=/home/pedro.barbosa/scratch/rna_seq/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
 srun="srun -N1 -n1"
-OUT_BASENAME=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]} | cut -f1 -d "_")
+OUT_BASENAME=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]} | cut -f1,2,3 -d "_")
 dir=\$(dirname \${pair1[\$SLURM_ARRAY_TASK_ID]})
 pair2=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]/$DEL/$p2})
 fullpathpair2="\$dir/\$pair2"

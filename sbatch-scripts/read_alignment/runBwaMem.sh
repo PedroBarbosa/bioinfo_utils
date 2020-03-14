@@ -51,7 +51,8 @@ fi
 if [ -z "$3" ] || [ "$3" = "-" ]; then
     INDEX="/mnt/nfs/lobo/IMM-NFS/genomes/hg19/Sequence/BWAIndex/genome.fa"
 elif [ -d $(dirname "$3") ]; then
-    INDEX="$3"
+    INDEX=$(readlink -f "$3")
+    echo $INDEX
 else
     printf "Error. Please set a valid value for the genome index.\n"
     display_usage
@@ -100,8 +101,7 @@ cat > $WORKDIR/runBwa.sbatch <<EOL
 #SBATCH --ntasks=$NTASKS
 #SBATCH --cpus-per-task=$CPUS
 #SBATCH --image=docker:ummidock/bwa
-#SBATCH --workdir=$WORKDIR
-#SBATCH --output=$WORKDIR/%j_bwa.log
+#SBATCH --output=%j_bwa.log
 
 SCRATCH_OUTDIR="$WORKDIR/\$SLURM_JOB_ID"
 mkdir \$SCRATCH_OUTDIR

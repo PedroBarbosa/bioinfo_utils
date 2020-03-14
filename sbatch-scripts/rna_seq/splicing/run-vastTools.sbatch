@@ -7,7 +7,7 @@
 #SBATCH --job-name="vast" 
 #SBATCH --output=%j_vasttools.out
 #SBATCH --image=biocorecrg/vast-tools:2.1.3
-#SBATCH --array=0-25%10
+#SBATCH --array=0-0%1
 
 
 fastq=$(readlink -f "$1")
