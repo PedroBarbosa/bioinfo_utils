@@ -91,8 +91,8 @@ psi <- quantifySplicing(annotation, junctionQuant, minReads=10)
 #####################
 psi <- psi[rowSums(is.na(psi)) <= 10,]
 events <- rownames(psi)
-psi <- psi %>%
-  mutate(variance=rowVars(., na.rm = T)) 
+variance <- apply(psi, 1, var, na.rm = T)
+psi <- cbind(psi, variance)
 rownames(psi) <- events
 psi <- psi[ psi$variance > quantile(psi$variance , 0.90, na.rm = T) , ]
 psi <- psi[, !(colnames(psi) %in% c("variance"))]
@@ -113,10 +113,10 @@ p<-p+geom_point(size=3) + xlab(percentage[1]) + ylab(percentage[2])
 ###############
 table <- calculateLoadingsContribution(psi_pca)
 head(table, 5)
-event <- "AFE_18_+_34710445_34679592_34755976_DTNA"
+event <- "A5SS_14_+_20345087_20345126_20345394_PARP2"
 info  <- queryEnsemblByEvent(event, species="human", assembly="hg38")
 plotTranscripts(info, event = event)
-plotDistribution(psi["AFE_18_+_34710445_34679592_34755976_DTNA",], psi = T, rug = T, groups = groups)
+plotDistribution(psi["A5SS_14_+_20345087_20345126_20345394_PARP2",], psi = T, rug = T, groups = groups)
 
 
 ######################
@@ -158,6 +158,24 @@ final_icm_ctrl <- deltaPSI_icm_ctrl %>% rownames_to_column("event_id") %>%
   write_excel_csv(., "ICM_vs_CTRL.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
 write_xlsx(final_icm_ctrl, path  = "ICM_vs_CTRL.xlsx", col_names=T, format_headers = T)
+
+#######################
+#######DCM vs ICM ####
+#######################
+dcm_icm <- groups[c("DCM", "ICM")]
+diffSplicing_dcm_icm <- diffAnalyses(psi, groups = dcm_icm, analyses = "wilcoxRankSum")
+#deltaPSI_dcm_icm <- subset(diffSplicing_dcm_icm, diffSplicing_dcm_icm$`Wilcoxon p-value (BH adjusted)` < 0.01 & 
+#                              abs(diffSplicing_dcm_icm$`∆ Median`) > 0.2)   
+deltaPSI_dcm_icm <- subset(diffSplicing_dcm_icm, diffSplicing_dcm_icm$`Wilcoxon p-value` < 0.05 & 
+                             abs(diffSplicing_dcm_icm$`∆ Median`) > 0.2)   
+
+final_dcm_icml <- deltaPSI_dcm_icm %>% rownames_to_column("event_id") %>%
+  dplyr::select(.,c(1, 5, 2, 9, 10, 12, 13, 20, 21, 23)) %>% 
+  dplyr::arrange_at(ncol(.), desc) %>%
+  readr::write_excel_csv(., "DCM_vs_ICM.csv" , na = "NA", append = FALSE,
+                  delim = "\t", quote_escape = "double")
+write_xlsx(final_dcm_icml, path  = "DCM_vs_ICM.xlsx", col_names=T, format_headers = T)
+
 
 #######################
 ##CONCAT###############
