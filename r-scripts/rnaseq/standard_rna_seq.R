@@ -112,12 +112,29 @@ plot_volcano <- function(res_shrinked, padjcutoff, log2cutoff, title){
   res_shrinked$down <- res_shrinked$log2FoldChange < -log2cutoff & res_shrinked$padj < padjcutoff
   res_shrinked$threshold <- as.factor(abs(res_shrinked$log2FoldChange) > log2cutoff & res_shrinked$padj < padjcutoff)
   
+  nup <- sum(res_shrinked$up, na.rm = TRUE)
+  ndown <- sum(res_shrinked$down, na.rm = TRUE) 
+  annotations <- data.frame(
+    xpos = c(-2, 2),
+    ypos =  c(9, 9),
+    annotateText = c(paste0("N=",ndown),
+                     paste0("N=", nup)),
+    col = c("#CC0000", "#000099"),
+    size = c(3,3),
+    hjustvar = c(0, 0) ,
+    vjustvar = c(0, 0))
+  
+  
   volcano_plot <- ggplot(data=res_shrinked, aes(x=log2FoldChange, y=-log10(padj))) +
     geom_point(data=res_shrinked, size=1, colour="gray") +
     geom_point(data=res_shrinked[res_shrinked$down==TRUE, ], size=1, colour="#CC0000") +
     geom_point(data=res_shrinked[res_shrinked$up==TRUE, ], size=1, colour="#000099") +
+    geom_text(data=annotations,aes(x=xpos,y=ypos, label=annotateText, colour=col, label.size = size,
+                                   show.legend = FALSE)) +
+    scale_colour_manual(values=c("#000099","#CC0000")) + 
     xlab("log2 fold change") +
     ylab("-log10 p-value adjusted") +
+    ylim(0,7.5) +
     ggtitle(title)+
     scale_y_continuous() +
     theme_bw() +
@@ -195,12 +212,13 @@ run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname, i
   pathways.hallmark <- gmtPathways(hallmark_file)
   fgseaRes <- fgsea(pathways=pathways.hallmark, stats=ranks, nperm=1000)
   
-  #plot(plotEnrichment(fgseaRes[["HALLMARK_MYOGENESIS"]], ranks))
+  #plotEnrichment(fgseaRes[["KEGG_CELLCYLE"]], ranks)
   topPathwaysUp <- fgseaRes[ES > 0][head(order(pval), n=10), pathway]
   topPathwaysDown <- fgseaRes[ES < 0][head(order(pval), n=10), pathway]
   topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
-  #plot(plotGseaTable(pathways.hallmark[topPathways], ranks, fgseaRes, 
-  #              gseaParam = 0.5))
+
+  plotGseaTable(pathways.hallmark[topPathways], ranks, fgseaRes, 
+                gseaParam = 0.5)
   
 
   fgseaResTidy <- fgseaRes %>%
@@ -216,8 +234,10 @@ run_fgsea_analysis <- function(de_table_annotated, hallmark_file, genesetname, i
     fgseaResTidy <- fgseaResTidy %>% top_n(top_n_value, wt=abs(NES)) 
     #fgseaResTidy <- fgseaResTidy %>% top_n(top_n_value, wt=-padj) 
   }
-  
+
+ 
   fgseaResTidy$sig = factor(fgseaResTidy$padj<0.05, levels = c(TRUE, FALSE))
+  #fgseaResTidy <- fgseaResTidy_kegg %>% filter(sig == T)
   plot(ggplot(fgseaResTidy, aes(reorder(pathway, NES), NES)) +
     geom_col(aes(fill = padj < 0.05)) +
     scale_fill_discrete(limits = c('FALSE', 'TRUE')) + 

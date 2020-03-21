@@ -9,12 +9,13 @@ library(tibble)
 library(ggplot2)
 library(ggpubr)
 library(gridExtra)
-source("~/git_repos/bioinfo_utils/r-scripts/rnaseq/exploratory_rna_seq.R")
+library(tximport)
+source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
 
 ########################################################
 ##########FROM FEATURE COUNTS ##########################
 ########################################################
-setwd("~/Downloads/cajal_body_project/")
+setwd("/Users/pbarbosa/Dropbox/imm/projects/cajal_body_rnaseq/analysis/de_analysis/")
 read_counts <- read.table("featureCounts.txt", row.names = "Geneid", sep="\t",header = TRUE)
 read_counts <- read_counts[,! colnames(read_counts) %in% c("Geneid","gene_name","Chr","Start","End","Strand","Length")]
 colnames(read_counts) <- sub('X.home.pedro.barbosa.cb_data.star_alignments.trim_galored.','', colnames(read_counts))
@@ -26,9 +27,8 @@ filter <- apply(read_counts, 1, function(x) length(x[x>5])>=2)
 filtered <- read_counts[filter,]
 
 
-
 ###################################################
-########  RUVseq spike ins control   ##############
+########  RUVseq spike ins control  ###############
 ###################################################
 timepoints <- as.factor(rep(c("0", "12", "24", "48"), each=3))
 coldata <- data.frame(timepoints, row.names=colnames(filtered))
@@ -48,6 +48,11 @@ plotPCA(set, col=colors, cex=1.2)
 
 #Remove variation using spike-in control genes
 #Estimate factors of unwanted variation
+#The normalized counts are indeed simply the residuals from ordinary least squares regression of logY on W
+#(with the offset if needed). The output from RUV is actually exponentiated (and optionally rounded) 
+#to be interpretable as "normalized counts". Please, note that these are intended just for 
+#visualization/exploration, as the RUV model has been tested only on supervised problems, 
+#and works better when W is inserted in the model with the original counts (rather than modeling the normalized counts).
 normalized <- RUVg(set, spikes, k=1)
 plot_umwanted_variation_factors(pData(normalized), dds$timepoints, 1)
 
@@ -63,6 +68,7 @@ design(dds) <- ~ W1 + timepoints
 
 log2cutoff <- 1
 padjcutoff <- 0.05
+
 
 #########################################
 ############# 12 vs 0 ###################
@@ -98,7 +104,7 @@ fgseaResTidy <- run_fgsea_analysis(all_annot_24_0, "~/Downloads/c5.bp.v6.2.symbo
 goseq.results <- run_goseq_analysis(all_annot_24_0, "hg19", list_de_24_0[[2]]$Row.names)
 
 #########################################
-############# 48 vs 0 ##################
+############# 48 vs 0 ###################
 #########################################
 group_combination <- c("timepoints","48", "0")
 list_de_48_0 <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38", explore_data = FALSE)
@@ -114,7 +120,33 @@ fgseaResTidy <- run_fgsea_analysis(all_annot_48_0, "~/Downloads/c5.bp.v6.2.symbo
 goseq.results <- run_goseq_analysis(all_annot_48_0, "hg19", list_de_48_0[[2]]$Row.names)
 
 
+#######################################
+############ snRNA genes ##############
+#######################################
+#Normalized counts
+dds_normalized = DESeq(dds)
+cts <- counts(dds_normalized)#, normalized = T)
+rownames(cts) <- str_replace(rownames(cts),
+                             pattern = ".[0-9]+$",
+                             replacement = "")
+cts <- as_tibble(cts, rownames = "gene_ids")
 
+#Raw counts
+raw_cts <- as_tibble(read_counts, rownames = "gene_ids")
+raw_cts$gene_ids <- str_replace(raw_cts$gene_ids,
+                                     pattern = ".[0-9]+$",
+                                     replacement = "")
+
+#snRNA
+gene_names <- c("RNAU1-1", "RNU2-1", "RNU4-1", "RNU5A-1", "RNU5B-1", "RNU6-1", "RNU11", "RNU12")
+gene_ids <- c("ENSG00000206652", "ENSG00000274585", "ENSG00000200795","ENSG00000199568", 
+               "ENSG00000200156", "ENSG00000206625", "ENSG00000274978", "ENSG00000276027")
+df_snRNA <- tibble("gene_names" = gene_names, "gene_ids" = gene_ids)
+
+norm_cts_snRNA <- left_join(df_snRNA, cts)
+norm_cts_snRNA
+raw_cts_snRNA <- left_join(df_snRNA, raw_cts)
+raw_cts_snRNA
 ########################################
 #############CAJAL BODY GENES ##########
 ########################################

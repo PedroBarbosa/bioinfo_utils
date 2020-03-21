@@ -55,8 +55,7 @@ def process_rmats_files(dir, groups, psi_threshold, fdr_threshold):
                     psi_1 = l[6]
                     psi_2 = l[7]
                     coordinates = ':'.join(l[8:14])
-
-                    if float(deltapsi) < psi_threshold or float(fdr) > fdr_threshold:
+                    if abs(float(deltapsi)) < psi_threshold or float(fdr) > fdr_threshold:
                         continue
 
                     if groups:
@@ -114,7 +113,6 @@ def main():
 
     else:
         raise SystemExit("rmats output directory given ({}) does not exist.".format(args.rmats_dir))
-
 
 if __name__ == "__main__":
     main()

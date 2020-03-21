@@ -9,7 +9,9 @@ def process_vasttools(vastfile):
     try:
         with open(vastfile, 'r') as infile:
             infile.readline()
-            genes = [line.split('\t')[1] if not line.split('\t')[0] else line.split('\t')[0] for line in infile]
+            genes = [line.split('\t')[1] if line.split('\t')[0] == ""
+                     or line.split('\t')[0].startswith("Mmu") or line.split('\t')[0].startswith("Hsa")
+                     else line.split('\t')[0] for line in infile]
             vasttools_counter = Counter(genes)
         infile.close()
         return vasttools_counter
@@ -44,6 +46,23 @@ def process_rmats(rmatsfile):
     except TypeError:
         return
 
+def process_psichomics(psichomicsfile):
+    genes_in_unique_events = []
+    unique_events = []
+    try:
+        with open(psichomicsfile, 'r') as infile:
+            infile.readline()
+            for line in infile:
+                if line.split('\t')[0] in unique_events:
+                    continue
+                unique_events.append(line.split('\t')[0])
+                genes_in_unique_events.append(line.split('\t')[1])
+            psichomics_counter = Counter(genes_in_unique_events)
+        infile.close()
+        return psichomics_counter
+
+    except TypeError:
+        return
 
 def compute_overlaps(d):
     final_table = defaultdict(list)
@@ -82,9 +101,9 @@ def compute_overlaps(d):
 def main():
     parser = argparse.ArgumentParser(description='Script to compute gene-based event overlaps across different '
                                                  'splicing methods.')
-    parser.add_argument('-v', '--vasttools', help='Path to the output file of vastools inclusion level script (which'
-                                                  'picks output of vasttools tidy utility and filters by any event '
-                                                  'with deltaPSI > 0.2')
+    parser.add_argument('-v', '--vasttools', help='Path to the output file of process_vastools_compare script (which'
+                                                  'picks output of vasttools compare utility and filters by any event '
+                                                  'with deltaPSI > 0.2 be default')
     parser.add_argument("-m", "--majiq", help='Path to the output file of process_voila_tsv script where all LSVs are'
                                               'presented (if multiple conditions tested, results come processed.')
     parser.add_argument("-r", "--rmats", help='Path to the output file of process_rmats_maser script where all splicing'
@@ -106,7 +125,7 @@ def main():
     vast = process_vasttools(args.vasttools)
     rmats = process_rmats(args.rmats)
     majiq = process_majiq(args.majiq)
-    psichomics = process_rmats(args.psichomics)
+    psichomics = process_psichomics(args.psichomics)
     d = {"vasttools": vast, "rmats": rmats, "majiq": majiq, "psichomics": psichomics}
     filtered = {k: v for k, v in d.items() if v is not None}
     d.clear()

@@ -5,10 +5,11 @@ library(dplyr)
 library(biomaRt)
 library(RColorBrewer)
 library(ggrepel)
+library(pheatmap)
 #Input from nextflow
 args = commandArgs(trailingOnly=TRUE)
 #features_counts_data=read.table(args[1], header=TRUE,sep="\t")
-features_counts_data=read.table("~/Downloads/christian/featureCounts/genes_feature_counts.txt", header=TRUE,sep="\t")
+features_counts_data=read.table("~/analysis/christian/standard_rna_seq_analysis/human/merged_gene_counts.txt", header=TRUE,sep="\t")
 
 #n_occur <- data.frame(table(features_counts_data$`gene_name`))
 #print(n_occur[n_occur$Freq > 1,])
@@ -20,6 +21,7 @@ df_numbers = features_counts_data[ , -which(names(features_counts_data) %in% c("
 rownames(df_numbers) = df_numbers[,'Geneid']
 df_numbers[,'Geneid'] <- NULL
 df_numbers <- df_numbers[c(6,7,1,2,8,3,4,5,9)]
+df_numbers
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
 
 ###############################################################
@@ -107,8 +109,9 @@ zeb2_CBE_vs_controls =dplyr::filter(all_data, grepl("GBA",gene_name))
 
 
 #############DESEQ2###############
-setwd("/Users/pbarbosa/analysis/christian/human/")
-source("~/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
+setwd("/Users/pbarbosa/analysis/christian/standard_rna_seq_analysis/human/")
+source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
+
 features_counts_data=read.table("merged_gene_counts.txt", header=TRUE,sep="\t")
 df_numbers = features_counts_data[ , -which(names(features_counts_data) %in% c("gene_name"))]
 
@@ -120,6 +123,7 @@ colnames(df_numbers) <- gsub("_1Aligned.sortedByCoord.out.bam", "", colnames(df_
 df_numbers <- df_numbers[, c("S_3y_CTRL", "S_10y_CTRL", "S_11y_CTRL", "S_3y_CBE", "S_10y_CBE", "S_11y_CBE","GD1", "GD2", "GD3")]
 
 groups <- as.factor(rep(c("CTRL", "CBE", "GD"), each=3))
+
 coldata <- data.frame(groups, row.names=colnames(df_numbers))
 dds <- DESeqDataSetFromMatrix(countData = df_numbers,
                               colData = coldata,
@@ -132,11 +136,12 @@ log2cutoff <- 1
 padjcutoff <- 0.05
 
 group_combination <- c("groups","CBE", "CTRL")
-
+group_combination <- c("groups","GD", "CTRL")
 list_de <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38", explore_data = T)
+
 #all_annot_cbe <- annotate_results(list_de[[1]], "hg38") 
-#write.table(all_annot_cbe, quote= FALSE, row.names = TRUE, sep="\t",file="CBE_vs_Controls_all_annotated.csv")
-all_annot_cbe <- read_tsv("CBE_vs_Controls_all_annotated.csv") 
+#write.table(all_annot_cbe, quote= FALSE, row.names = TRUE, sep="\t",file="GD_vs_Controls_all_annotated.csv")
+all_annot_cbe <- read_tsv("GD_vs_Controls_all_annotated.csv") 
 all_annot_cbe$gene_id <- gsub("\\..*", "", all_annot_cbe$gene_id)
 
 
@@ -171,6 +176,37 @@ upset(fromList(list(GD_vs_CTR_edgeR=final_CBE_control_edgeR$gene_name, GD_vs_CTR
 
 plotMA(resLFC, ylim=c(-2,2), xlim=c(0,10))
 write.table(final[,c("gene_name","description","log2FoldChange","pvalue","padj")], quote= FALSE, sep="\t",file="CBE_vs_Controls_Deseq2.csv")
+
+######################################################################
+##############Heatmap of DE genes and overall PCA ####################
+######################################################################
+de_genes <- list_de[[2]] %>% dplyr::select(c(1)) %>% unlist(., use.names=FALSE)
+deseq <- DESeq(dds)
+#PCA all genes
+pcaData <- plotPCA(vst(deseq, blind = TRUE), returnData=T,intgroup=c("groups"))
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+ggplot(pcaData, aes(PC1, PC2, color=name)) +
+  geom_point(size=3) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) +
+  ylab(paste0("PC2: ",percentVar[2],"% variance")) + 
+  coord_fixed()
+
+
+v_transformed_counts <- assay(vst(deseq, blind = TRUE))
+rownames(v_transformed_counts) <- gsub("\\..*","",rownames(v_transformed_counts))
+v_transformed_counts_de_genes <- v_transformed_counts[de_genes,]
+
+#variance <- apply(v_transformed_counts, 1, var, na.rm = T)
+#v_transformed_quartile90 <- as.data.frame(cbind(v_transformed_counts, variance))
+#v_transformed_quartile90 <- v_transformed_quartile90[ v_transformed_quartile90$variance > 
+#                                                quantile(v_transformed_quartile90$variance , 0.90, na.rm = T) , ]
+#v_transformed_quartile90 <- v_transformed_quartile90[, !(colnames(v_transformed_quartile90) %in% c("variance"))]
+
+
+#Heatmap DE genes
+pheatmap(v_transformed_counts_de_genes, cluster_rows=TRUE, show_rownames=FALSE,
+         cluster_cols=TRUE)
+
 
 ######################################################################
 ###########################GD vs CBE treatment########################

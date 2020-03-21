@@ -12,7 +12,6 @@ def processVCF(invcf,remm,dann,out):
     vcf_data = VCF(invcf, gts012=True)
     tbx_remm = pysam.TabixFile(remm)
     tbx_dann = pysam.TabixFile(dann)
-    vcf_data.add_info_to_header({'ID': 'ReMM', 'Description': 'The Regulatory Mendelian Mutation (ReMM) for relevance prediction of non-coding variations (SNVs and small InDels)','Type':'String', 'Number': '.'})
     vcf_data.add_info_to_header({'ID': 'DANN', 'Description': 'A deep neural network aimed to recognize pathogenic variants by annotating genetic variants, especially in noncoding regions.','Type': 'String', 'Number': '.'})
     w = Writer(out, vcf_data)
     for record in vcf_data:
