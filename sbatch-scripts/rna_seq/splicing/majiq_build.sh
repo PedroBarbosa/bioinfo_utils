@@ -46,7 +46,7 @@ OUT=$(readlink -f "$2")
 if [[ -z "$3" || "$3" == "-" ]]; then
     GFF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v31.annotation.gff3"
 else
-    GFF=$(readling -f "$3")
+    GFF=$(readlink -f "$3")
 fi
 
 CMD="majiq build --mem-profile --plotpath $OUT"

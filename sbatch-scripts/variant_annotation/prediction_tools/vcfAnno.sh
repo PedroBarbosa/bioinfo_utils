@@ -4,26 +4,28 @@ display_usage(){
 1st argument is the VCF file to annotate.
 2nd argument is the output file. 
 3rd argument is the output directory.
-4th argument is optional. Refer to the tools to annotate, comma separated. Default: annotate all tools.
-5th argument is optional. Create and run a slurm sbatch script on the fly. Default: true. Values: [true|false|-]. Set '-' to skip the argument.\n
+4th argument is the genome version build of the input VCF. Default: hg19. Values:[hg19|hg38|-]
+5th argument is optional. Refer to the tools to annotate, comma separated. Default: annotate all tools.
+6th argument is optional. Create and run a slurm sbatch script on the fly. Default: true. Values: [true|false|-]. Set '-' to skip the argument.\n
 
 Included tools:
-gerp
-phastcons
-phyloP
-fitcons
-linsight
-siphy
-gwava
-eigen
-fathmmMKL
-remm
-dann
-funseq
-traP
-spidex
-spliceai
-gnomad_genomes"
+gerp (hg19, hg38)
+phastcons (hg19, hg38)
+phyloP (hg19, hg38)
+fitcons (hg19)
+linsight (hg19)
+siphy (hg19)
+gwava (hg19)
+eigen (hg19)
+fathmmMKL (hg19)
+remm (hg19)
+dann (hg19)
+funseq (hg19, hg38)
+traP (hg19)
+spidex (hg19)
+scap (hg19)
+spliceai (hg19, hg38)
+gnomad_genomes (hg19, hg38)"
 }
 
 if [[ -z $1 || -z $2 || -z $3 ]]; then
@@ -34,8 +36,17 @@ fi
 invcf=$(readlink -f $1)
 outfile=$(readlink -f $2)
 outdir=$(readlink -f $3)
-
-annotate(){
+if [[ -z "$4" || "$4" == "-" || "$4" == "hg19" ]]; then
+    genome_version="hg19"
+elif [[ "$4" == "hg38" ]]; then
+    genome_version="hg38"
+else
+    printf "Please set a valid value for the 4th argument.\n"
+    display_usage
+    exit 1
+fi
+  
+annotate_hg19(){
     if [[ $1 == "spliceai" ]];then
 #cat <<EOM >$PWD/custom.lua
 #function round(num, numDecimalPlaces)
@@ -68,7 +79,7 @@ EOM
     elif [[ $1 == "gerp" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gerp/gerp_hg19.bed.gz"
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gerp/hg19/gerp_hg19.bed.gz"
 columns=[4]
 names=["GERP"]
 ops=["mean"]
@@ -78,7 +89,7 @@ EOM
     elif [[ $1 == "phastcons" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]] 
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phastcons100/phastCons_hg19.bed.gz"
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phastcons100/hg19/phastCons_hg19.bed.gz"
 columns=[4]
 names=["phastCons"]
 ops=["mean"]
@@ -88,7 +99,7 @@ EOM
     elif [[ $1 == "phyloP" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phyloP100/phyloP_hg19.bed.gz"
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phyloP100/hg19/phyloP_hg19.bed.gz"
 columns=[4]
 names=["phyloP"]
 ops=["mean"]
@@ -159,20 +170,11 @@ names=["DANN"]
 ops=["self"]
 
 EOM
-    elif [[ $1 == "fathmmMKL" ]];then #nochr
-cat <<EOM >>$PWD/anno.conf
-[[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/fathmmMKL/fathmm-MKL_Current.txt.gz"
-columns=[8]
-names=["fathmmMKL"]
-ops=["self"]
-
-EOM
 
     elif [[ $1 == "funseq" ]]; then #nochr 
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/funseq2/funseq216_hg19.bed.gz"
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/funseq2/hg19/funseq216_hg19.bed.gz"
 columns=[6,6]
 names=["funseq2","funseq2_mean"]
 ops=["self","mean"]
@@ -196,6 +198,17 @@ names=["dpsi_max_tissue","dpsi_zscore"]
 ops=["self","self"]
 
 EOM
+
+    elif [[ $1 == "scap" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/S-CAP/scap_COMBINED_v1.0.vcf.gz"
+fields=["SCAP","SCAP"]
+names=["SCAP","SCAP"]
+ops=["self","self"]
+
+EOM
+
    elif [[ $1 == "gnomad_genomes" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
@@ -208,21 +221,84 @@ EOM
    fi
 }
 
-tools=(gerp phastcons phyloP fitcons linsight siphy gwava fathmmMKL eigen remm dann funseq traP spidex spliceai gnomad_genomes)
+
+annotate_hg38(){
+    if [[ $1 == "spliceai" ]];then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/spliceai/v1.3/hg38/spliceai_scores.raw.snv.hg38.vcf.gz"
+fields=["SpliceAI"]
+names=["SpliceAI"]
+ops=["self"]
+
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/spliceai/v1.3/hg38/spliceai_scores.raw.indel.hg38.vcf.gz"
+fields=["SpliceAI"]
+names=["SpliceAI_ind"]
+ops=["self"]
+
+EOM
+    elif [[ $1 == "gerp" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gerp/hg38/gerp_hg38.bed.gz"
+columns=[4]
+names=["GERP"]
+ops=["mean"]
+
+EOM
+    
+    elif [[ $1 == "phastcons" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]] 
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phastcons100/hg38/phastCons_hg38.bed.gz"
+columns=[4]
+names=["phastCons"]
+ops=["mean"]
+
+EOM
+
+    elif [[ $1 == "phyloP" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/phyloP100/hg38/phyloP_hg38.bed.gz"
+columns=[4]
+names=["phyloP"]
+ops=["mean"]
+
+EOM
+
+    elif [[ $1 == "gnomad_genomes" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gnomAD/hg38/gnomad.genomes.r3.0.sites.vcf.bgz"
+fields=["AF","AF_nfe"]
+names=["gnomADg_AF", "gnomADg_AF_nfe"]
+ops=["self", "self"]
+
+EOM
+   fi
+}
+
+tools=(gerp phastcons phyloP fitcons linsight siphy gwava fathmmMKL eigen remm dann funseq traP spidex spliceai scap gnomad_genomes)
 
 if [[ -f "$PWD/anno.conf" ]]; then
     rm "$PWD/anno.conf"
 fi
 
 
-if [[ $4 == "-" || -z "$4" ]]; then
+if [[ $5 == "-" || -z "$5" ]]; then
     for elem in "${tools[@]}"
         do
-        annotate $elem
+        if [[ $genome_version == "hg19" ]]; then
+            annotate_hg19 $elem
+        elif [[ $genome_version == "hg38" ]]; then
+            annotate_hg38 $elem
+        fi
         done
 else
     IFS=','
-    read -r -a array <<< "$4"
+    read -r -a array <<< "$5"
     for elem in "${array[@]}"
         do
             if [[ ! " ${tools[@]} " =~ " ${elem} " ]]; then
@@ -231,7 +307,12 @@ else
                 exit 1
             else
                 echo "elem"
-                annotate $elem
+                if [[ $genome_version == "hg19" ]]; then
+                    annotate_hg19 $elem
+                elif [[ $genome_version == "hg38" ]]; then
+                    annotate_hg38 $elem
+                fi
+                
 	    fi
         done
 fi
@@ -252,7 +333,7 @@ fi
 
 
 
-if [[ -z "$5" || $5 == "false" || $5 == "-" ]]; then
+if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
    cat > $PWD/vcfAnno.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=vcfAnnot
@@ -272,11 +353,11 @@ fi
 EOL
     sbatch $PWD/vcfAnno.sbatch
 
-elif [[ "$5" == "true" ]];then
+elif [[ "$6" == "true" ]];then
     echo "srun shifter --image=mcfonsecalab/variantutils:0.5 $cmd"
 #    shifter --image=mcfonsecalab/variantutils:0.5 $cmd
 else
-    printf "Please set a valid value for the 5th argument\n"
+    printf "Please set a valid value for the 6th argument\n"
     display_usage
     exit 1
 fi

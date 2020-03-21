@@ -4,12 +4,13 @@ display_usage(){
 1st argument is the input VCF.
 2nd argument is the output basename. 
 3rd argument is the output directory.
-4th argument is optional. Refers to the models to run, comma separated. Default: all (except eclip models and labranchor)
-5th argument is optional. Refers to the fasta file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr.genome.fa'
-6th argument is optional. Refers to the gtf file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.nochr.gtf'
-7th argument should be a file referring which RBPs will be tested (one per line). Only needed when rbp_eclip models are set. 
+4th argument is the genome build. Default: hg19. Values:[hg19|hg38|-]. '-' skips the argument and uses the default.
+5th argument is optional. Refers to the models to run, comma separated. Default: all (except eclip models and labranchor).
+6th argument is optional. Refers to the fasta file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr.genome.fa'.
+7th argument is optional. Refers to the gtf file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.nochr.gtf'.
+8th argument should be a file referring which RBPs will be tested (one per line). Only needed when rbp_eclip models are set. 
 
-Possible models:
+Possible splicing models:
 HAL
 mmsplice_deltalogitPSI
 mmsplice_pathogenicity
@@ -20,10 +21,15 @@ kipoisplice_4cons
 maxentscan_5prime
 maxentscan_3prime
 labranchor
-rbp_eclip\n"
+rbp_eclip
+
+Possible DNA accessibility/promotor/ DNA binding models:
+basset
+deepSEA
+deepBind\n"
 }
 
-if [[ -z $1 || -z $2 || -z $3 ]]; then
+if [[ -z $1 || -z $2 || -z $3 || -z $4 ]]; then
     printf "Error. Please set the required arguments for the script.\n"
     display_usage
     exit 1
@@ -41,11 +47,20 @@ else
 fi
 outbasename=$2
 outdir=$(readlink -f $3)
+if [[ -z "$4" || "$4" == "-" || "$4" == "hg19" ]]; then
+    genome_build="hg19"
+elif [[ "$4" == "hg38" ]]; then
+    genome_build="hg38" 
+else
+    printf "Error. Please set a valid value for the 4th argument.\n"
+    display_usage
+    exit 1
+fi
 if [[ ! -d "$outdir" ]]; then
     mkdir $outdir
 fi 
 outfinal="$outdir/$outbasename"
-possible_models=(HAL kipoisplice_4 kipoisplice_4cons maxentscan_5prime maxentscan_3prime mmsplice_deltalogitPSI mmsplice_pathogenicity mmsplice_efficiency mmsplice labranchor rbp_eclip)
+possible_models=(HAL kipoisplice_4 kipoisplice_4cons maxentscan_5prime maxentscan_3prime mmsplice_deltalogitPSI mmsplice_pathogenicity mmsplice_efficiency mmsplice labranchor rbp_eclip basset deepSEA deepBind)
 
 base_sbatch (){
 cat > $PWD/runKipoi.sbatch <<EOL
@@ -168,11 +183,11 @@ EOL
 
 mmsplice_deltalogitPSI (){
 cat >> $PWD/runKipoi.sbatch <<EOL
-source activate kipoi-MMSplice
+source activate kipoi
 printf "`date` INFO: mmsplice delta logit PSI started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_deltaLogitPSI.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$21, \$23, \$24, \$20, \$26}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
+awk -v OFS="\t" '{ print \$2, \$3, \$15,\$12,\$17}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip  ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice delta logit PSI finished.\n"
@@ -182,11 +197,11 @@ EOL
 
 mmsplice_efficiency (){
 cat >> $PWD/runKipoi.sbatch << EOL
-source activate kipoi-MMSplice
+source activate kipoi
 printf "`date` INFO: mmsplice efficiency started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_efficiency.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$21, \$23, \$24, \$20, \$26}' ${4}_mmsplice_efficiency.tsv | tail -n+2 > ${4}_mmsplice_efficiency_to_annotate.tsv
+awk -v OFS="\t" '{ print \$2,\$3,\$15,\$12,\$17}' ${4}_mmsplice_efficiency.tsv | tail -n+2 > ${4}_mmsplice_efficiency_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_efficiency_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_efficiency_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_efficiency_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice efficiency finished.\n"
@@ -196,33 +211,55 @@ EOL
 
 mmsplice_pathogenicity (){
 cat >> $PWD/runKipoi.sbatch << EOL
-source activate kipoi-MMSplice
+source activate kipoi
 printf "`date` INFO: mmsplice pathogenicity started.\n"
 kipoi predict MMSplice/pathogenicity -o ${4}_mmsplice_pathogenicity.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$21, \$23, \$24, \$20, \$27}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 > ${4}_mmsplice_pathogenicity_to_annotate.tsv
+awk -v OFS="\t" '{ print \$2,\$3,\$15,\$12,\$17}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 > ${4}_mmsplice_pathogenicity_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_pathogenicity_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_pathogenicity_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_pathogenicity_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice pathogenicity finished.\n"
 EOL
 }
 
+basset (){
+cat >> $PWD/runKipoi.sbatch << EOL
+source activate kipoi-shared__envs__kipoi-py3-keras2
+printf "`date` INFO: basset started.\n"
+kipoi veff score_variants Basset -o ${4}_basset.vcf --dataloader_args='{"fasta_file":"$2"}' -i "$1"
+
+conda deactivate
+awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_basset.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_basset.vcf.gz
+shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_basset.vcf.gz
+printf "`date` INFO: basset finished.\n"
+
+EOL
+}
+
 base_sbatch
 
-if [[ -z $5 || "$5" == "-" ]]; then
-    fasta="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr.genome.fa"
-    #fasta="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr_Nreplaced_toHAL.genome.fa"
-else
-    fasta=$(readlink -f "$5") 
-fi
-
 if [[ -z $6 || "$6" == "-" ]]; then
-    gtf="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.nochr.gtf"
+    if [[ $genome_build  == "hg19" ]]; then
+        fasta="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr.genome.fa"
+        #fasta="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr_Nreplaced_toHAL.genome.fa"
+    elif [[ $genome_build == "hg38" ]]; then
+        fasta="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/GRCh38.primary.genome_nochr.fa" 
+    fi
 else
-    gtf=$(readlink -f "$6")
+    fasta=$(readlink -f "$6") 
 fi
 
-if [[ $4 == "all" || $4 == "-" || -z "$4" ]]; then
+if [[ -z $7 || "$7" == "-" ]]; then
+    if [[ $genome_build  == "hg19" ]]; then
+        gtf="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.nochr.gtf"
+    elif [[ $genome_build == "hg38" ]]; then
+        gtf="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v33.primary_assembly.annotation_nochr.gtf"
+    fi
+else
+    gtf=$(readlink -f "$7")
+fi
+
+if [[ $5 == "all" || $5 == "-" || -z "$5" ]]; then
     printf "All models will be run by default.\n"
     HAL $invcf $fasta $gtf $outfinal
     kipoiSplice_4 $invcf $fasta $gtf $outfinal 
@@ -231,9 +268,10 @@ if [[ $4 == "all" || $4 == "-" || -z "$4" ]]; then
     mmsplice_deltalogitPSI $invcf $fasta $gtf $outfinal
     mmsplice_efficiency $invcf $fasta $gtf $outfinal
     mmsplice_pathogenicity $invcf $fasta $gtf $outfinal
+    basset $invcf $fasta $gtf $outfinal
 else
     IFS=','
-    read -r -a array <<< "$4"
+    read -r -a array <<< "$5"
     for elem in "${array[@]}";
     do
             if [[ ! " ${possible_models[@]} " =~ " ${elem} " ]]; then
@@ -260,17 +298,19 @@ else
                 elif [[ "$elem" == "mmsplice_pathogenicity" ]]; then
                     mmsplice_pathogenicity $invcf $fasta $gtf $outfinal
                 elif [[ "$elem" == "mmsplice_efficiency" ]]; then
-                    mmsplice_efficiency $invcf $fasta $gtf $outfinal 
+                    mmsplice_efficiency $invcf $fasta $gtf $outfinal
+                elif [[ "$elem" == "basset" ]]; then
+                    basset $invcf $fasta $gtf $outfinal
                 elif [[ "$elem" == "rbp_eclip" ]]; then
-                    if [[ -z "$7" ]]; then
-                        printf "Error. When rbp_eclip models are set, an additional file should be provided in the 7th argument that refer to the set of RBP models to run the variants against\n"
+                    if [[ -z "$8" ]]; then
+                        printf "Error. When rbp_eclip models are set, an additional file should be provided in the 8th argument that refer to the set of RBP models to run the variants against\n"
                         display_usage
                         exit 1
                     elif [[ -f "$7" ]]; then
-                        targets=$(readlink -f "$7")
+                        targets=$(readlink -f "$8")
                         rbp_eclip $invcf $fasta $gtf $outfinal $targets 
                     else
-                        printf "Please set a valid file in the 7th argument.\n"
+                        printf "Please set a valid file in the 8th argument.\n"
                         display_usage
                         exit 1
                     fi

@@ -6,7 +6,7 @@ display_usage(){
 	   2nd argument is the basename for the output file (vcf.gz extension will be automatically added).
            3rd argument is the output directory.
            4th argument is the genome version to use. Values:[hg19,hg38,mm10]. 
-           5th argument is the cache version to use. Values:[97,96,98].
+           5th argument is the cache version to use. Values:[96,98,99].
            6th argument is optional. Refers to the set of annotations to use. Default:ensembl. Values:[ensembl|refseq|merged|-]. Set '-' to skip the argument.
            7th argument is optional. Refers whether custom annotations (e.g. gnomAD genomes frequencies, dbNSFP, conservation scores) should be added. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
            8th argument is optional. Refers whether allele frequencies should be added. Only work for human caches. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
@@ -44,7 +44,7 @@ BASE_CMD="srun shifter -V=/mnt/nfs/lobo/IMM-NFS/ensembl_vep:/media --image=ensem
 --cache --dir /media/cache  --sift b --polyphen b --numbers --regulatory --variant_class"
 
 genomes=(hg19 hg38 mm10)
-cache=(97 96 98)
+cache=(96 98 99)
 annotations=(ensembl refseq merged)
 genome_version="$4"
 cache_version="$5"
@@ -87,8 +87,8 @@ if [[ "$genome_version" == "hg19" ]]; then
     ASSEMBLY="GRCh37"
     if [[ "$cache_version" == "98" ]]; then
         FASTA="$annot_dir/98_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
-    elif [[ "$cache_version" == "96" ]]; then
-        FASTA="$annot_dir/96_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
+    elif [[ "$cache_version" == "99" ]]; then
+        FASTA="$annot_dir/99_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
     elif [[ "$cache_version" == "97" ]]; then
         FASTA="$annot_dir/97_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
 
@@ -98,8 +98,8 @@ elif [[ "$genome_version" == "hg38" ]];then
     ASSEMBLY="GRCh38"
     if [[ "$cache_version" == "98" ]]; then
         FASTA="$annot_dir/98_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
-    elif [[ "$cache_version" == "96" ]]; then
-        FASTA="$annot_dir/96_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
+    elif [[ "$cache_version" == "99" ]]; then
+        FASTA="$annot_dir/99_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     elif [[ "$cache_version" == "97" ]]; then
         FASTA="$annot_dir/97_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     fi
@@ -110,7 +110,22 @@ BASE_CMD="$BASE_CMD --cache_version $cache_version -a $ASSEMBLY --fasta $FASTA"
 if [ -z "$7" -o "$7" == "-" -o  "$7" == "true" ] && [ "$genome_version" != "mm10" ]; then
     #MISSING CUSTOM SCORES FOR HG38"
     if [[ "$genome_version" == "hg38" ]]; then
-        printf "INFO. Custom plugins can't be used as prediction tools are not ready (yet) for the latest version. Skipping this flag.\n"
+        printf "INFO. Most custom plugins can't be used as prediction tools as they are not ready (yet) for the latest version.\n"
+        runTools="true"
+        BASE_CMD="$BASE_CMD --plugin dbscSNV,/media/custom_data/dbscSNV/hg38/dbscSNV1.1_hg38.txt.gz \
+--plugin ExACpLI,/media/custom_data/ExACpLI/ExACpLI_values.txt \
+--plugin GeneSplicer,/media/custom_data/genesplicer/bin/linux/genesplicer,/media/custom_data/genesplicer/human \
+--plugin MaxEntScan,/media/custom_data/MaxEntScan \
+--plugin SpliceRegion \
+--plugin Condel,/media/custom_data/condel,b \
+--plugin Carol \
+--plugin CADD,/media/custom_data/cadd/hg38/v1.5/whole_genome_SNVs.tsv.gz,/media/custom_data/cadd/hg38/v1.5/InDels.tsv.gz \
+--plugin dbNSFP,'consequence=ALL',/media/custom_data/dbNSFP/hg38/dbNSFP4.0b1a.txt.gz,GERP++_RS,phyloP30way_mammalian,29way_logOdds,phastCons30way_mammalian,MutationAssessor_score,SIFT4G_score,SIFT_score,Polyphen2_HDIV_score,Polyphen2_HVAR_score,MutationTaster_score,FATHMM_score,fathmm-MKL_coding_score,PROVEAN_score,CADD_phred,DANN_score,Eigen-pred_coding,Eigen-PC-phred_coding,MetaSVM_score,MetaSVM_pred,MetaLR_score,MetaLR_pred,REVEL_score,integrated_fitCons_score,LRT_score,LRT_pred,MutPred_score,VEST4_score,M-CAP_score,LINSIGHT \
+--custom /media/custom_data/phyloP100/hg38/hg38.phyloP100way.bw,phyloP_vep,bigwig,exact,0 \
+--custom /media/custom_data/phastcons100/hg38/hg38.phastCons100way.bw,phastCons_vep,bigwig,exact,0"
+#—custom /media/custom_data/gnomAD/hg38/gnomad.genomes.r3.0.sites.vcf.bgz,gnomADg,vcf,exact,0,AF,AF_nfe"  
+#No GERP and GWAVA yet
+
     else
         runTools="true"
         BASE_CMD="$BASE_CMD --plugin dbscSNV,/media/custom_data/dbscSNV/hg19/dbscSNV1.1_hg19.txt.gz \
@@ -122,10 +137,10 @@ if [ -z "$7" -o "$7" == "-" -o  "$7" == "true" ] && [ "$genome_version" != "mm10
 --plugin Carol \
 --plugin CADD,/media/custom_data/cadd/hg19/v1.4/whole_genome_SNVs.tsv.gz,/media/custom_data/cadd/hg19/v1.4/InDels.tsv.gz \
 --plugin dbNSFP,'consequence=ALL',/media/custom_data/dbNSFP/hg19/dbNSFP4.0b1a_hg19.txt.gz,GERP++_RS,phyloP30way_mammalian,29way_logOdds,phastCons30way_mammalian,MutationAssessor_score,SIFT4G_score,SIFT_score,Polyphen2_HDIV_score,Polyphen2_HVAR_score,MutationTaster_score,FATHMM_score,fathmm-MKL_coding_score,PROVEAN_score,CADD_phred,DANN_score,Eigen-pred_coding,Eigen-PC-phred_coding,MetaSVM_score,MetaSVM_pred,MetaLR_score,MetaLR_pred,REVEL_score,integrated_fitCons_score,LRT_score,LRT_pred,MutPred_score,VEST4_score,M-CAP_score,LINSIGHT \
---custom /media/custom_data/gerp/All_hg19_RS.bw,GERP_vep,bigwig,exact,0 \
---custom /media/custom_data/gerp/All_hg19_RS.bw,GERP_vep_all,bigwig,overlap,0 \
---custom /media/custom_data/phyloP100/hg19.100way.phyloP100way.bw,phyloP_vep,bigwig,exact,0 \
---custom /media/custom_data/phastcons100/hg19.100way.phastCons.bw,phastCons_vep,bigwig,exact,0"
+--custom /media/custom_data/gerp/hg19/All_hg19_RS.bw,GERP_vep,bigwig,exact,0 \
+--custom /media/custom_data/gerp/hg19/All_hg19_RS.bw,GERP_vep_all,bigwig,overlap,0 \
+--custom /media/custom_data/phyloP100/hg19/hg19.100way.phyloP100way.bw,phyloP_vep,bigwig,exact,0 \
+--custom /media/custom_data/phastcons100/hg19/hg19.100way.phastCons.bw,phastCons_vep,bigwig,exact,0"
 #--custom /media/custom_data/gnomAD/hg19/gnomAD_v2.1_justImportantFields.vcf.gz,gnomADg,vcf,exact,0,AF,AF_nfe,AF_nfe_nwe" # \
 #--plugin Gwava,region,/media/custom_data/gwava_scores/gwava_scores.bed.gz \
    fi
@@ -317,6 +332,10 @@ if [[ -f "$OUT_DIR/${FINAL_OUT}.vcf.bgz" ]]; then
         printf "Running vcfanno to add remaining scores..\n"
         run_vcfanno="/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh $OUT_DIR/${FINAL_OUT}.vcf.bgz ${FINAL_OUT}_final.vcf.gz $OUT_DIR"
         echo \$run_vcfanno
+        \$run_vcfanno
+    elif [[ $genome_version == "hg38" ]]; then
+        printf "Running vcfanno to add remaining scores..\n"  
+        run_vcfanno="/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh $OUT_DIR/${FINAL_OUT}.vcf.bgz ${FINAL_OUT}_final.vcf.gz $OUT_DIR hg38"
         \$run_vcfanno
     else
         printf "Additional tools can't be run (yet) on the latest genome build. Skipping this step.\n"

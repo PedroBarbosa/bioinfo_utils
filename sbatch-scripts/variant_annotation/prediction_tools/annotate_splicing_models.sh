@@ -18,7 +18,6 @@ kipoisplice_4cons
 maxentscan_5
 maxentscan_3
 rbp_clip/TARGET_NAME
-SCAP
 "
 }
 
@@ -35,7 +34,7 @@ if [[ -z "$outfile" ]];then
     exit 1
 fi
 outdir=$(readlink -f $3)
-possible_models=(HAL mmsplice_deltaLogitPSI mmsplice_pathogenicity mmsplice_efficiency kipoisplice_4 kipoisplice_4cons maxentscan_5 maxentscan_3 SCAP rbp_eclip)
+possible_models=(HAL mmsplice_deltaLogitPSI mmsplice_pathogenicity mmsplice_efficiency kipoisplice_4 kipoisplice_4cons maxentscan_5 maxentscan_3 rbp_eclip)
 annotate(){
 
     if [[ $1 == "HAL" ]]; then
@@ -128,16 +127,6 @@ names=["$3"]
 ops=["self"]
 
 EOM
-
-    elif [[ $1 == "SCAP" ]]; then 
-cat <<EOM >>$PWD/anno.conf
-[[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/S-CAP/scap_COMBINED_v1.0.vcf.gz"
-fields=["SCAP","SCAP"]
-names=["SCAP","SCAP"]
-ops=["self","self"]
-
-EOM
 fi
 }
 
@@ -169,8 +158,6 @@ else
                     display_usage
                     exit 1
                 fi
-            elif [[ "$elem" == "SCAP" ]]; then #if models with precomputed scores
-                annotate $elem
             else
                 
                 fullpath_file=$(readlink -f ${files[$i]})

@@ -4,7 +4,7 @@ echo 'Script to run Kallisto for multiple fastq files.
 Read groups are automatically added to each output based on the sample basename.
 
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
--2nd argument must be the directory of the reference indexed database. (Default hg38 gencode v33 with spike-ins)
+-2nd argument must be the file of the reference indexed database. (Default hg38 gencode v33 with spike-ins)
 -3rd argument must be the output directory.
 -4th argument is optional. It is the identifier to extract the sample pair names from fastq files. Default: "_1.fastq"'
 }
@@ -41,7 +41,7 @@ fi
 cat > kallisto.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=kallisto
-#SBATCH --array=0-$JOBS%5
+#SBATCH --array=0-(( $JOBS - 1 ))%1
 #SBATCH --time=72:00:00
 #SBATCH --mem=50G
 #SBATCH --nodes=1
