@@ -28,7 +28,7 @@ def read_groups(groups, infiles):
 
 def process_vastools_files(files, psi_threshold, groups, individual_samples):
 
-    header_output = ["#Event_ID", "Gene", "Coordinates", "Length", "psi_first_group",
+    header_output = ["#Event_ID", "Gene", "Coordinates", "Spanning_coordinates", "Length", "psi_first_group",
               "psi_second_group", "dPSI", "groups_with_event"]
 
     sign_events = defaultdict(list)
@@ -42,6 +42,7 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
                     exit(1)
                 group1 = groups[f][0].split("_")[0]
                 group2 = groups[f][0].split("_")[-1]
+
                 index_group_1 = [i for i, v in enumerate(header) if v == group1][0]
                 index_group_2 = [i for i, v in enumerate(header) if v == group2][0]
                 if not index_group_1 or not index_group_2:
@@ -69,6 +70,10 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
                 event_id = l[1]
                 coord = l[2]
                 length = l[3]
+                event_type = l[5]
+                coord_fields = [item for sublist in [elem.split("-") for elem in l[4].split(":")[1:]] for item in sublist]
+                spanning_coord = "{}:{}-{}".format(l[4].split(":")[0], min(coord_fields), max(coord_fields))
+                print(spanning_coord, coord, event_type, event_id)
                 dpsi = l[-1]
                 if individual_samples:
                     psi_first = ','.join([l[i] for i in indexes_group_1])
