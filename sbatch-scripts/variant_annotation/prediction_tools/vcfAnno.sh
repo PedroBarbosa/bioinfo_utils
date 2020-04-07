@@ -343,11 +343,13 @@ if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
 #SBATCH --output=%j_vcfanno.log
-#SBATCH --image=mcfonsecalab/variantutils:0.5
+#SBATCH --image=mcfonsecalab/variantutils:0.6
 
 srun shifter $cmd
 srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf $outfile
-if [ ! -f "${outdir}/$(basename $outfile)"  ];then
+srun zcat $outfile | shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py - | shifter --image=ummidock/ubuntu_base:latest bgzip > spliceAI_processed.vcf.gz
+srun mv spliceAI_processed.vcf.gz $outfile && shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf $outfile
+if [[ ${outdir} != \$PWD ]]; then
     mv ${outfile}* $outdir
 fi
 EOL

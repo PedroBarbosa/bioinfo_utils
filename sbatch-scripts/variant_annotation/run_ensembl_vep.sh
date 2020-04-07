@@ -110,7 +110,7 @@ BASE_CMD="$BASE_CMD --cache_version $cache_version -a $ASSEMBLY --fasta $FASTA"
 if [ -z "$7" -o "$7" == "-" -o  "$7" == "true" ] && [ "$genome_version" != "mm10" ]; then
     #MISSING CUSTOM SCORES FOR HG38"
     if [[ "$genome_version" == "hg38" ]]; then
-        printf "INFO. Most custom plugins can't be used as prediction tools as they are not ready (yet) for the latest version.\n"
+        printf "INFO. Many custom plugins won't be used as prediction tools as they do not exit in the hg38 genome build.\n"
         runTools="true"
         BASE_CMD="$BASE_CMD --plugin dbscSNV,/media/custom_data/dbscSNV/hg38/dbscSNV1.1_hg38.txt.gz \
 --plugin ExACpLI,/media/custom_data/ExACpLI/ExACpLI_values.txt \
@@ -340,6 +340,10 @@ if [[ -f "$OUT_DIR/${FINAL_OUT}.vcf.bgz" ]]; then
     else
         printf "Additional tools can't be run (yet) on the latest genome build. Skipping this step.\n"
     fi
+    srun shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py ${FINAL_OUT}_final.vcf.gz
+    #srun shifter --image=ummidock/ubuntu_base:latest bgzip 
+    #sleep 5
+    #mv ${FINAL_OUT}_final_spliceAI_processed.vcf.gz $OUT_DIR/${FINAL_OUT}_final.vcf.gz
 
 else
         printf "$OUT_DIR/${FINAL_OUT}.vcf.bgz does not exist. Additional scores won't be added.\n"

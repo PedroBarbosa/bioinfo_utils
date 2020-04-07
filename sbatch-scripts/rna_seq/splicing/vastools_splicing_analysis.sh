@@ -163,7 +163,7 @@ CMD_compare="vast-tools compare \$INCLUSION_FILE_MERGED -a \${GROUP_ARRAY[0]} -b
 --min_range 10 \
 --max_dPSI 5 \
 --noVLOW \
---GO --use_names \
+--GO \
 --p_IR --use_int_reads --fr_int_reads 0.4"
    
 if [[ $PAIRED == "true" ]]; then
@@ -189,7 +189,7 @@ CMD_compare="vast-tools compare \$INCLUSION_FILE -a \${samples_first_group} -b \
 --min_dPSI 20 \
 --min_range 5 \
 --max_dPSI 5 \
---GO --use_names \
+--GO \
 --p_IR --use_int_reads --fr_int_reads 0.4"
    
 if [[ $PAIRED == "true" ]]; then

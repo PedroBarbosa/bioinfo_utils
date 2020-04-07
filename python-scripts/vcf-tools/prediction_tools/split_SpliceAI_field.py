@@ -32,12 +32,7 @@ def set_new_fields(record, spliceAI_pred):
 
 def process_vcf(vcf):
 
-    if not os.path.isfile(vcf):
-        print("{} is not a valid file. Exiting.".format(vcf))
-        exit(1)
     vcf_data = VCF(vcf, gts012=True)
-    out = str(vcf).replace(".vcf", "_spliceAI_processed.vcf")
-
     vcf_data.add_info_to_header({'ID': 'Gene_SpliceAI',
                                  'Description': 'Gene for which spliceAI gave the prediction.',
                                  'Type': 'String', 'Number': '.'})
@@ -53,7 +48,7 @@ def process_vcf(vcf):
     vcf_data.add_info_to_header({'ID': 'DS_DL',
                                  'Description': 'SpliceAI score for a donor lost.',
                                  'Type': 'String', 'Number': '.'})
-    w = Writer(out, vcf_data)
+    print(vcf_data.raw_header.rstrip())
     for record in vcf_data:
         snvs = record.INFO.get('SpliceAI')
         indels = record.INFO.get('SpliceAI_ind')
@@ -61,18 +56,18 @@ def process_vcf(vcf):
             record = set_new_fields(record, snvs)
         elif indels:
             record = set_new_fields(record, indels)
-        w.write_record(record)
-
+        print(str(record).rstrip())
     vcf_data.close()
-    w.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description='Script to split SpliceAI field into separate scores. Useful to'
-                                                 'later prioritize variants based on specific thresholds.')
-    parser.add_argument(dest='vcf', help='Path to the vcf')
+                                                 'later prioritize variants based on specific thresholds.'
+                                                 'Output will be redirected to stdout.')
+    parser.add_argument(dest='vcf', nargs='?', default="-", help='Path to the vcf')
     args = parser.parse_args()
     process_vcf(args.vcf)
 
 
 if __name__ == "__main__":
     main()
-

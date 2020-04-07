@@ -10,8 +10,9 @@ echo 'Script to run rMATs for multiple BAM files.
 -6th argument is optional. Refers to the read type. Values [paired|single|-]. Default: paired.
 -7th argument is optional. Refers to the library type of the RNA. Values: [fr-firstsrand|fr-secondstrand|fr-unstranded|-]. Default: fr-firststrand.
 -8th argument is optional. Refers to whether statistical analysis should be performed. Values: [true|false|-]. Default: true
--9th argument is optional. Refers to the threshold for significance to apply, each separated by comma (min_avg_reads, fdr_threshold, deltaPSI_threshold). Default:10,0.05,0.2
--10th argument is optional. If a previous rmats run was performed, pipeline will start from output files stored in the output directory (4th argument). Values:[true|false].Default:false'
+-9th argument is optional. Refers to the read length. Default: not set.
+-10th argument is optional. Refers to the threshold for significance to apply, each separated by comma (min_avg_reads, fdr_threshold, deltaPSI_threshold). Default:5,0.05,0.2
+-11th argument is optional. If a previous rmats run was performed, pipeline will start from output files stored in the output directory (4th argument). Values:[true|false].Default:false'
 
 }
 
@@ -67,10 +68,14 @@ else
     exit 1
 fi 
 
-CMD="rmats4.py --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001"
-#CMD="Darts_BHT rmats_count --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK"
-
+if [[ -z "$9" || "$9" == "-" ]]; then
+    CMD="rmats4.py --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --anchorLength 3"
+    #CMD="Darts_BHT rmats_count --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK"
+else
+    CMD="rmats4.py --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --readLength $9 --anchorLength 3"
+fi
 #--enable-unicode=ucs4
+
 if [[ $LIBTYPE == "paired" ]];then
     CMD="$CMD -libType $LIBTYPE"
 fi
@@ -80,21 +85,21 @@ if [[ $DO_STAT_ANALYSIS == "false" ]]; then
 fi
 
 
-if [[ -z "$9" || "$9" == "-" ]]; then
+if [[ -z "${10}" || "${10}" == "-" ]]; then
     min_avg_reads=10
     fdr_threshold=0.05
     deltaPSI_threshold=0.2
 else
     IFS=","
-    read -r -a array <<< "$9"
+    read -r -a array <<< "${10}"
     min_avg_reads=${array[0]}
     fdr_threshold=${array[1]}
     deltaPSI_threshold=${array[2]}
 fi
 
-if [[ -z "${10}" || "${10}" == "false" ]]; then
+if [[ -z "${11}" || "${11}" == "false" ]]; then
     previous_run="false"
-elif [[ "${10}" == "true" ]]; then
+elif [[ "${11}" == "true" ]]; then
     previous_run="true"
 else
     printf "Please set a valid value for the 10th argument.\n"
