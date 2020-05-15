@@ -8,7 +8,7 @@ library(limma)
 #################################
 #########Preparing the data #####
 #################################
-setwd("/Users/pbarbosa/analysis/christian/standard_rna_seq_analysis/human/splicing/psichomics")
+setwd("/Users/pbarbosa/MEOCloud/analysis/christian/standard_rna_seq_analysis/human/splicing/psichomics")
 
 #fixInNamespace("prepareGeneQuantSTAR", pos="package:psichomics")
 #setnames(table, colnames(table)[[2]], paste0("col", index))
@@ -38,16 +38,13 @@ prepareJunctionQuant("GD1SJ.out.tab",
 #####################################
 #########Loading the data ###########
 #####################################
-data <- loadLocalFiles("/Users/pbarbosa/analysis/christian/standard_rna_seq_analysis/human/splicing/psichomics/")
+data <- loadLocalFiles("/Users/pbarbosa/MEOCloud/analysis/christian/standard_rna_seq_analysis/human/splicing/psichomics/")
 geneExpr <- data$Data$`Gene expression`
 junctionQuant <- data$Data$`Junction quantification`
 
 groups <- list("GD"=colnames(geneExpr)[1:3], 
                "CBE"=colnames(geneExpr)[4:6], 
                 "CTRL"=colnames(geneExpr)[7:9])
-
-groups <- list("3Y" = colnames(geneExpr)[c(4,7)],
-               "10Y" = colnames(geneExpr)[c(5,8)])
 
 human <- listSplicingAnnotations()[[3]]
 annotation <- loadAnnotation(human)
@@ -60,10 +57,9 @@ events <- rownames(psi)
 
 psi <- psi[rowSums(is.na(psi)) <= 1,]
 
-events <- rownames(psi)
 variance <- apply(psi, 1, var, na.rm = T)
 psi <- cbind(psi, variance)
-rownames(psi) <- events
+
 psi <- psi[ psi$variance > quantile(psi$variance , 0.90, na.rm = T) , ]
 psi <- psi[, !(colnames(psi) %in% c("variance"))]
 psi_pca <- performPCA(t(psi))
@@ -88,46 +84,63 @@ deltaPSIthreshold_all <- diffSplicing_all$`Kruskal p-value (BH adjusted)` < 0.05
 delta_psi_all <- diffSplicing_all[which(deltaPSIthreshold_all), ]
 dim(delta_psi_all)
 
-#######################
-######GD  vs Ctrl #####
-#######################
-gd_ctrl <- groups[c("GD", "CTRL")]
 
-diffSplicing_gd_ctrl <- diffAnalyses(psi, groups = gd_ctrl, pvalueAdjust= "BH", analyses = "wilcoxRankSum")
-deltaPSI_gd_ctrl <- subset(diffSplicing_gd_ctrl, diffSplicing_gd_ctrl$`Wilcoxon p-value`< 0.1
-                            & abs(diffSplicing_gd_ctrl$`∆ Median`) > 0.2)  
+#####################
+###Get coordinates###
+#####################
+get_coord <- function(x){
+  string <- strsplit(x, "_")[[1]]
+  event_type <- string[1]
+  chrom <- paste0("chr",string[2])
+  numbers <- as.integer(string[-c(1,2,3,length(string))])
+  coord <- paste0(chrom,":",min(numbers), "-", max(numbers))
+  return(c(coord, event_type))
+}
+strand_map <- list("+" = "plus", "-" = "minus")
 
-final_gd_ctrl <- deltaPSI_gd_ctrl %>% rownames_to_column("event_id") %>%
-  select(.,c(1, 5, 2, 9, 10, 12, 13, 20, 21, 23)) %>% 
-  arrange_at(ncol(.), desc) %>%
-  write_excel_csv(., "GD_vs_CTRL_psichomics2.csv" , na = "NA", append = FALSE,
-                  delim = "\t", quote_escape = "double")
-write_xlsx(final_gd_ctrl, path  = "GD_vs_CTRL_psichomics.xlsx", col_names=T, format_headers = T)
-plotDistribution(psi["SE_19_-_14170682_14164705_14164621_14163406_LPHN1", ], groups)
 
-#######################
-######CBE  vs Ctrl #####
-#######################
+#####################
+#######Get bed#######
+#####################
+get_bed <- function(x, comparison){
+  coord = strsplit(x['spanning_coordinate'], ":|-")
+  return(as_tibble(t(c(coord[[1]][1], coord[[1]][2], coord[[1]][3], paste(x["Gene"], x["Event type"], sep="_"), comparison, x['Strand']))))
+}
+
+
+######################
+#####CBE vs Ctrl #####
+######################
 CBE_ctrl <- groups[c("CBE", "CTRL")]
 diffSplicing_CBE_ctrl <- diffAnalyses(psi, groups = CBE_ctrl, pvalueAdjust= "BH", analyses = "wilcoxRankSum")
+
 deltaPSI_CBE_ctrl <- subset(diffSplicing_CBE_ctrl, diffSplicing_CBE_ctrl$`Wilcoxon p-value` < 0.1
                            & abs(diffSplicing_CBE_ctrl$`∆ Median`) > 0.2)  
 
+useful_info <- lapply(rownames(deltaPSI_CBE_ctrl), get_coord)
+deltaPSI_CBE_ctrl$spanning_coordinate <- unlist(map(useful_info, 1))
+deltaPSI_CBE_ctrl$event_type <- unlist(map(useful_info, 2))
+ 
 final_cbe_ctrl <- deltaPSI_CBE_ctrl %>% rownames_to_column("event_id") %>%
-  select(.,c(1, 5, 2, 9, 10, 12, 13, 20, 21, 23)) %>% 
+  select(.,c(5, 4, 25, 9, 10, 12, 13, 20, 21, 23, 24)) %>% 
   arrange_at(ncol(.), desc) %>%
   write_excel_csv(., "CBE_vs_CTRL_psichomics.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
-write_xlsx(final_cbe_ctrl, path  = "CBE_vs_CTRL_psichomics.xlsx", col_names=T, format_headers = T)
+ write_xlsx(final_cbe_ctrl, path  = "CBE_vs_CTRL_psichomics.xlsx", col_names=T, format_headers = T)
 plotDistribution(psi["A3SS_16_-_31094557_31093321_31093482_PRSS53/VKORC1", ], groups) 
 
-#######################
-##CONCAT###############
-#######################
-final_df <- bind_rows(final_gd_ctrl, final_cbe_ctrl) %>%
-  write_excel_csv(., "all_concat_vs_Ctrl.csv" , na = "NA", append = FALSE,
-                  delim = "\t", quote_escape = "double")
-write_xlsx(final_df, path  = "all_concat_vs_Ctrl.xlsx", col_names=T, format_headers = T)
+
+bed <- apply(final_cbe_ctrl, 1, get_bed, "CBE_vs_mock")
+bed_df_cbe_mock <- ldply (bed, data.frame)
+bed_df_cbe_mock %>%
+  dplyr::distinct()%>%
+  dplyr::arrange() %>%
+  write_tsv("CBE_vs_mock.bed" , col_names = F, na = "NA", append = FALSE, quote_escape = "double")
+
+final_cbe_ctrl$Strand <- sapply(final_cbe_ctrl$Strand, function(x) ifelse(x =="+", "plus", "minus"))
+final_cbe_ctrl %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
+  write_excel_csv(., "psichomics_to_ggsashimi_CBE_vs_mock.csv" , col_names = F, na = "NA", append = FALSE, delim = "\t", quote_escape = "double")
+
 
 #######################
 ####GENE EXPRESSION####
@@ -153,12 +166,6 @@ percentage <- paste( colnames(ge_pca), "(", paste0( as.character(percentage), "%
 p <- ggplot(ge_pca,aes(x=PC1, y=PC2, color=group))
 p<-p+geom_point(size=3) + xlab(percentage[1]) + ylab(percentage[2])
 p
-
-
-
-
-
-
 
 #############
 ####groups###

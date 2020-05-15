@@ -5,7 +5,9 @@ library(writexl)
 library(ggplot2)
 library(ggrepel)
 library(limma)
-setwd("/Users/pbarbosa/analysis/yvan_rna_seq/psichomics/star_counts")
+library(plyr)
+library(tidylog)
+setwd("/Users/pbarbosa/MEOCloud/analysis/yvan_rna_seq/psichomics/star_counts")
 
 fixInNamespace("prepareGeneQuantSTAR", pos="package:psichomics")
 #setnames(table, colnames(table)[[2]], paste0("col", index))
@@ -118,6 +120,26 @@ info  <- queryEnsemblByEvent(event, species="human", assembly="hg38")
 plotTranscripts(info, event = event)
 plotDistribution(psi["A5SS_14_+_20345087_20345126_20345394_PARP2",], psi = T, rug = T, groups = groups)
 
+#####################
+###Get coordinates###
+#####################
+get_coord <- function(x){
+  string <- strsplit(x, "_")[[1]]
+  event_type <- string[1]
+  chrom <- paste0("chr",string[2])
+  numbers <- as.integer(string[-c(1,2,3,length(string))])
+  coord <- paste0(chrom,":",min(numbers), "-", max(numbers))
+  return(c(coord, event_type))
+}
+strand_map <- list("+" = "plus", "-" = "minus")
+
+#####################
+#######Get bed#######
+#####################
+get_bed <- function(x, comparison){
+  coord = strsplit(x['spanning_coordinate'], ":|-")
+  return(as_tibble(t(c(coord[[1]][1], coord[[1]][2], coord[[1]][3], paste(x["Gene"], x["event_type"], sep="_"), comparison, x['Strand']))))
+}
 
 ######################
 ######ALL GROUPS######
@@ -134,13 +156,27 @@ dim(delta_psi_all)
 dcm_ctrl <- groups[c("DCM", "Ctrl")]
 diffSplicing_dcm_ctrl <- diffAnalyses(psi, groups = dcm_ctrl, analyses = "wilcoxRankSum")
 deltaPSI_dcm_ctrl <- subset(diffSplicing_dcm_ctrl,diffSplicing_dcm_ctrl$`Wilcoxon p-value (BH adjusted)`< 0.1
-                            & abs(diffSplicing_dcm_ctrl$`∆ Median`) > 0.1)  
+                            & abs(diffSplicing_dcm_ctrl$`∆ Median`) > 0.2)  
+
+useful_info <- lapply(rownames(deltaPSI_dcm_ctrl), get_coord)
+deltaPSI_dcm_ctrl$spanning_coordinate <- unlist(map(useful_info, 1))
+deltaPSI_dcm_ctrl$event_type <- unlist(map(useful_info, 2))
 
 final_dcm_ctrl <- deltaPSI_dcm_ctrl %>% rownames_to_column("event_id") %>%
-  select(.,c(1, 5, 2, 9, 10, 12, 13, 20, 21, 23)) %>% 
-  arrange_at(ncol(.), desc) %>%
+  select(.,c(1, 5, 4, 9, 10, 12, 13, 20, 21, 23,spanning_coordinate, event_type)) %>% 
   write_excel_csv(., "DCM_vs_CTRL.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
+
+bed <- apply(final_dcm_ctrl, 1, get_bed, "ctrl_vs_dcm")
+bed_df_ctrl_dcm <- ldply (bed, data.frame)
+bed_df_ctrl_dcm %>%
+  dplyr::distinct()%>%
+  dplyr::arrange() %>%
+  write_tsv("DCM_vs_Ctrl.bed" , col_names = F, na = "NA", append = FALSE, quote_escape = "double")
+
+final_dcm_ctrl$Strand <- sapply(final_dcm_ctrl$Strand, function(x) ifelse(x =="+", "plus","minus"))
+final_dcm_ctrl %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
+  write_excel_csv(., "psichomics_to_ggsashimi_DCM_vs_CTRL.csv" , col_names = F, na = "NA", append = FALSE, delim = "\t", quote_escape = "double")
 write_xlsx(final_dcm_ctrl, path  = "DCM_vs_CTRL.xlsx", col_names=T, format_headers = T)
 
 
@@ -150,13 +186,23 @@ write_xlsx(final_dcm_ctrl, path  = "DCM_vs_CTRL.xlsx", col_names=T, format_heade
 icm_ctrl <- groups[c("ICM", "Ctrl")]
 diffSplicing_icm_ctrl <- diffAnalyses(psi, groups = icm_ctrl, analyses = "wilcoxRankSum")
 deltaPSI_icm_ctrl <- subset(diffSplicing_icm_ctrl, diffSplicing_icm_ctrl$`Wilcoxon p-value (BH adjusted)` < 0.1 & 
-                              abs(diffSplicing_icm_ctrl$`∆ Median`) > 0.1)   
+                              abs(diffSplicing_icm_ctrl$`∆ Median`) > 0.2)   
+
+useful_info <- lapply(rownames(deltaPSI_icm_ctrl), get_coord)
+deltaPSI_icm_ctrl$spanning_coordinate <- unlist(map(useful_info, 1))
+deltaPSI_icm_ctrl$event_type <- unlist(map(useful_info, 2))
 
 final_icm_ctrl <- deltaPSI_icm_ctrl %>% rownames_to_column("event_id") %>%
-  select(.,c(1, 5, 2, 9, 10, 12, 13, 20, 21, 23)) %>% 
+  select(.,c(1, 5, 4, 9, 10, 12, 13, 20, 21, 23, spanning_coordinate, event_type)) %>% 
   arrange_at(ncol(.), desc) %>%
   write_excel_csv(., "ICM_vs_CTRL.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
+
+bed <- apply(final_icm_ctrl, 1, get_bed, "ctrl_vs_icm")
+bed_df_ctrl_icm <- ldply (bed, data.frame)
+final_icm_ctrl$Strand <- sapply(final_icm_ctrl$Strand, function(x) ifelse(x =="+", "plus","minus"))
+final_icm_ctrl %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
+  write_excel_csv(., "psichomics_to_ggsashimi_ICM_vs_CTRL.csv" , col_names = F, na = "NA", append = FALSE, delim = "\t", quote_escape = "double")
 write_xlsx(final_icm_ctrl, path  = "ICM_vs_CTRL.xlsx", col_names=T, format_headers = T)
 
 #######################
@@ -164,27 +210,46 @@ write_xlsx(final_icm_ctrl, path  = "ICM_vs_CTRL.xlsx", col_names=T, format_heade
 #######################
 dcm_icm <- groups[c("DCM", "ICM")]
 diffSplicing_dcm_icm <- diffAnalyses(psi, groups = dcm_icm, analyses = "wilcoxRankSum")
-#deltaPSI_dcm_icm <- subset(diffSplicing_dcm_icm, diffSplicing_dcm_icm$`Wilcoxon p-value (BH adjusted)` < 0.01 & 
-#                              abs(diffSplicing_dcm_icm$`∆ Median`) > 0.2)   
-deltaPSI_dcm_icm <- subset(diffSplicing_dcm_icm, diffSplicing_dcm_icm$`Wilcoxon p-value` < 0.05 & 
+deltaPSI_dcm_icm <- subset(diffSplicing_dcm_icm, diffSplicing_dcm_icm$`Wilcoxon p-value` < 0.1 & 
                              abs(diffSplicing_dcm_icm$`∆ Median`) > 0.2)   
 
-final_dcm_icml <- deltaPSI_dcm_icm %>% rownames_to_column("event_id") %>%
-  dplyr::select(.,c(1, 5, 2, 9, 10, 12, 13, 20, 21, 23)) %>% 
-  dplyr::arrange_at(ncol(.), desc) %>%
-  readr::write_excel_csv(., "DCM_vs_ICM.csv" , na = "NA", append = FALSE,
+useful_info <- lapply(rownames(deltaPSI_dcm_icm), get_coord)
+deltaPSI_dcm_icm$spanning_coordinate <- unlist(map(useful_info, 1))
+deltaPSI_dcm_icm$event_type <- unlist(map(useful_info, 2))
+
+final_dcm_icm <- deltaPSI_dcm_icm %>% rownames_to_column("event_id") %>%
+  select(.,c(1, 5, 4, 9, 10, 12, 13, 20, 21, 23, spanning_coordinate, event_type)) %>% 
+  arrange_at(ncol(.), desc) %>%
+  write_excel_csv(., "DCM_vs_ICM.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
-write_xlsx(final_dcm_icml, path  = "DCM_vs_ICM.xlsx", col_names=T, format_headers = T)
+
+final_dcm_icm$Strand <- sapply(final_dcm_icm$Strand, function(x) ifelse(x =="+", "plus","minus"))
+final_dcm_icm %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
+  write_excel_csv(., "psichomics_to_ggsashimi_DCM_vs_ICM.csv" , col_names = F, na = "NA", append = FALSE, delim = "\t", quote_escape = "double")
+write_xlsx(final_dcm_icm, path  = "DCM_vs_ICM.xlsx", col_names=T, format_headers = T)
 
 
 #######################
-##CONCAT###############
+#######CONCAT##########
 #######################
-final_df <- bind_rows(final_dcm_ctrl, final_icm_ctrl) %>%
+final_df <- bind_rows(final_dcm_ctrl, final_icm_ctrl) %>% 
+  dplyr::select(.,c(1, 2, 3, 6, 7, 11, 12, 4, 5, 13, 8, 9, 14,10)) %>%
+  arrange(event_id) %>%
   write_excel_csv(., "all_concat_vs_Ctrl.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
 write_xlsx(final_df, path  = "all_concat_vs_Ctrl.xlsx", col_names=T, format_headers = T)
 
+final_df$Strand <- sapply(final_df$Strand, function(x) ifelse(x =="+", "plus","minus")) 
+final_df %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
+  distinct() %>%
+  write_excel_csv(., "psichomics_to_ggsashimi.csv" , col_names = F, na = "NA", append = FALSE, delim = "\t", quote_escape = "double")
+
+final_bed <- bed_df_ctrl_dcm %>% full_join(bed_df_ctrl_icm, by=c(colnames(bed_df_ctrl_dcm)[[1]],colnames(bed_df_ctrl_dcm)[[2]],colnames(bed_df_ctrl_dcm)[[3]]))
+  final_bed <- unite(final_bed, groups, c(colnames(final_bed)[[5]], colnames(final_bed)[[7]]), sep=";") %>%
+  mutate_all(~gsub(";NA","",.)) %>%
+  distinct() %>%
+  arrange(.,c(colnames(final_bed)[[1]],colnames(final_bed)[[2]])) %>%
+  write_tsv("all_concat_vs_Ctrl.bed" , col_names = F, na = "NA", append = FALSE, quote_escape = "double")
 #######################
 ####GENE EXPRESSION####
 #######################
