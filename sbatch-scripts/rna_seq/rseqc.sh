@@ -4,7 +4,7 @@ display_usage(){
  Usage:
     -1st argument must the bam files to process.
     -2nd argument must the output directory.
-    -3rd argument is optional. Refers to the annotation in bed format. Default(hg38 gencode v31 obtained with bedops). Use '-' to skip this argument.
+    -3rd argument is optional. Refers to the annotation in bed format. Default(hg38 gencode v31 obtained from ucsc). Use '-' to skip this argument.
     -4th argument is optional. Refers to the annotation of rRNA in bed format. Default (hg38 from rseqc website). Use '-' to skip this argument.
     -5th argument is optional. Refers to whether split_bam process should be run (to split rRNA contamination). Default: true. Values:[true|false|-]\n"
  
@@ -50,7 +50,7 @@ fi
 cat > runRSeQC.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=rseqc
-#SBATCH --array=0-$(( $JOBS - 1 ))%20
+#SBATCH --array=0-$(( $JOBS - 1 ))%5
 #SBATCH --time=72:00:00
 #SBATCH --mem=50G
 #SBATCH --nodes=1

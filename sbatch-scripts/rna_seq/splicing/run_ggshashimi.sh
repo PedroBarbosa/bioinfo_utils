@@ -9,8 +9,9 @@ plots will be drawn using aligments from both strands.
 -4th argument is optional. It refers to the gtf annotation file. (can be just the gtf with exons). Default: "/home/mcfonseca/shared/genomes/human/hg38/gencode.v31.transcript.exon.gtf. "-" ignores this argument and used the default value.
 -5th is optional. Refers to the minimum number of reads supporting a junction to be drawn. Default: 2. Values:[int|-]
 -6th is optional. Refers to the RNA stranded protocol. Values:[no_stranded|fr|rf|-] Default: rf.
--7th is optional. Set this argument if you want to combine/overlay density histograms from different replicates of the same group into one single track. Default: false. Values: [true|false~|-].
--8th is optional. Set this argument if you want to aggregate counts between replicates of the same group to be displayed as a single value in the group track. Value should refer to the aggregation method. Default: no_aggregation. Values:[no_aggregation|median|median_j|mean|mean_j|-]. Requires overlay (7th arg) to be true.'
+-7th is optional. Set this argument if you want to combine/overlay density histograms from different replicates of the same group into one single track. Default: true. Values: [true|false|-].
+-8th is optional. Set this argument if you want to aggregate counts between replicates of the same group to be displayed as a single value in the group track. Value should refer to the aggregation method. Default: no_aggregation. Values:[no_aggregation|median|median_j|mean|mean_j|-]. Requires overlay (7th arg) to be true.
+-9th is optional. Refers to a color pallete file. One color per line, should be the same as the different number of groups.'
 }
 
 
@@ -55,8 +56,6 @@ else
     exit 1
 fi
 
-
-
 COLOR_LEVELS_INDEX=3
 HISTOGRAM_TRANSPARENCY=0.5
 CMD="/sashimi-plot.py -b $BAMS -g $GTF -M $MIN_READS -C $COLOR_LEVELS_INDEX --alpha $HISTOGRAM_TRANSPARENCY --shrink" 
@@ -91,6 +90,12 @@ else
     exit 1
 fi
 
+######Pallete#######
+if [[ ! -z "$9" ]]; then
+    pallete="$(readlink -f "$9")"
+    CMD="$CMD -P $pallete"
+fi
+
 cat > gg_sashimi.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=gg
@@ -119,7 +124,7 @@ else
 fi
 
 cd $OUTDIR
-CMD_FINAL="\$CMD_FINAL -c \$coordinate -o \${gene_name}_\${event_type}_\${coordinate/:/-}"
+CMD_FINAL="\$CMD_FINAL -c \$coordinate -o \${gene_name}_\${event_type}_\${coordinate/:/-}_\${strand}"
 srun shifter \$CMD_FINAL
 echo "\$line PROCESSED"
 echo "Statistics for job \$SLURM_JOB_ID:"

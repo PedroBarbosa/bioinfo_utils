@@ -3,7 +3,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=40
-#SBATCH --mem=230G
+#SBATCH --mem=100G
 #SBATCH --job-name="featureCounts"
 #SBATCH --output=%j_featureCounts.out
 #SBATCH --mail-user=pedro.barbosa@medicina.ulisboa.pt

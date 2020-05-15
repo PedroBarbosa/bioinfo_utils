@@ -44,8 +44,8 @@ else
     splicegraph=$(readlink -f "$5")
 fi
 
-CMD="majiq deltapsi --nproc \$SLURM_CPUS_PER_TASK -o . --mem-profile -n $label1 $label2 -grp1 $grp1 -grp2 $grp2"
-CMD_VOILA="voila tsv -l voila.log --file-name voila_sign_${label1}_${label2}.tsv \$PWD"
+CMD_DELTAPSI="majiq deltapsi --nproc \$SLURM_CPUS_PER_TASK --mem-profile -n $label1 $label2 -grp1 $grp1 -grp2 $grp2"
+CMD_VOILA="voila tsv --show-all -l voila.log --file-name voila_${label1}_${label2}.tsv"
 
 if [[ -f $(readlink -f "$6" ) ]]; then
     ids=$(readlink -f "$6")
@@ -58,7 +58,7 @@ if [[ -f $(readlink -f "$6" ) ]]; then
 fi
 
 if [[ "$7" == "true" ]]; then
-    CMD="$CMD --default-prior"
+    CMD_DELTAPSI="$CMD --default-prior"
 fi
 
 cat > deltapsi_majiq.sbatch <<EOL
@@ -76,10 +76,11 @@ mkdir \$scratch_out
 cd \$scratch_out
 source activate majiq
 printf "##DELTA PSI CMD##\n$CMD\n"
-$CMD
-ln -s $splicegraph . 
+srun $CMD_DELTAPSI -o \$PWD
+cp $splicegraph . 
 printf "##VOILA TSV CMD##\n$CMD_VOILA\n"
-$CMD_VOILA
+$CMD_VOILA \$PWD
+rm \$(basename $splicegraph)
 mv * $OUT
 cd ../ && rm -rf \$SLURM_JOB_ID
 conda deactivate

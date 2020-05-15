@@ -4,7 +4,7 @@ echo 'Script to run rMATs for multiple BAM files.
 
 -1st argument must be the file listing the replicates for condition 1. Replicates must be split by ",".
 -2st argument must be the file listing the replicates for condition 2. Replicates must be split by ","
--3rd argument must be the GTF annotation file (must be unzipped).
+-3rd argument must be the GTF annotation file (must be unzipped). Use "-" to skip argument and use default. Default: gencode hg38 v33 primary assembly.
 -4th argument must be the output directory.
 -5th argument must be the labels for each group, split by ",".
 -6th argument is optional. Refers to the read type. Values [paired|single|-]. Default: paired.
@@ -25,7 +25,11 @@ fi
 
 BAM_1=$(readlink -f "$1")
 BAM_2=$(readlink -f "$2")
-GTF=$(readlink -f "$3")
+if [[ "$3" == "-" ]]; then
+    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v33.primary_assembly.annotation.gtf"
+else
+    GTF=$(readlink -f "$3")
+fi
 if [[ ! -d $(readlink -f "$4") ]]; then
     mkdir $(readlink -f "$4")
 fi
@@ -86,7 +90,7 @@ fi
 
 
 if [[ -z "${10}" || "${10}" == "-" ]]; then
-    min_avg_reads=10
+    min_avg_reads=5
     fdr_threshold=0.05
     deltaPSI_threshold=0.2
 else
@@ -111,10 +115,10 @@ cat > rmats.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=rmats
 #SBATCH --time=72:00:00
-#SBATCH --mem=240G
+#SBATCH --mem=100G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=40
+#SBATCH --cpus-per-task=10
 #SBATCH --image=mcfonsecalab/rmats:latest
 #SBATCH --output=%j_rmats.log
 
@@ -126,7 +130,12 @@ elif [[ $previous_run == "true" ]];then
     cd $OUTDIR
 fi
 printf "Producing tables of significant events\n"
-srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold
+printf "Tresholds used for the filtering (fdr, dPSI, min_avg_reads): $fdr_threshold, $deltaPSI_threshold, $min_avg_reads\n"
+srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF
+srun cut -f3 coverage_filt/* | sort | uniq | grep -v "geneSymbol" | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' > rmats_negative_list_to_GO.txt
+srun cut -f2 sign_events_* | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | sort | uniq > rmats_positive_list_to_GO.txt
+srun echo "gene_id\tFDR\tdPSI\n" > rmats_gene_ranks_to_GSEA.txt
+srun awk '{print \$3, \$(NF-3), \$NF}' OFS="\t" coverage_filt/* |  sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | grep -v geneSymbol >> rmats_gene_ranks_to_GSEA.txt
 
 printf "Done\nGenerating sashimi plots from all significant events..\n"
 events=("SE" "A5SS" "A3SS" "RI" "MXE")

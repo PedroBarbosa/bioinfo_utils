@@ -4,7 +4,7 @@ display_usage(){
  Usage:
     -1st argument must the bam files to process.
     -2nd argument must the output directory.
-    -3th argument must the annotation in GTF format. Default (hg38 gencode v31). Use '-' to skip this argument.
+    -3th argument must the annotation in GTF format. Default (hg38 gencode v33 primary assembly). Use '-' to skip this argument.
     -4th argument must the strandness protocol of the data. Default (strand-specific-reverse). Possible values: (strand-specific-forward, non-strand-specific). Use '-' to skip this argument.
     -5th argument must be the species under analysis. Default: HUMAN. Possible values: (MOUSE).Use '-' to skip this argument.\n"
 }
@@ -24,7 +24,7 @@ fi
 OUT=$(readlink -f "$2")
 
 if [[ -z "$3" || "$3" == "-" ]]; then
-    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v31.annotation.gtf"
+    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v33.primary_assembly.annotation.gtf"
 else
     GTF=$(readling -f "$3")
 fi
@@ -52,7 +52,7 @@ fi
 cat > qualimap.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=qualimap
-#SBATCH --array=0-$(( $JOBS - 1 ))%10
+#SBATCH --array=0-$(( $JOBS - 1 ))%5
 #SBATCH --time=72:00:00
 #SBATCH --mem=50G
 #SBATCH --nodes=1

@@ -41,7 +41,7 @@ fi
 cat > kallisto.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=kallisto
-#SBATCH --array=0-(( $JOBS - 1 ))%1
+#SBATCH --array=0-$(( $JOBS - 1 ))%5
 #SBATCH --time=72:00:00
 #SBATCH --mem=50G
 #SBATCH --nodes=1

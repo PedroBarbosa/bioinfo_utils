@@ -25,7 +25,7 @@ traP (hg19)
 spidex (hg19)
 scap (hg19)
 spliceai (hg19, hg38)
-gnomad_genomes (hg19, hg38)"
+gnomad_genomes (hg19, hg38)\n"
 }
 
 if [[ -z $1 || -z $2 || -z $3 ]]; then
@@ -306,7 +306,6 @@ else
                 display_usage
                 exit 1
             else
-                echo "elem"
                 if [[ $genome_version == "hg19" ]]; then
                     annotate_hg19 $elem
                 elif [[ $genome_version == "hg38" ]]; then
@@ -338,12 +337,12 @@ if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
 #!/bin/bash
 #SBATCH --job-name=vcfAnnot
 #SBATCH --time=72:00:00
-#SBATCH --mem=150G
+#SBATCH --mem=50G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=5
+#SBATCH --cpus-per-task=10
 #SBATCH --output=%j_vcfanno.log
-#SBATCH --image=mcfonsecalab/variantutils:0.6
+#SBATCH --image=mcfonsecalab/variantutils:latest 
 
 srun shifter $cmd
 srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf $outfile

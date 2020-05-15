@@ -4,7 +4,7 @@ display_usage(){
  Usage:
     -1nd argument must the file that describes the input data.
     -2th argument must the file the output directoryi.
-    -3rd argument must refer to the gtf file. If not given (-), gencode hg38 v31 will be used.\n"
+    -3rd argument must refer to the gtf file. If not given (-), gencode hg38 v33 primary annotation will be used.\n"
 }
 
 if [ -z "$1" ] || [ -z "$2" ]; then
@@ -21,7 +21,7 @@ fi
 OUT=$(readlink -f "$2")
 
 if [[ -z "$3" || "$3" == "-" ]]; then
-    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v31.annotation.gtf"
+    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v33.primary_assembly.annotation.gtf"
 else
     GTF=$(readling -f "$3")
 fi

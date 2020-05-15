@@ -43,7 +43,7 @@ cat > salmon.sbatch <<EOL
 #SBATCH --job-name=salmon
 #SBATCH --array=0-$(( $JOBS -1 ))%20
 #SBATCH --time=72:00:00
-#SBATCH --mem=100G
+#SBATCH --mem=75G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5

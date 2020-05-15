@@ -4,7 +4,7 @@ echo 'Script to run STAR for multiple fastq files.
 Read groups are automatically added to each output based on the sample basename.
 
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
--2nd argument must be the directory of the reference indexed database. If "-", default hg38 star index will be used. 
+-2nd argument must be the directory of the reference indexed database. If "-", default hg38 star index for gencode v33 will be used. 
 -3rd argument must be the output directory.
 -4th argument is optional. It is the identifier to extract the sample pair names from fastq files. If "-" is set, defaults are employed. Default: "_1.fq".
 -5th argument is optional. Flag to output file compatible with Cufflinks and StringTie. Please set this flag to true if your data in unstranded. Available options: [true|false]. Default: false.
@@ -32,7 +32,7 @@ JOBS=$(( ${#fastq_array[@]} / 2 ))
 
 ##INDEX##
 if [[ $2 == "-" ]]; then
-    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/star/"
+    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/star/gencode_v33"
 else
     INDEX=$(readlink -f "$2")
 fi
@@ -137,11 +137,11 @@ cat > runSTAR.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=rna_star
 #SBATCH --time=72:00:00
-#SBATCH --mem=240G
+#SBATCH --mem=100G
 #SBATCH --array=0-$(($JOBS - 1))%5
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=15
 #SBATCH --image=dceoy/star:latest
 #SBATCH --output=%j_star.log
 
@@ -161,6 +161,12 @@ outbasename=\${outbasename/$p2/}
 
 ulimit -n 16384
 \$srun shifter $CMD --readFilesIn \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --outFileNamePrefix \$outbasename --outSAMattrRGline ID:\${outbasename}_id SM:\${outbasename} PL:illumina LB:lib
+\$srun samtools view -b -q255 -o \${outbasename}_uniq.bam *Aligned.sortedByCoord.out.bam 
+\$srun samtools index \${outbasename}_uniq.bam
+if [[ ! -d "${OUT}/uniq" ]]; then
+    mkdir ${OUT}/uniq
+fi
+mv *uniq* ${OUT}/uniq
 mv * $OUT
 
 #parallel="parallel --tmpdir \$SCRATCH_OUTDIR --halt soon,fail=1 --delay 0.2 -j $NTASKS --joblog parallel.log --resume-failed"

@@ -6,7 +6,7 @@ display_usage(){
 	   2nd argument is the basename for the output file (vcf.gz extension will be automatically added).
            3rd argument is the output directory.
            4th argument is the genome version to use. Values:[hg19,hg38,mm10]. 
-           5th argument is the cache version to use. Values:[96,98,99].
+           5th argument is the cache version to use. Values:[98,99,100].
            6th argument is optional. Refers to the set of annotations to use. Default:ensembl. Values:[ensembl|refseq|merged|-]. Set '-' to skip the argument.
            7th argument is optional. Refers whether custom annotations (e.g. gnomAD genomes frequencies, dbNSFP, conservation scores) should be added. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
            8th argument is optional. Refers whether allele frequencies should be added. Only work for human caches. Default:true. Values:[true|false|-]. Set '-' to skip the argument.
@@ -41,10 +41,11 @@ if [[ ! -d "$OUT_DIR" ]]; then
 fi
 BASE_CMD="srun shifter -V=/mnt/nfs/lobo/IMM-NFS/ensembl_vep:/media --image=ensemblorg/ensembl-vep:latest vep \
 --force_overwrite --stats_text --hgvs --hgvsg --pubmed --check_existing \
---cache --dir /media/cache  --sift b --polyphen b --numbers --regulatory --variant_class"
+--cache --dir /media/cache  --sift b --polyphen b --numbers --regulatory --variant_class \
+--canonical --ccds --mane --domains"
 
 genomes=(hg19 hg38 mm10)
-cache=(96 98 99)
+cache=(97 98 100)
 annotations=(ensembl refseq merged)
 genome_version="$4"
 cache_version="$5"
@@ -89,8 +90,8 @@ if [[ "$genome_version" == "hg19" ]]; then
         FASTA="$annot_dir/98_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
     elif [[ "$cache_version" == "99" ]]; then
         FASTA="$annot_dir/99_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
-    elif [[ "$cache_version" == "97" ]]; then
-        FASTA="$annot_dir/97_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
+    elif [[ "$cache_version" == "100" ]]; then
+        FASTA="$annot_dir/100_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz"
 
     fi
 
@@ -100,8 +101,8 @@ elif [[ "$genome_version" == "hg38" ]];then
         FASTA="$annot_dir/98_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     elif [[ "$cache_version" == "99" ]]; then
         FASTA="$annot_dir/99_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
-    elif [[ "$cache_version" == "97" ]]; then
-        FASTA="$annot_dir/97_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
+    elif [[ "$cache_version" == "100" ]]; then
+        FASTA="$annot_dir/100_GRCh38/Homo_sapiens.GRCh38.dna.toplevel.fa.gz"
     fi
 fi
 BASE_CMD="$BASE_CMD --cache_version $cache_version -a $ASSEMBLY --fasta $FASTA"
@@ -330,17 +331,17 @@ if [[ "$runTools" == "true" && "$IS_VCF_OUTPUT" == "true" ]]; then
 if [[ -f "$OUT_DIR/${FINAL_OUT}.vcf.bgz" ]]; then
     if [[ $genome_version == "hg19" ]]; then
         printf "Running vcfanno to add remaining scores..\n"
-        run_vcfanno="/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh $OUT_DIR/${FINAL_OUT}.vcf.bgz ${FINAL_OUT}_final.vcf.gz $OUT_DIR"
+        run_vcfanno="/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh $OUT_DIR/${FINAL_OUT}.vcf.bgz $OUT_DIR/${FINAL_OUT}_final.vcf.gz $OUT_DIR"
         echo \$run_vcfanno
         \$run_vcfanno
     elif [[ $genome_version == "hg38" ]]; then
         printf "Running vcfanno to add remaining scores..\n"  
-        run_vcfanno="/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh $OUT_DIR/${FINAL_OUT}.vcf.bgz ${FINAL_OUT}_final.vcf.gz $OUT_DIR hg38"
+        run_vcfanno="/home/pedro.barbosa/git_repos/bioinfo_utils/sbatch-scripts/variant_annotation/prediction_tools/vcfAnno.sh $OUT_DIR/${FINAL_OUT}.vcf.bgz $OUT_DIR/${FINAL_OUT}_final.vcf.gz $OUT_DIR hg38"
         \$run_vcfanno
     else
         printf "Additional tools can't be run (yet) on the latest genome build. Skipping this step.\n"
     fi
-    srun shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py ${FINAL_OUT}_final.vcf.gz
+    #srun shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py $OUT_DIR/${FINAL_OUT}_final.vcf.gz
     #srun shifter --image=ummidock/ubuntu_base:latest bgzip 
     #sleep 5
     #mv ${FINAL_OUT}_final_spliceAI_processed.vcf.gz $OUT_DIR/${FINAL_OUT}_final.vcf.gz

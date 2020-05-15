@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=extractUnique
-#SBATCH --array=0-3%6
+#SBATCH --array=0-8%5
 #SBATCH --time=72:00:00
-#SBATCH --mem=230G
+#SBATCH --mem=100G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=40
+#SBATCH --cpus-per-task=20
 ##SBATCH --workdir=/home/pedro.barbosa/scratch
 #SBATCH --output=%j_extractUnique.log
 #SBATCH --image=mcfonsecalab/htstools_plus:latest

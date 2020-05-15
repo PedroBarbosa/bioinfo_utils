@@ -5,7 +5,8 @@ display_usage(){
     -1nd argument must the fastq files to align against vastools database.
     -2rd argument must be the output directory.
     -3th argument is optional. Refers to the vastDB to be used. Default: Human hg38. Set '-' to ignore this argument. 
-    -4th argument is optional. Refers to the delimiter used to distinguish pairs. Default: _R1.fq
+    -4th argument is optional. Refers to the delimiter used to distinguish pairs. Default: _R1.fq. Use '-' to skip the argument.
+    -5th argument is optional. Refers to the intron retention pipeline to use. Default:1. Values:[1|2|-]
 \n"
     
 }
@@ -32,10 +33,10 @@ if [[ ! -d "$OUT" ]];then
 fi
 
 if [[ -z "$3" || "$3" == "-" ]]; then
-    vastDB="/home/rluis/Rui-testing/Genome/hg19_hg38_vast-tools2"
-    species="Hsa"
-    vastDB="/home/mcfonseca/shared/genomes/mouse/mm9/"
-    species="Mmu"
+    vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
+    species="hg38"
+    #vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"    
+    #species="mm10"
 else
     vastDB=$(readlink -f "$3")
     species=""
@@ -45,7 +46,7 @@ else
 fi
  
 
-if [[ -z "$4" ]]; then
+if [[ -z "$4" || "$4" == "-" ]]; then
     DEL="_R1.fq"
     p2="_R2.fq"
 else
@@ -53,6 +54,14 @@ else
     p2=${DEL/1/2}
 fi
 
+if [[ -z "$5" || "$5" == "-" || "$5" == "1" ]]; then
+    IR_version="1"
+elif [[ "$5" == "2" ]]; then
+    IR_version="2"
+else
+    printf "Please set a valid IR version pipeline to use.\n"
+    display_usage
+fi
 
 cat > vast_align.sbatch <<EOL
 #!/bin/bash
@@ -61,10 +70,10 @@ cat > vast_align.sbatch <<EOL
 #SBATCH --mem=75G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=10
 #SBATCH --output=%j_vast_align.log
-#SBATCH --image=biocorecrg/vast-tools:2.1.3
-#SBATCH --array=0-$(( $JOBS -1 ))%10
+#SBATCH --image=vastgroup/vast-tools:v2.4.0
+#SBATCH --array=0-$(( $JOBS -1 ))%26
 
 scratch_out=/home/pedro.barbosa/scratch/rna_seq/splicing/vasttools/\$SLURM_JOB_ID
 mkdir \$scratch_out
@@ -81,7 +90,8 @@ dir=\$(dirname \${pair1[\$SLURM_ARRAY_TASK_ID]})
 pair2=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]/$DEL/$p2})
 fullpathpair2="\$dir/\$pair2"
 
-CMD="vast-tools align \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --dbDir $vastDB --expr -c \$SLURM_CPUS_PER_TASK --sp $species" 
+#--expr removed. Error in last image
+CMD="vast-tools align \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --dbDir $vastDB --IR_version $IR_version --keep -c \$SLURM_CPUS_PER_TASK --sp $species" 
 
 echo \$CMD
 srun shifter \$CMD
@@ -97,6 +107,3 @@ sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,
 EOL
 
 sbatch vast_align.sbatch
-
-
-
