@@ -80,7 +80,7 @@ mkdir \$scratch_out
 cd \$scratch_out
 
 if [[ ! -d "${OUT}/expr_out" &&  ! -d "${OUT}/to_combine" ]]; then
-    mkdir "${OUT}/expr_out"
+#    mkdir "${OUT}/expr_out"
     mkdir "${OUT}/to_combine"
 fi
 
@@ -97,7 +97,7 @@ echo \$CMD
 srun shifter \$CMD
 
 cd vast_out
-mv expr_out/* ${OUT}/expr_out
+#mv expr_out/* ${OUT}/expr_out
 mv to_combine/* ${OUT}/to_combine
 cd ../../ && rm -rf \$SLURM_JOB_ID
 
