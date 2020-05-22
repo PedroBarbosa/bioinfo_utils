@@ -57,6 +57,7 @@ def process_rmats(rmatsfile, geneid=False):
             for line in infile:
                 if line.split('\t')[0] != "":
                     genes.append(line.split('\t')[1]) if not geneid else genes.append(line.split('\t')[2])
+
                     events.append(line.split('\t')[3])
 
             rmats_counter = Counter(genes)
@@ -93,25 +94,47 @@ def process_psichomics(psichomicsfile, geneid=False):
         return None, None
 
 
-def compute_overlaps(d):
+def compute_overlaps(d, gene_id = False):
     final_table = defaultdict(list)
     sets = []
+
     for tool, counter in d.items():
         sets.append((tool, set(counter.keys())))
         for gene in counter:
             final_table[gene].append([tool, counter[gene]])
 
-    print("#gene\ttools_with_event\tnumber_of_events")
-    for k, v in final_table.items():
-        flat_list = [item for sublist in v for item in sublist]
-        tools = [t for t in flat_list if isinstance(t, str)]
-        number_of_events = [str(t) for t in flat_list if isinstance(t, int)]
-        print(k + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events))
+    with open("tools_overlap.tsv", "w") as outw:
 
+        if gene_id:
+            import mygene
+            mg = mygene.MyGeneInfo()
+            gene_ids = [k for k in final_table.keys()]
+            symbols_dict = mg.querymany(qterms=gene_ids, scopes="ensembl.gene", fields=["symbol"],
+                                   returnall=True,
+                                   as_dataframe=True,
+                                   size=1,
+                                   species="human")['out'][["symbol"]].to_dict()['symbol']
+
+            outw.write("#gene\tsymbol\ttools_with_event\tnumber_of_events" + "\n")
+        else:
+            outw.write("#gene\ttools_with_event\tnumber_of_events" + "\n")
+        for k, v in final_table.items():
+            flat_list = [item for sublist in v for item in sublist]
+            tools = [t for t in flat_list if isinstance(t, str)]
+            number_of_events = [str(t) for t in flat_list if isinstance(t, int)]
+            if gene_id:
+                try:
+                    outw.write(k + "\t" + symbols_dict[k] + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
+                except TypeError: #e.g. cases where a vast-tools eventID is reported
+                    outw.write(k + "\t" + "" + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
+            else:
+                outw.write(k + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
+
+    outw.close()
     plt.figure()
     plt.title("Genes with splicing events")
     plt.tight_layout()
-    out = "venn_plot.pdf"
+    out = "tools_overlap.pdf"
     labels = [v[0] for v in sets]
     just_sets = [v[1] for v in sets]
     if len(just_sets) == 2:
@@ -191,7 +214,7 @@ def main():
     filtered = {k: v for k, v in d.items() if v is not None}
     d.clear()
     d.update(filtered)
-    compute_overlaps(d)
+    compute_overlaps(d, args.gene_id)
 
 
 if __name__ == "__main__":

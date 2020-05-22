@@ -93,7 +93,9 @@ def process_voila_files(files, threshold, probability_threshold, groups=None):
                     lsv[lsv_id].append([gname, gid, strand, lsv_type, max_delta, prob_max, lsv_main_exon_coords, lsv_spanning_coord,
                                         delta, probability, njunctions, nexons, str(number_known_junctions),
                                         str(has_new_junction), str(number_new_junctions), groups[f][0]])
+
                 else:
+
                     lsv[lsv_id].append([gname, gid, strand, lsv_type, max_delta, prob_max, lsv_main_exon_coords, lsv_spanning_coord,
                          delta, probability, njunctions, nexons, str(number_known_junctions),
                          str(has_new_junction), str(number_new_junctions)])
@@ -186,7 +188,7 @@ def main():
 
     if args.groups:
         groups = read_groups(args.groups, args.voila)
-        lsvs, header, enrichment_data = process_voila_files(args.voila, args.threshold, args.probability, groups=args.groups)
+        lsvs, header, enrichment_data = process_voila_files(args.voila, args.threshold, args.probability, groups=groups)
         write_output(lsvs, header, args.outbasename, args.bed, enrichment_data, groups=groups)
     else:
         lsvs, header, enrichment_data = process_voila_files(args.voila, args.threshold, args.probability)

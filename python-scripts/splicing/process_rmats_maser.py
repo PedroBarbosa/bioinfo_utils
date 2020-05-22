@@ -129,7 +129,8 @@ def write_output(events, header, outbasename, groups, tobed):
                 for coordinates_id, data in events.items():
                     for i, v in enumerate(data):
                         if groups:
-                            full_coord = v[0] + ":" + v[2] + ":" + coordinates_id
+                            #full_coord = v[0] + "_" + v[2] + "_" + coordinates_id
+                            full_coord = coordinates_id
                             d[full_coord].append(v[-1])
                             outsash.write("{}\t{}\t{}\t{}\t{}\n".format(v[8], v[0], v[2],
                                                                         strand[coordinates_id.split(":")[1]], v[-1]))
