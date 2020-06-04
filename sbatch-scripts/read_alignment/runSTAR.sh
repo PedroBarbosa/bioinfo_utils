@@ -147,7 +147,7 @@ cat > runSTAR.sbatch <<EOL
 
 SCRATCH_OUTDIR="/home/pedro.barbosa/scratch/star/\$SLURM_JOB_ID"
 mkdir \$SCRATCH_OUTDIR && cd \$SCRATCH_OUTDIR 
-echo "`date`: Analysis started."
+
 srun="srun  -N1 -n1"
 
 readarray -t pair1 < <(cat \$(readlink -f "$FASTQ") | grep -e "R1.fastq" -e "R1.fq" -e "_1.fastq" -e "_1.fq")
@@ -158,7 +158,7 @@ fullpathpair2="\$dir/\$pair2"
 outbasename=\${fullpathpair2##*/}
 outbasename=\${outbasename%.*}
 outbasename=\${outbasename/$p2/}
-
+echo "`date`: Analysis started for \$outbasename sample."
 ulimit -n 16384
 \$srun shifter $CMD --readFilesIn \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --outFileNamePrefix \$outbasename --outSAMattrRGline ID:\${outbasename}_id SM:\${outbasename} PL:illumina LB:lib
 \$srun samtools view -b -q255 -o \${outbasename}_uniq.bam *Aligned.sortedByCoord.out.bam 

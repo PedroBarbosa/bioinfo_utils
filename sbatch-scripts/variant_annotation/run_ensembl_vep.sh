@@ -222,7 +222,6 @@ if [[ "${11}" != "true" ]]; then
         display_usage
         exit 1
     fi
-
     cat > $WORKDIR/runVEP.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=runVEP

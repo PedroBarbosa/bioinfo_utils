@@ -46,6 +46,7 @@ fi
 
 CMD_DELTAPSI="majiq deltapsi --nproc \$SLURM_CPUS_PER_TASK --mem-profile -n $label1 $label2 -grp1 $grp1 -grp2 $grp2"
 CMD_VOILA="voila tsv --show-all -l voila.log --file-name voila_${label1}_${label2}.tsv"
+CMD_VOILA_VIEW="voila view"
 
 if [[ -f $(readlink -f "$6" ) ]]; then
     ids=$(readlink -f "$6")
@@ -80,6 +81,7 @@ srun $CMD_DELTAPSI -o \$PWD
 cp $splicegraph . 
 printf "##VOILA TSV CMD##\n$CMD_VOILA\n"
 $CMD_VOILA \$PWD
+timeout 20m $CMD_VOILA_VIEW ${label1}_${label2}.deltapsi.voila splicegraph.sql
 rm \$(basename $splicegraph)
 mv * $OUT
 cd ../ && rm -rf \$SLURM_JOB_ID

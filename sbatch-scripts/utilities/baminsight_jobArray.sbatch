@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=bamInsight
-#SBATCH --array=0-2%1
+#SBATCH --array=0-5%1
 #SBATCH --time=72:00:00
 #SBATCH --mem=240G
 #SBATCH --nodes=1

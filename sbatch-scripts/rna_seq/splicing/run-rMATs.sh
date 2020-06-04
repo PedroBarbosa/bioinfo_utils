@@ -5,7 +5,7 @@ echo 'Script to run rMATs for multiple BAM files.
 -1st argument must be the file listing the replicates for condition 1. Replicates must be split by ",".
 -2st argument must be the file listing the replicates for condition 2. Replicates must be split by ","
 -3rd argument must be the GTF annotation file (must be unzipped). Use "-" to skip argument and use default. Default: gencode hg38 v33 primary assembly.
--4th argument must be the output directory.
+-4th argument must be the output directory. (will serve also as basename of main output files)
 -5th argument must be the labels for each group, split by ",".
 -6th argument is optional. Refers to the read type. Values [paired|single|-]. Default: paired.
 -7th argument is optional. Refers to the library type of the RNA. Values: [fr-firstsrand|fr-secondstrand|fr-unstranded|-]. Default: fr-firststrand.
@@ -34,6 +34,7 @@ if [[ ! -d $(readlink -f "$4") ]]; then
     mkdir $(readlink -f "$4")
 fi
 OUTDIR=$(readlink -f "$4")
+OUT_BASENAME=$4
 
 IFS=','
 read -r -a array <<< "$5"
@@ -64,8 +65,10 @@ fi
 
 if [[ -z "$8" || "$8" == "true" || "$8" == "-" ]]; then
     DO_STAT_ANALYSIS="true"
+    STATS="true"
 elif [[ "$8" == "false" ]]; then
     DO_STAT_ANALYSIS="false"
+    STATS="false"
 else
     printf "Please set a valid value for 8th arg.\n"
     display_usage
@@ -129,29 +132,35 @@ if [[ $previous_run == "false" ]];then
 elif [[ $previous_run == "true" ]];then
     cd $OUTDIR
 fi
-printf "Producing tables of significant events\n"
-printf "Tresholds used for the filtering (fdr, dPSI, min_avg_reads): $fdr_threshold, $deltaPSI_threshold, $min_avg_reads\n"
-srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF
-srun cut -f3 coverage_filt/* | sort | uniq | grep -v "geneSymbol" | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' > rmats_negative_list_to_GO.txt
-srun cut -f2 sign_events_* | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | sort | uniq > rmats_positive_list_to_GO.txt
-srun echo "gene_id\tFDR\tdPSI\n" > rmats_gene_ranks_to_GSEA.txt
-srun awk '{print \$3, \$(NF-3), \$NF}' OFS="\t" coverage_filt/* |  sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | grep -v geneSymbol >> rmats_gene_ranks_to_GSEA.txt
 
-printf "Done\nGenerating sashimi plots from all significant events..\n"
-events=("SE" "A5SS" "A3SS" "RI" "MXE")
-for e in "\${events[@]}"; do
-	printf "Looking at significant \${e} events..\n"
-	awk -F'\t' 'NR==FNR{c[\$1]++;next};c[\$1]' sign_events_\${e}.tsv \${e}.MATS.JC.txt > \${e}_toSashimi.txt
-	mkdir \${e}_sashimi_plots
-	CMD_SASHIMI="rmats2sashimiplot --b1 \$(cat $BAM_1) --b2 \$(cat $BAM_2) -t \${e} -e \${e}_toSashimi.txt --l1 $label1 --l2 $label2 --exon_s 1 --intron_s 5 -o \${e}_sashimi_plots"
-	srun shifter \$CMD_SASHIMI
+if [[ $STATS == "true" ]]; then
+    printf "Producing tables of significant events\n"
+    printf "Tresholds used for the filtering (fdr, dPSI, min_avg_reads): $fdr_threshold, $deltaPSI_threshold, $min_avg_reads\n"
+    srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF
+    srun cut -f3 coverage_filt/* | sort | uniq | grep -v "geneSymbol" | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' > ${OUT_BASENAME}_rmats_negative_list_to_GO.txt
+    srun cut -f2 sign_events_* | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | sort | uniq > ${OUT_BASENAME}_rmats_positive_list_to_GO.txt
+    srun echo "gene_id\tFDR\tdPSI\n" > ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
+    srun awk '{print \$3, \$(NF-3), \$NF}' OFS="\t" coverage_filt/* |  sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | grep -v geneSymbol >> ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
+
+    printf "Done\nGenerating sashimi plots from all significant events..\n"
+    events=("SE" "A5SS" "A3SS" "RI" "MXE")
+    for e in "\${events[@]}"; do
+        printf "Looking at significant \${e} events..\n"
+        awk -F'\t' 'NR==FNR{c[\$1]++;next};c[\$1]' sign_events_\${e}.tsv \${e}.MATS.JC.txt > \${e}_toSashimi.txt
+        mkdir \${e}_sashimi_plots
+        CMD_SASHIMI="rmats2sashimiplot --b1 \$(cat $BAM_1) --b2 \$(cat $BAM_2) -t \${e} -e \${e}_toSashimi.txt --l1 $label1 --l2 $label2 --exon_s 1 --intron_s 5 -o \${e}_sashimi_plots"
+        srun shifter \$CMD_SASHIMI
         cd \${e}_sashimi_plots
         mv Sashimi_index/* .
-	mv Sashimi_plot/* .
+        mv Sashimi_plot/* .
         rm -rf *index* && rm -rf Sashimi_plot  
         cd ../ 
-done
+    done
+else
+    printf "Done. As stats were set to false. Most of the analysis won't be performed.\n"
+fi
 
+rename 's/sign/${OUT_BASENAME}_sign/g' *
 mv * $OUTDIR
 cd ../ && rm -rf \$SLURM_JOB_ID
 echo "Statistics for job \$SLURM_JOB_ID:"

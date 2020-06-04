@@ -33,10 +33,10 @@ if [[ ! -d "$OUT" ]];then
 fi
 
 if [[ -z "$3" || "$3" == "-" ]]; then
-    vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
-    species="hg38"
-    #vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"    
-    #species="mm10"
+    #vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
+    #species="hg38"
+    vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"    
+    species="mm10"
 else
     vastDB=$(readlink -f "$3")
     species=""
@@ -67,7 +67,7 @@ cat > vast_align.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=vast_align
 #SBATCH --time=72:00:00
-#SBATCH --mem=75G
+#SBATCH --mem=50G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
@@ -91,10 +91,11 @@ pair2=\$(basename \${pair1[\$SLURM_ARRAY_TASK_ID]/$DEL/$p2})
 fullpathpair2="\$dir/\$pair2"
 
 #--expr removed. Error in last image
-CMD="vast-tools align \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --dbDir $vastDB --IR_version $IR_version --keep -c \$SLURM_CPUS_PER_TASK --sp $species" 
-
+#CMD="vast-tools align \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --dbDir $vastDB --IR_version $IR_version --keep -c \$SLURM_CPUS_PER_TASK --sp $species" 
+CMD="/home/pedro.barbosa/git_repos/vast-tools/vast-tools align \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --dbDir $vastDB --IR_version $IR_version --keep -c \$SLURM_CPUS_PER_TASK --sp $species"
 echo \$CMD
-srun shifter \$CMD
+srun \$CMD
+#srun shifter \$CMD
 
 cd vast_out
 #mv expr_out/* ${OUT}/expr_out

@@ -6,7 +6,7 @@ echo 'Script to run ggsashimi for coordinates given by a config file (usually ge
 -2st argument must be the config file. (1st column represent the coordinates, 2nd gene name, 3rd event type, 4th strand). If strand is not provided
 plots will be drawn using aligments from both strands.
 -3nd argument must be the output_directory.
--4th argument is optional. It refers to the gtf annotation file. (can be just the gtf with exons). Default: "/home/mcfonseca/shared/genomes/human/hg38/gencode.v31.transcript.exon.gtf. "-" ignores this argument and used the default value.
+-4th argument is optional. It refers to the gtf annotation file. (can be just the gtf with exons). Default: "/home/mcfonseca/shared/genomes/human/hg38/gencode_v33_primary_assembly_exon.gtf". "-" ignores this argument and used the default value.
 -5th is optional. Refers to the minimum number of reads supporting a junction to be drawn. Default: 2. Values:[int|-]
 -6th is optional. Refers to the RNA stranded protocol. Values:[no_stranded|fr|rf|-] Default: rf.
 -7th is optional. Set this argument if you want to combine/overlay density histograms from different replicates of the same group into one single track. Default: true. Values: [true|false|-].
@@ -31,7 +31,7 @@ if [[ ! -d $(readlink -f "$3") ]]; then
 fi
 
 if [[ -z "$4" || "$4" == "-" ]]; then
-    GTF="/home/mcfonseca/shared/genomes/human/hg38/gencode.v31.transcript.exon.gtf"
+    GTF="/home/mcfonseca/shared/genomes/human/hg38/gencode_v33_primary_assembly_exons.gtf"
 else
     GTF=$(readlink -f "$4")
 fi 

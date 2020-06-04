@@ -109,7 +109,7 @@ cat > vast_splicing_analysis.sbatch <<EOL
 #SBATCH --mem=75G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=10
 #SBATCH --output=%j_vast_splicing.log
 #SBATCH --image=vastgroup/vast-tools:v2.4.0
 
@@ -319,8 +319,8 @@ if [[ $DO_NON_MERGE == true ]]; then
     fi
     printf "\n##DIFF NON MERGED GROUPS:## \$DIFF_CMD\n"
     srun shifter \$DIFF_CMD
-    awk '\$6 >= 0.2' 3_${NAME}_DIFF.tab > tmp
-    head -1 3_${NAME}_DIFF.tab | cat - tmp > 3_${NAME}_DIFF_FILT.tab && rm tmp
+    awk '\$6 >= 0.2' 3_${NAME}_DIFF.tab > 3_${NAME}_DIFF_FILT.tab
+#    head -1 3_${NAME}_DIFF.tab | cat - tmp > 3_${NAME}_DIFF_FILT.tab && rm tmp
 fi
 
 if [[ $DO_MERGE == "true" ]]; then
@@ -336,9 +336,12 @@ if [[ $DO_MERGE == "true" ]]; then
 
     printf "\n##DIFF MERGED GROUPS:## \$DIFF_CMD_MERGED\n"
     srun shifter \$DIFF_CMD_MERGED
-    awk '\$6 >= 0.2' 3_${NAME}_DIFF_MERGED.tab > tmp
-    head -1 3_${NAME}_DIFF_MERGED.tab | cat - tmp > 3_${NAME}_DIFF_MERGED_FILT.tab && rm tmp
+    awk '\$6 >= 0.2' 3_${NAME}_DIFF_MERGED.tab > 3_${NAME}_DIFF_MERGED_FILT.tab
+#    head -1 3_${NAME}_DIFF_MERGED.tab | cat - tmp > 3_${NAME}_DIFF_MERGED_FILT.tab && rm tmp
 fi
+
+rm -rf raw*
+cd ../../ && rm -rf raw*
 
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
