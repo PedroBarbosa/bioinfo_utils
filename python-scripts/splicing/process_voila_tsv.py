@@ -170,7 +170,7 @@ def write_output(lsvs, header, outbasename, tobed, enrichment_data, groups=None)
         out.close()
         sash_to_remove_group.close()
         sash_group_removed.close()
-    os.system("sort -V {} | uniq -u > {}_noDup.csv".format(outbasename + "_majiq.bed", "bed"))
+    os.system("sort -V {} | uniq > {}_noDup.csv".format(outbasename + "_majiq.bed", "bed"))
     os.system("mv {} {}".format("bed_noDup.csv", outbasename + "_majiq.bed"))
 
 

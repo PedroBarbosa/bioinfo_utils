@@ -6,13 +6,13 @@ library(RColorBrewer)
 library(ggrepel)
 library(pheatmap)
 library(RUVSeq)
+library(writexl)
 source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
-ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt") 
-names(ensembl_genes)[names(ensembl_genes) == "Gene name"] <- "symbol"
-names(ensembl_genes)[names(ensembl_genes) == "Gene description"] <- "description"
-names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"
+#ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt") 
+#names(ensembl_genes)[names(ensembl_genes) == "Gene name"] <- "symbol"
+#names(ensembl_genes)[names(ensembl_genes) == "Gene description"] <- "description"
+#names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"
 
-cardio_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/yvan_rna_seq/cardiomyopathy_gene_panel_ids.txt", col_names = F)
 
 ############################
 ########INPUT DATA##########
@@ -209,8 +209,7 @@ genes_splicing_heartDisease <-c("ACTG1","ANKS1A","NPPB","CACNA1C","CAMK2D","CD36
 "HOPX","IGF1","LDB3","LMO7","MRTFB","MYBPC3","MYH6","MYH7","PARVB","PDLIM3","RTN4","RYR2","SCN5A","TNNI3","TNNT2","TPM1","TRABD","TTN")
 
 genes_splicing_heartDisease <- tibble::enframe(genes_splicing_heartDisease, name = NULL) %>% rename(gene_name = value) %>%
-          left_join(genes_match, by=c("gene_name" = "Gene name")) %>%
-          rename(gene_id = `Gene stable ID`) %>%
+          left_join(ensembl_genes, by=c("gene_name" = "symbol")) %>%
           dplyr::select(gene_id, gene_name) %>%
           filter (! duplicated(gene_id)) %>%
           column_to_rownames("gene_id") 
@@ -221,20 +220,19 @@ genes_heartDisease <- c("ABCC9","ACTC1","ACTG1","ACTN2","ALDH4A1","ANKRD1","ANKS
 "NEXN","PDHB","PDLIM3","PKP2","PLN","PSEN1","PSEN2","RBM20","RTN4","RYR2","SCN5A","SGCA","SGCD","SLC25A11","SLC25A13","SLC8A1","TAZ",
 "TBX15","TCAP","TGFB1","TGFB3","TPM3","TMPO","TNNC1","TNNI3","TNNI3K","TNNT2","TPM1","TPM3","TPP1","TRDN-AS1","TTN","VCL"
 )
-
+write.table(genes_heartDisease, file = "~/Desktop/genes_splicing_heart.csv", quote = F, row.names = F)
 genes_heartDisease <- tibble::enframe(genes_heartDisease, name = NULL) %>% rename(gene_name = value) %>%
-  left_join(genes_match, by=c("gene_name" = "Gene name")) %>%
-  rename(gene_id = `Gene stable ID`) %>%
+  left_join(ensembl_genes, by=c("gene_name" = "symbol")) %>%
   dplyr::select(gene_id, gene_name) %>%
   filter (! duplicated(gene_id)) %>%
   column_to_rownames("gene_id") 
 
 
-
+cardio_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/yvan_rna_seq/cardiomyopathy_gene_panel_ids.txt", col_names = F)
 cardio_genes_from_ncbi_panel <- cardio_genes %>%
   mutate(gene_id = gsub("\\..*","",.[[1]])) %>%
-  dplyr::select(gene_id) %>% left_join(genes_match, by=c("gene_id" = "Gene stable ID")) %>%
-  rename(gene_name = `Gene name`) %>%
+  dplyr::select(gene_id) %>% left_join(ensembl_genes) %>%
+  rename(gene_name = symbol) %>%
   dplyr::select(gene_id,gene_name) %>%
   filter (! duplicated(gene_id)) %>%
   column_to_rownames("gene_id")
@@ -245,11 +243,9 @@ cardio_genes_all <- unique(c(genes_splicing_heartDisease$gene_name, genes_heartD
 ###################################
 #####Gene with splicing events#####
 ###################################
-setwd("/Users/pbarbosa/MEOCloud/analysis/yvan_rna_seq/")
-genes_with_splicing <- read_tsv("overlap_counts_newest_vastools_appraoch.txt") %>% dplyr::select(1) %>% 
-  rename(gene_name = `#gene`) %>% 
-  left_join(genes_match, by=c("gene_name" = "Gene name")) %>%
-  rename(gene_id = `Gene stable ID`) %>%
+setwd("/Users/pbarbosa/MEOCloud/analysis/yvan_rna_seq/tools_overlap/")
+genes_with_splicing <- read_tsv("0_tools_overlap_gene_id_fetched_from_symbol.tsv") %>% dplyr::select(1,2) %>% 
+  rename(gene_name = `#gene_name`) %>% 
   dplyr::select(gene_id, gene_name) %>%
   filter (! duplicated(gene_id)) %>%
   drop_na() %>%
@@ -258,10 +254,33 @@ genes_with_splicing <- read_tsv("overlap_counts_newest_vastools_appraoch.txt") %
 #duplicates
 genes_with_splicing%>% rownames_to_column() %>% dplyr::filter(duplicated(gene_name))
 
+genes_with_splicing_DCM <- read_tsv("1_ctrl_dcm/tools_overlap_gene_id_fetched_from_symbol.tsv") %>% dplyr::select(1,2) %>% 
+  rename(gene_name = `#gene_name`) %>% 
+  dplyr::select(gene_id, gene_name) %>%
+  filter (! duplicated(gene_id)) %>%
+  drop_na() %>%
+  column_to_rownames("gene_id") 
+
+genes_with_splicing_ICM <- read_tsv("1_ctrl_icm/tools_overlap_gene_id_fetched_from_symbol.tsv") %>% dplyr::select(1,2) %>% 
+  rename(gene_name = `#gene_name`) %>% 
+  dplyr::select(gene_id, gene_name) %>%
+  filter (! duplicated(gene_id)) %>%
+  drop_na() %>%
+  column_to_rownames("gene_id") 
 
 
 splicing_obtained_and_de <- intersect(genes_with_splicing$gene_name, de_genes_patient_ctrl)
-splicing_obtained_and_known_gene_splicing <- intersect(genes_with_splicing$gene_name,genes_splicing_heartDisease$gene_name )
+
+overlap_known_gene_heart_disease <- as_tibble_col(intersect(genes_with_splicing$gene_name,genes_heartDisease$gene_name), column_name = "gene_name")
+overlap_known_gene_heart_disease$in_DCM <- overlap_known_gene_heart_disease$gene_name %in% genes_with_splicing_DCM$gene_name
+overlap_known_gene_heart_disease$in_ICM <- overlap_known_gene_heart_disease$gene_name %in% genes_with_splicing_ICM$gene_name
+write_xlsx(overlap_known_gene_heart_disease, path = paste0("2_gene_overlaps/known_heart_disease_genes",".xlsx", sep=""),col_names=T, format_headers = T)
+
+overlap_known_gene_heart_disease_via_splicing <- as_tibble_col(intersect(genes_with_splicing$gene_name,genes_splicing_heartDisease$gene_name), column_name = "gene_name")
+overlap_known_gene_heart_disease_via_splicing$in_DCM <- overlap_known_gene_heart_disease_via_splicing$gene_name %in% genes_with_splicing_DCM$gene_name
+overlap_known_gene_heart_disease_via_splicing$in_ICM <- overlap_known_gene_heart_disease_via_splicing$gene_name %in% genes_with_splicing_ICM$gene_name
+write_xlsx(overlap_known_gene_heart_disease_via_splicing, path = paste0("2_gene_overlaps/known_heart_disease_via_splicing",".xlsx", sep=""),col_names=T, format_headers = T)
+
 cardio_genes_and_de <- intersect(cardio_genes_all, de_genes_patient_ctrl)
 
 ####################################
@@ -270,21 +289,44 @@ cardio_genes_and_de <- intersect(cardio_genes_all, de_genes_patient_ctrl)
 library(readxl)
 #SPLICING GENES
 dcm_large_paper <- read_excel("/Users/pbarbosa/Dropbox/imm/projects/yvan_cardioRNA-seq/patrícia/DCM_large_cohort_RNAseq_paper/DCM_vs_CTR_exon_usage_by_PSI_analysis.xlsx")
-dcm_large_paper <- dcm_large_paper %>% dplyr::select(gene_id) %>% separate_rows(gene_id, sep="\\+") %>% pull(gene_id)
-splicing_obtained_and_dcm_paper <- intersect(genes_with_splicing$gene_name, dcm_large_paper)
+dcm_large_paper <- dcm_large_paper %>% dplyr::select(gene_id) %>% separate_rows(gene_id, sep="\\+") %>%
+  rename(symbol=gene_id) %>% left_join(dplyr::select(ensembl_genes, c(symbol,gene_id))) %>% distinct() %>% rename(gene_name = symbol)
+
 dplyr::select(dcm_large_paper, c(chrom,start,end,strand,gene_id,exonic_part_number)) %>% 
   arrange(chrom,start) %>% dplyr::select(-strand, strand) %>%
   write_tsv("/Users/pbarbosa/Dropbox/imm/projects/yvan_cardioRNA-seq/patrícia/DCM_large_cohort_RNAseq_paper/DiffSplicing_events.bed",
             col_names = F)
-                             
-#MYH6 MYH7 expression ratio
+
+############################
+##Overlaps with our genes ##
+############################
+#by geneid
+#overlap_dcm_paper <- intersect(rownames(genes_with_splicing), unique(dcm_large_paper %>% filter(!is.na(gene_id)) %>% pull(gene_id)))
+overlap_dcm_paper <- as_tibble_col(intersect(genes_with_splicing$gene_name, dcm_large_paper$gene_name), column_name = "gene_name")
+overlap_dcm_paper$in_DCM <- overlap_dcm_paper$gene_name %in% genes_with_splicing_DCM$gene_name
+overlap_dcm_paper$in_ICM <- overlap_dcm_paper$gene_name %in% genes_with_splicing_ICM$gene_name
+write_xlsx(overlap_dcm_paper, path = paste0("2_gene_overlaps/DCM_2017_paper",".xlsx", sep=""),col_names=T, format_headers = T)
+
+
+#################################
+#### Event (ES) full overlap ####
+#################################
+events_with_full_overlap <- read_tsv("3_bed_overlaps/4_DCM_paper_intersect_full_overlap.bed", col_names = F) %>% dplyr::select(1,2,3,4,7) %>% 
+  rename(chrom = X1, start = X2, end = X3, gene_name = X4, groups = X7)
+events_with_full_overlap$in_DCM <- ifelse(grepl("ctrl_dcm", events_with_full_overlap$groups), TRUE, FALSE)
+events_with_full_overlap$in_ICM <- ifelse(grepl("ctrl_icm", events_with_full_overlap$groups), TRUE, FALSE)
+write_xlsx(events_with_full_overlap %>% dplyr::select(-groups), path = paste0("3_bed_overlaps/4_DCM_paper_genes_with_full_event_overlap",".xlsx", sep=""),col_names=T, format_headers = T)
+
+#####################################
+#####MYH6 MYH7 expression ratio######
+#####################################
 #MYH6 ratio against MYH7 is virtually absent in patients vs Ctrls (from paper)
 ALL_GENES_DE <- list_de_sick_ctrl[[1]]
 MYH6_MYH7 <- ALL_GENES_DE %>% filter(Gene_name == "MYH6" | Gene_name == "MYH7" )
 #In our data, MYH6 is downregulated in patients, while MYH7 is not. Let's check now the expression on each individual and calculate the ratio
 dds_norm <- DESeq(dds)
 norm_expression <- counts(dds_norm, normalized=T)
-target_gene_ids <- genes_match %>% filter(Gene_name == "MYH6" | Gene_name == "MYH7" ) %>% dplyr::select(Gene_stable_ID_version) %>% distinct() %>% pull()
+target_gene_ids <- ensembl_genes %>% filter(Gene_name == "MYH6" | Gene_name == "MYH7" ) %>% dplyr::select(Gene_stable_ID_version) %>% distinct() %>% pull()
 to_plot <- as.data.frame((norm_expression[target_gene_ids,][1,] / (norm_expression[target_gene_ids,][1,] + norm_expression[target_gene_ids,][2,])))
 colnames(to_plot)[1] <- "MYH6_MYH7_ratio"
 ggplot(data = to_plot, mapping = aes(x = groups, y = MYH6_MYH7_ratio, fill=groups)) + 

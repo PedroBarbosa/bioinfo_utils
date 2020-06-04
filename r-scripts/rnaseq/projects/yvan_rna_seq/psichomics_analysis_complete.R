@@ -8,7 +8,7 @@ library(limma)
 library(plyr)
 library(tidylog)
 setwd("/Users/pbarbosa/MEOCloud/analysis/yvan_rna_seq/psichomics/star_counts")
-
+source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
 fixInNamespace("prepareGeneQuantSTAR", pos="package:psichomics")
 #setnames(table, colnames(table)[[2]], paste0("col", index))
 
@@ -137,8 +137,9 @@ strand_map <- list("+" = "plus", "-" = "minus")
 #######Get bed#######
 #####################
 get_bed <- function(x, comparison){
-  coord = strsplit(x['spanning_coordinate'], ":|-")
-  return(as_tibble(t(c(coord[[1]][1], coord[[1]][2], coord[[1]][3], paste(x["Gene"], x["event_type"], sep="_"), comparison, x['Strand']))))
+  coord <- strsplit(x['spanning_coordinate'], ":|-")
+  event_type <- ifelse(x["event_type"] == "SE", "ES", x["event_type"])
+  return(as_tibble(t(c(coord[[1]][1], coord[[1]][2], coord[[1]][3], paste(x["symbol"], event_type, sep="_"), comparison, x['Strand']))))
 }
 
 ######################
@@ -162,12 +163,18 @@ useful_info <- lapply(rownames(deltaPSI_dcm_ctrl), get_coord)
 deltaPSI_dcm_ctrl$spanning_coordinate <- unlist(map(useful_info, 1))
 deltaPSI_dcm_ctrl$event_type <- unlist(map(useful_info, 2))
 
-final_dcm_ctrl <- deltaPSI_dcm_ctrl %>% rownames_to_column("event_id") %>%
-  select(.,c(1, 5, 4, 9, 10, 12, 13, 20, 21, 23,spanning_coordinate, event_type)) %>% 
+final_dcm_ctrl <- deltaPSI_dcm_ctrl %>% rownames_to_column("event_id") 
+new_symbol <- plyr::mapvalues(final_dcm_ctrl$Gene,from=c("LEPREL2", "FLJ31306", "KIAA0226", "H2AFY", "ZZZ3", "MKL2", "FAM115A", "PPP2R4", "GRAMD3", "GAS7","ATP5J"),
+                              to=c("P3H3", "PSMA3-AS1", "RUBCN", "MACROH2A1","ZZZ3","MRTFB","TCAF1","PTPA", "GRAMD2B", "GAS7","ATP5PF"))
+final_dcm_ctrl$symbol <- new_symbol
+final_dcm_ctrl$is_DCM <- TRUE
+final_dcm_ctrl$is_ICM <- FALSE
+final_dcm_ctrl <- final_dcm_ctrl %>%left_join(dplyr::select(ensembl_genes, c(gene_id, symbol))) %>% distinct() %>% filter(!is.na(gene_id)) %>%
+  dplyr::select(.,c(1, symbol, gene_id, 4, 9, 10, 12, 13, 20, 21, 23, spanning_coordinate, event_type, is_DCM)) %>% 
   write_excel_csv(., "DCM_vs_CTRL.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
 
-bed <- apply(final_dcm_ctrl, 1, get_bed, "ctrl_vs_dcm")
+bed <- apply(final_dcm_ctrl, 1, get_bed, "ctrl_dcm")
 bed_df_ctrl_dcm <- ldply (bed, data.frame)
 bed_df_ctrl_dcm %>%
   dplyr::distinct()%>%
@@ -175,7 +182,7 @@ bed_df_ctrl_dcm %>%
   write_tsv("DCM_vs_Ctrl.bed" , col_names = F, na = "NA", append = FALSE, quote_escape = "double")
 
 final_dcm_ctrl$Strand <- sapply(final_dcm_ctrl$Strand, function(x) ifelse(x =="+", "plus","minus"))
-final_dcm_ctrl %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
+final_dcm_ctrl %>% dplyr::select(.,c(spanning_coordinate, symbol, event_type, Strand)) %>%
   write_excel_csv(., "psichomics_to_ggsashimi_DCM_vs_CTRL.csv" , col_names = F, na = "NA", append = FALSE, delim = "\t", quote_escape = "double")
 write_xlsx(final_dcm_ctrl, path  = "DCM_vs_CTRL.xlsx", col_names=T, format_headers = T)
 
@@ -192,13 +199,18 @@ useful_info <- lapply(rownames(deltaPSI_icm_ctrl), get_coord)
 deltaPSI_icm_ctrl$spanning_coordinate <- unlist(map(useful_info, 1))
 deltaPSI_icm_ctrl$event_type <- unlist(map(useful_info, 2))
 
-final_icm_ctrl <- deltaPSI_icm_ctrl %>% rownames_to_column("event_id") %>%
-  select(.,c(1, 5, 4, 9, 10, 12, 13, 20, 21, 23, spanning_coordinate, event_type)) %>% 
-  arrange_at(ncol(.), desc) %>%
+final_icm_ctrl <- deltaPSI_icm_ctrl %>% rownames_to_column("event_id")
+new_symbol <- plyr::mapvalues(final_icm_ctrl$Gene,from=c("LEPREL2", "FLJ31306", "KIAA0226", "H2AFY", "ZZZ3", "MKL2", "FAM115A", "PPP2R4", "GRAMD3", "GAS7","ATP5J"),
+                              to=c("P3H3", "PSMA3-AS1", "RUBCN", "MACROH2A1","ZZZ3","MRTFB","TCAF1","PTPA", "GRAMD2B", "GAS7","ATP5PF"))
+final_icm_ctrl$symbol <- new_symbol
+final_icm_ctrl$is_ICM <- TRUE
+final_icm_ctrl$is_DCM <- FALSE
+final_icm_ctrl <- final_icm_ctrl %>%left_join(dplyr::select(ensembl_genes, c(gene_id, symbol))) %>% distinct() %>% filter(!is.na(gene_id)) %>%
+  dplyr::select(.,c(1, symbol,gene_id, 4, 9, 10, 12, 13, 20, 21, 23, spanning_coordinate, event_type, is_ICM)) %>% 
   write_excel_csv(., "ICM_vs_CTRL.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
 
-bed <- apply(final_icm_ctrl, 1, get_bed, "ctrl_vs_icm")
+bed <- apply(final_icm_ctrl, 1, get_bed, "ctrl_icm")
 bed_df_ctrl_icm <- ldply (bed, data.frame)
 final_icm_ctrl$Strand <- sapply(final_icm_ctrl$Strand, function(x) ifelse(x =="+", "plus","minus"))
 final_icm_ctrl %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
@@ -208,6 +220,7 @@ write_xlsx(final_icm_ctrl, path  = "ICM_vs_CTRL.xlsx", col_names=T, format_heade
 #######################
 #######DCM vs ICM ####
 #######################
+#MISSING LAST UPDATE
 dcm_icm <- groups[c("DCM", "ICM")]
 diffSplicing_dcm_icm <- diffAnalyses(psi, groups = dcm_icm, analyses = "wilcoxRankSum")
 deltaPSI_dcm_icm <- subset(diffSplicing_dcm_icm, diffSplicing_dcm_icm$`Wilcoxon p-value` < 0.1 & 
@@ -233,23 +246,26 @@ write_xlsx(final_dcm_icm, path  = "DCM_vs_ICM.xlsx", col_names=T, format_headers
 #######CONCAT##########
 #######################
 final_df <- bind_rows(final_dcm_ctrl, final_icm_ctrl) %>% 
-  dplyr::select(.,c(1, 2, 3, 6, 7, 11, 12, 4, 5, 13, 8, 9, 14,10)) %>%
+  dplyr::select(.,c(1, 2, 3, 4, 13, 7, 8, 12, 14, 15, 9, 10, 17,11)) %>%
   arrange(event_id) %>%
   write_excel_csv(., "all_concat_vs_Ctrl.csv" , na = "NA", append = FALSE,
                   delim = "\t", quote_escape = "double")
 write_xlsx(final_df, path  = "all_concat_vs_Ctrl.xlsx", col_names=T, format_headers = T)
 
 final_df$Strand <- sapply(final_df$Strand, function(x) ifelse(x =="+", "plus","minus")) 
-final_df %>% dplyr::select(.,c(spanning_coordinate, Gene, event_type, Strand)) %>%
+final_df %>% dplyr::select(.,c(spanning_coordinate, symbol, event_type, Strand)) %>%
   distinct() %>%
   write_excel_csv(., "psichomics_to_ggsashimi.csv" , col_names = F, na = "NA", append = FALSE, delim = "\t", quote_escape = "double")
 
 final_bed <- bed_df_ctrl_dcm %>% full_join(bed_df_ctrl_icm, by=c(colnames(bed_df_ctrl_dcm)[[1]],colnames(bed_df_ctrl_dcm)[[2]],colnames(bed_df_ctrl_dcm)[[3]]))
-  final_bed <- unite(final_bed, groups, c(colnames(final_bed)[[5]], colnames(final_bed)[[7]]), sep=";") %>%
+final_bed[] <- t(apply(final_bed, 1, function(x) `length<-`(na.omit(x), length(x)))) #shift NAs to the left
+final_bed <- unite(final_bed, groups, c(colnames(final_bed)[[5]], colnames(final_bed)[[8]]), sep=";") %>%
   mutate_all(~gsub(";NA","",.)) %>%
+  dplyr::select(c(1:6)) %>%
   distinct() %>%
-  arrange(.,c(colnames(final_bed)[[1]],colnames(final_bed)[[2]])) %>%
+  arrange(., .[[1]], .[[2]]) %>%
   write_tsv("all_concat_vs_Ctrl.bed" , col_names = F, na = "NA", append = FALSE, quote_escape = "double")
+
 #######################
 ####GENE EXPRESSION####
 #######################

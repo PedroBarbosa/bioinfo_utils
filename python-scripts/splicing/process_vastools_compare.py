@@ -1,8 +1,16 @@
 import argparse
 import mygene
+import pandas as pd
 import re, os
 from collections import defaultdict
 from process_voila_tsv import read_groups
+
+ensembl_genes_map = pd.read_csv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt",
+                          error_bad_lines=False,
+                          sep="\t",
+                          header=0,
+                          usecols=[0,1,2,3,4,5,6],
+                          names=["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "chr", "gene_name", "gene_description"])
 
 def read_groups(groups, infiles):
 
@@ -75,7 +83,7 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
                     print("At least one of the samples provided ({}, {}) is not present in the header of the {}"
                           " file.".format(samples_group_1, samples_group_2, f))
                     print("Header line: {}".format(header))
-            i=1
+
             for line in infile:
                 l = line.rstrip().split("\t")
                 gname = l[0]
@@ -91,11 +99,13 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
                 try:
                     simple_coord = [v for v in re.split(':|-', coord) if v != ""]
                     if len(simple_coord) == 3:
+
                         if min(coord_fields) > int(simple_coord[1]):
                             print("Minimum spanning coord is higher than coordenate of the event itself.")
-
+                            print(event_id, gname)
                         if max(coord_fields) < int(simple_coord[2]):
                             print("Maximum spanning coord is lower than end coordenate of the event itself.")
+                            print(event_id, gname)
 
                 except ValueError:
                     print("Problem for {} event with the following simple coordinate: {}".format(event_id, coord))
@@ -117,13 +127,17 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
 
 
 def write_output(events, header, outbasename, groups):
-    mg = mygene.MyGeneInfo()
+    import math
     d = defaultdict(list)
-    strand_map = {-1: "minus", 1: "plus"}
+    strand_map = {-1: "minus", 1: "plus", math.nan: ""}
     strand_map_to_bed = {"minus": "-", "plus": "+"}
     genes = [j[0] for i in events.values() for j in i]
-    ensembl_map = mg.querymany(qterms=genes, scopes="symbol", fields=["ensembl.gene", "genomic_pos.strand"], returnall=True,
-                          as_dataframe = True, size=1, species="human")['out'][["genomic_pos.strand", "ensembl.gene"]].to_dict()
+
+    ensembl_map = ensembl_genes_map[ensembl_genes_map['gene_name'].isin(genes)][["gene_name", "gene_id"]]. \
+        drop_duplicates(keep="first").set_index("gene_name").to_dict()['gene_id']
+    mg = mygene.MyGeneInfo()
+    ensembl_strand = mg.querymany(qterms=list(ensembl_map.values()), scopes="ensembl.gene", fields=["genomic_pos.strand"], returnall=True,
+                          as_dataframe = True, size=1, species="human")['out'][["genomic_pos.strand"]].to_dict()["genomic_pos.strand"]
 
     with open(outbasename + "_vastools.csv", 'w') as out_main_table:
         out_main_table.write('\t'.join(header) + "\n")
@@ -133,29 +147,34 @@ def write_output(events, header, outbasename, groups):
                     for i, v in enumerate(data):
                         d[event_id + ":" + v[0]].append(v[-1])
                         try:
-                            strand = strand_map[ensembl_map['genomic_pos.strand'][v[0]]]
-                            geneid = ensembl_map['ensembl.gene'][v[0]]
-
+                            geneid = ensembl_map[v[0]]
+                            try:
+                                strand = strand_map[ensembl_strand[geneid]]
+                            except KeyError:
+                                print("Unable to get strand for {} gene".format(geneid))
+                                strand = ""
                         except KeyError:
+                            geneid = ""
                             strand = ""
 
                         v.insert(1, geneid)
                         v.insert(2, strand)
+
                         if len(groups) > 1:
-                            outsash.write("{}\t{}\t{}\t{}\t{}\n".format(v[3], v[0] + "_" + event_id, v[6], v[2], v[-1]))
+                            outsash.write("{}\t{}\t{}\t{}\t{}\n".format(v[4], v[0] + "_" + event_id, v[6], v[2], v[-1]))
 
                         else:
-                            outsash.write("{}\t{}\t{}\t{}\n".format(v[3], v[0] + "_" + event_id, v[6], v[2]))
+                            outsash.write("{}\t{}\t{}\t{}\n".format(v[4], v[0] + "_" + event_id, v[6], v[2]))
 
                         if i == 0:
                             out_main_table.write(event_id + "\t" + '\t'.join(v) + "\n")
                         else:
                             out_main_table.write("\t" + '\t'.join(v) + "\n")
 
-
-                    coord = data[0][3]
+                    coord = data[0][4]
                     l = re.split(':|-', coord)
-                    ev = [l[0], l[1], l[2], data[0][0] + "_" + data[0][6], ';'.join(v[-1] for v in data)]
+                    gene = data[0][0] if data[0][0] else event_id
+                    ev = [l[0], l[1], l[2], gene + "_" + data[0][6], ';'.join(v[-1] for v in data)]
                     #if data[0][1]:
                     #    ev.append(strand_map_to_bed[data[0][1]])
                     outbed.write('\t'.join(ev) + '\n')
@@ -187,7 +206,7 @@ def write_output(events, header, outbasename, groups):
     outbed.close()
     out_main_table.close()
     outsash.close()
-    os.system("sort -V {} | uniq -u > {}_noDup.csv".format(outbasename + "_vastools.bed", "bed"))
+    os.system("sort -V {} | uniq > {}_noDup.csv".format(outbasename + "_vastools.bed", "bed"))
     os.system("mv {} {}".format("bed_noDup.csv", outbasename + "_vastools.bed"))
 
 

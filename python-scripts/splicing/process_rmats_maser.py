@@ -156,9 +156,9 @@ def write_output(events, header, outbasename, groups, tobed):
     outbed.close()
 
     outfn_sashimi = outbasename + "_rmats_toGGsashimi.csv"
-    os.system("sort {} | uniq -u > {}_noDup.csv".format(outfn_sashimi, outfn_sashimi))
+    os.system("sort {} | uniq > {}_noDup.csv".format(outfn_sashimi, outfn_sashimi))
     os.system("mv {} {}".format(outfn_sashimi + "_noDup.csv", outfn_sashimi))
-    os.system("sort -V {} | uniq -u > {}_noDup.csv".format(outbasename + "_rmats.bed", "bed"))
+    os.system("sort -V {} | uniq > {}_noDup.csv".format(outbasename + "_rmats.bed", "bed"))
     os.system("mv {} {}".format("bed_noDup.csv", outbasename + "_rmats.bed"))
 
     if groups:
