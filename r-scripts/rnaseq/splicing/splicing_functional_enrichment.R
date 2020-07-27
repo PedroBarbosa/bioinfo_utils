@@ -50,25 +50,27 @@ do_GO_functional_enrichment <- function(positive_genes, background_genes = NULL,
 }
 
 setwd("/Users/pbarbosa/MEOCloud/analysis/christian/rna_seq_analysis/human_CBE_mock/splicing/")
+setwd("/Users/pbarbosa/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/christian/mouse_neurons_may_2020/neural_stem_cells/splicing/")
 ################################
 ########VAST-TOOLS##############
 ################################
 #GO
-vast_positive_genes <- read_tsv("vast-tools/2_positive_geneIDs_to_GO.txt", col_names = "gene_id") %>% 
-  filter(str_detect(gene_id, "ENSG")) %>% pull()
-vast_background_genes <- read_tsv("vast-tools/2_negative_geneIDs_to_GO.txt", col_names = "gene_id" ) %>% 
-  filter(str_detect(gene_id, "ENSG")) %>% pull()
+vast_positive_genes <- read_tsv("vastools/neural_stem_CBE/2_positive_geneIDs_to_GO.txt", col_names = "gene_id") %>% 
+  filter(str_detect(gene_id, "ENS")) %>% pull()
+vast_background_genes <- read_tsv("vastools/neural_stem_CBE/2_negative_geneIDs_to_GO.txt", col_names = "gene_id" ) %>% 
+  filter(str_detect(gene_id, "ENS")) %>% pull()
 
-res <- do_GO_functional_enrichment(rmats_positive_genes, background_genes = NULL, package = "gprofiler",
+res <- do_GO_functional_enrichment(vast_positive_genes, background_genes = NULL, package = "gprofiler",
                                           retrieve_only_sign_results = T,
                                           exclude_iea = F,
+                                          organism = "mmusculus",
                                           retrieve_short_link = F,
                                           measure_under = F, 
                                           domain_scope = "annotated")
 
 
 #FGSEA
-vasttools_to_rank <- read_tsv("vast-tools/1_mock_CBE_TIDY_to_rank_genes.tsv") %>% separate(col = EVENT, into = c("symbol", "eventid"), sep="=")
+vasttools_to_rank <- read_tsv("vastools/neural_stem_CBE/1_mock_CBE_TIDY_to_rank_genes.tsv") %>% separate(col = EVENT, into = c("symbol", "eventid"), sep="=")
 vasttools_to_rank$mock <- rowMeans(subset(vasttools_to_rank, select = grepl("mock", colnames(vasttools_to_rank))), na.rm = T)
 vasttools_to_rank$CBE <- rowMeans(subset(vasttools_to_rank, select = grepl("CBE", colnames(vasttools_to_rank))), na.rm = T)
 
@@ -80,23 +82,24 @@ ranks_vasttools <- vasttools_to_rank %>% mutate(dPSI = CBE - mock) %>%  group_by
   distinct() %>%
   arrange(-rank)
 
-res <- run_fgsea_analysis(ranks_vasttools, is_ranked_already = F, gene_list_from = "vast-tools")
+res <- run_fgsea_analysis(ranks_vasttools, is_ranked_already = F, gene_list_from = "vast-tools", organism="mmusculus")
 
 
 ################################
 ########## MAJIQ ###############
 ################################
 #GO
-majiq_positive_genes <- read_tsv("majiq/mock_vs_CBE_majiq_positive_list_to_GO.txt", col_names = "gene_id") %>% 
-  filter(str_detect(gene_id, "ENSG")) %>% pull()
-majiq_background_genes <- read_tsv("majiq/mock_vs_CBE_majiq_negative_list_to_GO.txt", col_names = "gene_id" ) %>% 
-  filter(str_detect(gene_id, "ENSG")) %>% pull()
+majiq_positive_genes <- read_tsv("majiq/deltapsi/0_downstream_analysis/mock_CBE_majiq_positive_list_to_GO.txt", col_names = "gene_id") %>% 
+  filter(str_detect(gene_id, "ENS")) %>% pull()
+majiq_background_genes <- read_tsv("majiq/deltapsi/0_downstream_analysis/mock_CBE_majiq_negative_list_to_GO.txt", col_names = "gene_id") %>% 
+  filter(str_detect(gene_id, "ENS")) %>% pull()
 
 res <- do_GO_functional_enrichment(majiq_positive_genes, background_genes = NULL, package = "gprofiler",
                                    retrieve_only_sign_results = T,
                                    exclude_iea = F, 
                                    retrieve_short_link = F,
                                    measure_under = F, 
+                                   organism = "mmusculus",
                                    domain_scope = "annotated")
 plot_enrichment_results(res)
 #FGSEA
@@ -115,21 +118,25 @@ res <- run_fgsea_analysis(ranks_majiq, is_ranked_already = F, gene_list_from = "
 ########## rMATS ###############
 ################################
 #GO
-rmats_positive_genes <- read_tsv("rmats/rmats_positive_list_to_GO.txt", col_names = "gene_id") %>% 
-  filter(str_detect(gene_id, "ENSG")) %>% pull()
-rmats_background_genes <- read_tsv("rmats/rmats_negative_list_to_GO.txt", col_names = "gene_id" ) %>% 
-  filter(str_detect(gene_id, "ENSG")) %>% pull()
+rmats_positive_genes <- read_tsv("rmats/positive_list_to_GO.txt", col_names = "gene_id") %>% 
+  filter(str_detect(gene_id, "ENS")) %>% pull()
+rmats_positive_genes <- gsub("\\..*","", rmats_positive_genes)
+rmats_background_genes <- read_tsv("rmats/negative_list_to_GO.txt", col_names = "gene_id" ) %>% 
+  filter(str_detect(gene_id, "ENS")) %>% pull()
+rmats_background_genes <- gsub("\\..*","", rmats_background_genes)
 
 res <- do_GO_functional_enrichment(rmats_positive_genes, background_genes = NULL, package = "gprofiler",
                                    retrieve_only_sign_results = T,
                                    exclude_iea = F,
+                                   organism = "mmusculus",
                                    retrieve_short_link = F,
                                    measure_under = F, 
                                    domain_scope = "annotated")
 plot_enrichment_results(res)
 
 #FGSEA
-rmats_to_rank <- read_tsv("rmats/rmats_gene_ranks_to_GSEA.txt", col_names = c("gene_id", "padj", "dPSI"))
+rmats_to_rank <- read_tsv("rmats/gene_ranks_to_GSEA.txt", col_names = c("gene_id", "padj", "dPSI"))
+rmats_to_rank$gene_id <- gsub("\\..*","", rmats_to_rank$gene_id)
 ranks_rmats <- rmats_to_rank %>% mutate(padj = ifelse(padj == 1, 0.9999999, ifelse(padj == 0, 1e-20, padj)),
                       dPSI = -dPSI, value = -log10(padj) * dPSI) %>%  group_by(gene_id) %>% 
                       summarise(rank=mean(value)) %>%
@@ -137,7 +144,7 @@ ranks_rmats <- rmats_to_rank %>% mutate(padj = ifelse(padj == 1, 0.9999999, ifel
                       distinct() %>%
                       arrange(-rank)
 
-res <- run_fgsea_analysis(ranks_rmats, is_ranked_already = F, npermutations = 2000, gene_list_from = "rmats")
+res <- run_fgsea_analysis(ranks_rmats, is_ranked_already = F, organism = "mmusculus", npermutations = 2000, gene_list_from = "rmats")
 
 
 
@@ -150,11 +157,12 @@ all_background_genes <- Reduce(dplyr::union, list(vast_background_genes, majiq_b
 res <- do_GO_functional_enrichment(all_positive_genes, background_genes = NULL, package = "gprofiler",
                                    retrieve_only_sign_results = T,
                                    exclude_iea = F,
+                                   organism = "mmusculus",
                                    retrieve_short_link = F,
                                    measure_under = F, 
                                    domain_scope = "annotated")
 
-plot_enrichment_results(res, short_term_size = F, top_n = 20, size_of_short_term = 500, add_info_to_labels = T)
+plot_enrichment_results(res, short_term_size = T, top_n = 20, size_of_short_term = 500, add_info_to_labels = T)
 dim(res)
 ######################
 ####COMPARE TOOLS ####
@@ -163,6 +171,7 @@ res <- do_GO_functional_enrichment(list(rmats_positive_genes, majiq_positive_gen
                                    multi_query = T,
                                    retrieve_only_sign_results = T, 
                                    exclude_iea = F, 
+                                   organism = "mmusculus",
                                    retrieve_short_link = F,
                                    measure_under = F, 
                                    domain_scope = "annotated"

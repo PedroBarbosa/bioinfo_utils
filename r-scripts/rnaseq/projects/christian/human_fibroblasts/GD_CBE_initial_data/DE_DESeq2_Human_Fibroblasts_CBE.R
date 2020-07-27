@@ -107,52 +107,50 @@ ggplot(pca_data,aes(x=PC1, y=PC2, color=name)) +
 rv <- rowVars(assay(rld_salmon))
 rv <- rowVars(assay(rld_fc))
 select <- order(rv, decreasing=TRUE)[seq_len(min(500, length(rv)))]
-pc <- prcomp(t(assay(rld_fc)[select,]))
+pc <- prcomp(t(assay(rld_salmon)[select,]))
 percentVar <- pc$sdev^2 / sum( pc$sdev^2 )
 
 pca_matrix <- as.data.frame(pc$x)
-pca_matrix$treatment <- pca_data$treatment
+pca_matrix <- as.data.frame(merge(pca_matrix, colData(dds_salmon), by="row.names", all.x=TRUE)) %>% column_to_rownames(var="Row.names")
 colors <- c("blue", "red") 
 colors <- colors[as.numeric(pca_data$treatment)] 
-ggplot(pca_matrix,aes(x=PC1, y=PC2, color=rownames(pca_matrix))) +
+ggplot(pca_matrix,aes(x=PC1, y=PC2, color=cellline, shape=treatment)) +
   geom_point(size=5) + 
   xlab(paste0("PC1: ",round(percentVar[1] * 100),"% variance")) +
   ylab(paste0("PC2: ",round(percentVar[2] * 100),"% variance")) +
   coord_fixed() +
-  scale_color_manual(values=c("skyblue3", "skyblue4", "darkseagreen3", "darkseagreen4", "brown3", "brown4")) +
   theme(legend.title=element_blank(), text = element_text(size = 20))
 
 ######################
 ####### 3D PCA #######
 ######################
-library("scatterplot3d")
-scatter3D <-scatterplot3d(pc$x[,1:3], xlab="PC1",ylab="PC2", zlab="PC3", grid=F, color = colors,  pch = 16)
-legend("right",legend = levels(pca_matrix$groups), col = colors, pch = 16,bty="n")
-text(1,  1, labels = rownames(pca_matrix)[1],cex= 0.7, col = "black",pos=2.5)
-
-###############
-##Interactive##
-###############
 library(rgl)
-library(knitr)
-options(rgl.printRglwidget = TRUE)
-options(rgl.useNULL = TRUE)
-plot3d(pc$x[,1:3], col=colors, type='s', size = 3, surface=FALSE, ellipsoid = TRUE)
-text3d(pc$x[,1] + 2, pc$x[,2] + 2, pc$x[,3] + 2 , texts =rownames(pc$x), adj = 0.1, 
-       color="black", family="serif", font=7, cex=1)
-setwd("~/Desktop/")
-writeASY(outtype = "pdf")
-#legend3d("topright", legend = levels(pca_matrix$groups), pch = 16, col = colors, cex=1, inset=c(0.02))
-a
+options(rgl.printRglwidget = F)
+options(rgl.useNULL = F)
+rgl.clear() 
+rgl.open()
 
+colors <- c("red", "blue")
+plot3d(pc$x[,1:3], type='s', size = 3, col = colors, surface=FALSE, ellipsoid = TRUE)
+text3d(pc$x[,1] + 2, pc$x[,2] + 2, pc$x[,3] + 2 , texts =rownames(pc$x), 
+       color="black", family="serif",  font=5, cex=1)
+#par3d(windowRect=c( 0,0,50,50 ))
+
+setwd("~/Desktop/")
+
+for (i in c(1:360)){
+  rgl.viewpoint(i) 
+}
+rgl.viewpoint(180)
+rgl.postscript("180.pdf", fmt = "pdf", drawText = T)
 
 ###########################
 ####Correlation plot ######
 ###########################
 ##Multiple plot
-rld_fc <- as.data.frame(assay(rld_fc))
-combinations_mock <- as_tibble(combinations(ncol(rld_fc)/2, 2, colnames(rld_fc)[grepl("mock", colnames(rld_fc))]))
-combination_CBE <- as_tibble(combinations(ncol(rld_fc)/2, 2, colnames(rld_fc)[grepl("CBE", colnames(rld_fc))]))
+rld_salmon <- as.data.frame(assay(rld_salmon))
+combinations_mock <- as_tibble(combinations(ncol(rld_salmon)/2, 2, colnames(rld_salmon)[grepl("mock", colnames(rld_salmon))]))
+combination_CBE <- as_tibble(combinations(ncol(rld_salmon)/2, 2, colnames(rld_salmon)[grepl("CBE", colnames(rld_salmon))]))
 combinations <- rbind(combinations_mock, combination_CBE)
 
 plotlist=list()
@@ -171,7 +169,7 @@ for(i in 1:nrow(combinations)) {
   #now the genes with the very lowest counts will contribute a great deal of noise to the resulting plot,
   #because taking the logarithm of small counts actually inflates their variance. 
   #p<-ggplot(norm_counts_salmon, aes(x=log2(norm_counts_salmon[,pair1]), y=log2(norm_counts_salmon[, pair2]))) +
-  p<-ggplot(rld_fc, aes(x=rld_fc[,pair1], y=rld_fc[, pair2])) +
+  p<-ggplot(rld_salmon, aes(x=rld_salmon[,pair1], y=rld_salmon[, pair2])) +
     geom_point(color='brown', alpha=0.7) +
     labs(x=pair1, y=pair2) +
     stat_cor(method="pearson", digits=3) + 
@@ -266,15 +264,15 @@ unique_genes_salmon <- list_de_salmon[[2]][unique_genes_salmon,] %>%
 ######## Functional enrichment ######
 #####################################
 #GPROFILER
-mock_cbe_gprofiler <- run_enrichment_gprofiler(de_genes_fc_apeglm_shrinkage,custom_genes_background = rownames(all_annot_fc),
+mock_cbe_gprofiler <- run_enrichment_gprofiler(de_genes_salmon_apeglm_shrinkage,custom_genes_background = rownames(all_annot_salmon),
                                                retrieve_only_sign_results = T, 
                                                exclude_iea = F, 
                                                retrieve_short_link = F,
-                                               measure_under = T, 
+                                               measure_under = F, 
                                                domain_scope = "annotated",
                                                sources= NULL)
 dim(mock_cbe_gprofiler)
-plot_enrichment_results(mock_cbe_gprofiler, top_n = 20, short_term_size = F, add_info_to_labels = F, size_of_short_term = 500)
+plot_enrichment_results(mock_cbe_gprofiler, top_n = 30, short_term_size = F, add_info_to_labels = T, size_of_short_term = 500)
 
 #GOseq
 goseq.results <- run_goseq_analysis(de_genes_fc_apeglm_shrinkage, rownames(all_annot_fc), "hg19")
@@ -282,7 +280,7 @@ plot_enrichment_results(dplyr::filter(out_df_goseq, significant == T),
                         rank_by = "log10padj_over", top_n = 20, short_term_size = F, size_of_short_term = 200)
 
 #FGSEA
-out <- run_fgsea_analysis(all_annot_fc, is_ranked_already = F, top_n = 20, npermutations = 2000)
+out <- run_fgsea_analysis(all_annot_salmon, is_ranked_already = F, top_n = 20, npermutations = 5000)
 plot_enrichment_results(dplyr::filter(out, significant == T), 
                         rank_by = "NES", label = "Normalized Enrichment Score", top_n = 20, 
                         font_size = 15,
@@ -291,7 +289,7 @@ plot_enrichment_results(dplyr::filter(out, significant == T),
                         short_term_size = F, 
                         size_of_short_term = 50)
 
-plot_enrichment_results(dplyr::filter(out, significant == T & source == "KEGG"), 
+plot_enrichment_results(dplyr::filter(out, significant == T), 
                         top_n = 20, short_term_size = F, size_of_short_term = 500)
 
 
@@ -299,9 +297,9 @@ plot_enrichment_results(dplyr::filter(out, significant == T & source == "KEGG"),
 ######################################################################
 ############## Heatmap of DE genes and overall PCA ###################
 ######################################################################
-rld_fc <- rlog(dds_fc)
-rownames(rld_fc) <- gsub("\\..*", "", rownames(rld_fc))
-rld_de_genes <- assay(rld_fc[de_genes_fc_apeglm_shrinkage,])
+rld_salmon <- rlog(dds_salmon)
+rownames(rld_salmon) <- gsub("\\..*", "", rownames(rld_salmon))
+rld_de_genes <- assay(rld_salmon[de_genes_salmon_apeglm_shrinkage,])
 source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
 plot_expression_heatmaps(rld_de_genes)
 

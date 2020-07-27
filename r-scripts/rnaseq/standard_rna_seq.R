@@ -9,8 +9,9 @@ library(ggplot2)
 library(tidyverse)
 library(goseq)
 library(writexl)
-
+library(msigdbr)
 ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt") 
+#sensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt")
 names(ensembl_genes)[names(ensembl_genes) == "Gene name"] <- "symbol"
 names(ensembl_genes)[names(ensembl_genes) == "Gene description"] <- "description"
 names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"
@@ -74,14 +75,19 @@ visualize_differences_in_variance_transformation <- function(log_t, vsd, rld) {
 #while future types of shrinkage estimators will use the 'coef' approach, which is much simpler.
 #However, for the 'coef' approach, the shrinkage depends on which level is chosen as reference.
 #Expanded model matrices helped to avoid this, but introduced a lot of complexity into the modeling steps.
-run_DEseq_tests <- function(dds, test_contrast, coefficient, log2cutoff, padjcutoff, use_contrast, shrinkage_method) {
-  dds <- DESeq(dds)
+run_DEseq_tests <- function(dds, test_contrast, coefficient, log2cutoff, padjcutoff, use_contrast, shrinkage_method, full) {
+  if (!is.null(full)){
+    dds <- DESeq(dds, full=full)
+  } else {
+    dds <- DESeq(dds)
+  }
+  show("ResultsNames:")
+  show(resultsNames(dds))
   if (use_contrast){
     res <- results(dds, contrast = test_contrast, alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
     if (shrinkage_method == "apeglm") show("apeglm shrinkage method is not allowed when using contrast (instead of coeff)")
     res <- lfcShrink(dds, contrast = test_contrast, type=shrinkage_method, res = res)
   } else{
-    show(resultsNames(dds))
     res <- results(dds, name = coefficient, alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
     res <- lfcShrink(dds, coef = coefficient, type=shrinkage_method, res= res)
   }
@@ -127,11 +133,11 @@ plot_volcano <- function(res_shrinked, padjcutoff, log2cutoff, title){
   annotations <- data.frame(
     xpos = c(-3, 3),
     #ypos = c(max(-log10(res_shrinked$padj)) + 1, max(-log10(res_shrinked$padj))+ 1),
-    ypos =  c(30,30),
+    ypos =  c(8,8),
     annotateText = c(paste0("N=",ndown),
                      paste0("N=",nup)),
     col = c("#CC0000", "#000099"),
-    size = c(20,20),
+    size = c(30,30),
     hjustvar = c(0, 0) ,
     vjustvar = c(0, 0))
   
@@ -165,7 +171,11 @@ plot_volcano <- function(res_shrinked, padjcutoff, log2cutoff, title){
 ##############################
 #### Expression heatmaps #####
 ##############################
-plot_expression_heatmaps <- function(genes_expression_data, cluster_rows = T, cluster_cols = T, show_rownames = F, color_pallete = bluered(100)){
+plot_expression_heatmaps <- function(genes_expression_data, 
+                                     cluster_rows = T,
+                                     cluster_cols = T,
+                                     show_rownames = F, 
+                                     color_pallete = bluered(100)){
   #Using heatmap.2
   library("gplots")
   heatmap.2(genes_expression_data, Colv = cluster_cols, Rowv = cluster_rows, 
@@ -212,7 +222,7 @@ annotate_results <- function(res, annotate_locally, genome){
     if (genome == "mm10") {
       ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
     }
-    else if (genome == "hg38" | genome == "hg19" ) {
+    else if (genome == ",hg38" | genome == "hg19" ) {
       ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
     }
     genedesc <-  getBM(attributes=c('ensembl_gene_id','external_gene_name','description'), 
@@ -245,7 +255,6 @@ run_enrichment_gprofiler <- function(gene_list, custom_genes_background=NULL, or
     sources = c("GO", "KEGG", "REAC")
   }
  
-
   gostres <- gost(query = gene_list,
                   organism = organism,
                   ordered_query = ordered_gene_query,
@@ -295,7 +304,7 @@ fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlis
   topPathwaysDown <- fgseaRes[ES < 0][head(order(padj), n=7), pathway]
   topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
   plotGseaTable(pathways[topPathways], ranks, fgseaRes, 
-                gseaParam = 0.5, render = F)
+                gseaParam = 0.5, render = T)
   
   fgseaRes$source = source
   fgseaRes$log10padj <- -log10(fgseaRes$padj)
@@ -321,7 +330,7 @@ fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlis
 
 run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F, 
                                gene_list_from = c("DESeq2", "psichomics", "rmats", "vast-tools", "majiq"), 
-                               top_n = 25, npermutations = 1000){
+                               top_n = 25, npermutations = 1000, organism=c("hsapiens","mmusculus")){
   #Note to GSEA users: Gene set enrichment analysis identifies gene sets consisting of co-regulated genes;
   #GO gene sets are based on ontologies and do not necessarily comprise co-regulated genes.
   HALLMARKS_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/h.all.v7.0.symbols.gmt"
@@ -330,8 +339,21 @@ run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F,
   GO_BP_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/c5.bp.v7.0.symbols.gmt"
   GO_MF_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/c5.mf.v7.0.symbols.gmt"
   
-
   gene_list_from <- match.arg(gene_list_from)
+  organism <- match.arg(organism)
+  
+  if (organism == "mmusculus"){
+    show("Retrieving all human/mouse gene sets in MSigDB")
+    m_df = msigdbr(species = "Mus musculus")
+    Hallmarks_mouse <- m_df %>% dplyr::filter(gs_cat == "H") %>% split(x = .$gene_symbol, f = .$gs_name)
+    Reactome_mouse <- m_df %>% dplyr::filter(gs_subcat == "CP:REACTOME") %>% split(x = .$gene_symbol, f = .$gs_name)
+    Kegg_mouse <- m_df %>% dplyr::filter(gs_subcat == "CP:KEGG") %>% split(x = .$gene_symbol, f = .$gs_name)
+    GO_BP_mouse <- m_df %>% dplyr::filter(gs_subcat == "BP") %>% split(x = .$gene_symbol, f = .$gs_name)
+    GO_MF_mouse <-  m_df %>% dplyr::filter(gs_subcat == "MF") %>% split(x = .$gene_symbol, f = .$gs_name)
+    #gene_list <- gene_list %>% rename(symbol_mouse = symbol)
+    #gene_list %>% left_join(dplyr::select(human_gene_symbol, gene_symbol) %>% distinct(), by=c("symbol_mouse"="gene_symbol")) %>%
+    #  rename(symbol = human_gene_symbol)
+  }
   if (!is.null(sources)) { 
     sources <- sources
   }
@@ -351,7 +373,6 @@ run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F,
     else if (gene_list_from == "rmats" | gene_list_from == "vast-tools" | gene_list_from == "majiq"){
       gene_list <- gene_list  %>% mutate(stat = rank)
     }
-    
     res <- as_tibble(gene_list) %>% 
       dplyr::select(symbol, stat) %>% 
       na.omit() %>% 
@@ -367,19 +388,19 @@ run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F,
   outlist = list()
   for (source in sources){
     if (source == "Hallmarks"){
-      pathways <- gmtPathways(HALLMARKS_GMT)
+      pathways <- if (organism == "hsapiens") gmtPathways(HALLMARKS_GMT) else Hallmarks_mouse 
     }
     else if (source == "KEGG"){
-      pathways <- gmtPathways(KEGG_GMT)
+      pathways <- if (organism == "hsapiens") gmtPathways(KEGG_GMT) else Kegg_mouse
     }
     else if (source == "REAC"){
-      pathways <- gmtPathways(REAC_GMT)
+      pathways <- if (organism == "hsapiens") gmtPathways(REAC_GMT) else Reactome_mouse
     }
     else if (source == "GO:BP"){
-      pathways <- gmtPathways(GO_BP_GMT)
+      pathways <- if (organism == "hsapiens") gmtPathways(GO_BP_GMT) else GO_BP_mouse
     }
     else if (source == "GO:MF"){
-      pathways <- gmtPathways(GO_MF_GMT)
+      pathways <- if (organism == "hsapiens") gmtPathways(GO_MF_GMT) else GO_MF_mouse
     }
     else{
       stop(paste0(source, " is not a valid source."))
@@ -470,14 +491,14 @@ plot_goseq_results <- function(go.results, top_n, ontology){
 plot_enrichment_results <- function(results_table, top_n = 15, rank_by = "log10padj", label = "-log10(corrected P-value)", 
                                     short_term_size = F, size_of_short_term = 100, add_info_to_labels = T, font_size = 20,
                                     reverse_order = F){
+  results_table <- as_tibble(results_table)
   if (short_term_size) results_table <- dplyr::filter(results_table, term_size < size_of_short_term)
-  
+
   if (reverse_order){
     results_table <- head(results_table[order(results_table[rank_by]),], top_n)
   } else{
     results_table <- head(results_table[order(-results_table[rank_by]),], top_n)
   }
-
   ggplot(results_table, aes(x=reorder(term_name, get(rank_by)), y=get(rank_by))) +
     geom_bar(stat="identity", width = 0.4, color = "black") +
     labs(x = ""  , y = label) +
@@ -510,10 +531,14 @@ plot_umwanted_variation_factors <-function(pdata_normalized, groups, ksize) {
 #############################################
 ########## MAIN RUNNING FUNCTION ############
 #############################################
+#Full refers to the full model formula. If LRT, is restricted to the formula
+# in design. If Wald, can be a model matrix constructed by the user manually
+# e.g. When there are levels of a factor without samples (individual outliers removed)
 run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff, use_contrast = F,
                          FC_shrinkage_method = c("apeglm", "ashr", "normal"), 
                          genome = "hg38",
                          explore_data= F,
+                         full=NULL,
                          annotate_locally = F){
   
   if (explore_data == TRUE){
@@ -522,21 +547,38 @@ run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff, use_con
   }
   else {
     FC_shrinkage_method <- match.arg(FC_shrinkage_method)
-    outbasename <- paste(group_combination[[2]], "_vs_", group_combination[[3]], sep="")
+    if (length(group_combination) == 1){
+      if (use_contrast) stop("When using contrast, a list with different levels to test should be provided.")
+      show("An individual coefficient was passed  (test individual effect) to build the results table. 
+Please make sure it is present in the design matrix")
+      coefficient <- group_combination
+      outbasename <- group_combination
+    } else if (length(group_combination) == 2){
+      if(!use_contrast) stop("use_contrast must be set to true when two coefficients of the
+                             model are to be tested (e.g. condition effect is different 
+                             across groups of samples")
+      
+      outbasename <- paste(group_combination[[1]], "_vs_", group_combination[[2]], sep="")
+    } else if (length(group_combination == 3)){
+      coefficient <- paste0(group_combination[[1]], "_", group_combination[[2]], "_vs_", group_combination[[3]])
+      outbasename <- paste(group_combination[[2]], "_vs_", group_combination[[3]], sep="")
+    }
+    
     show("Running DE tests and shrinking log2FC..")
-    out <-run_DEseq_tests(dds, group_combination,
-                          paste0(group_combination[[1]], "_", group_combination[[2]], "_vs_", group_combination[[3]]), 
+    out <-run_DEseq_tests(dds, test_contrast = group_combination,
+                          coefficient = coefficient, 
                           log2cutoff, 
                           padjcutoff,
                           use_contrast,
-                          FC_shrinkage_method)
+                          FC_shrinkage_method,
+                          full=full)
 
     show("Annotating DE genes..")
     out_sign_annot <- annotate_results(out[[2]], annotate_locally, genome)
     out_sign_annot %>% rownames_to_column(var = "gene_id") %>% 
       dplyr::select(c(gene_id, symbol, description, log2FoldChange, pvalue, padj)) %>%
       arrange(-log2FoldChange) %>%
-      write_xlsx(., path = paste0(outbasename,".xlsx", sep=""),col_names=T, format_headers = T)
+      write_xlsx(., path = paste0(outbasename,".xlsx", sep=""), col_names=T, format_headers = T)
     
     show(paste0("Number of genes in the ", outbasename, ": ", nrow(out_sign_annot)))
     show("Generating MA Plot")
