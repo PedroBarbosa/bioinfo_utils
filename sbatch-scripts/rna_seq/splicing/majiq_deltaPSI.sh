@@ -47,7 +47,6 @@ fi
 CMD_DELTAPSI="majiq deltapsi --nproc \$SLURM_CPUS_PER_TASK --mem-profile -n $label1 $label2 -grp1 $grp1 -grp2 $grp2"
 CMD_VOILA="voila tsv --show-all -l voila.log --file-name voila_${label1}_${label2}.tsv"
 CMD_VOILA_VIEW="voila view"
-
 if [[ -f $(readlink -f "$6" ) ]]; then
     ids=$(readlink -f "$6")
     first_line=$(head -1 "$ids")
@@ -76,7 +75,7 @@ scratch_out=/home/pedro.barbosa/scratch/rna_seq/majiq/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
 source activate majiq
-printf "##DELTA PSI CMD##\n$CMD\n"
+printf "##DELTA PSI CMD##\n$CMD_DELTAPSI\n"
 srun $CMD_DELTAPSI -o \$PWD
 cp $splicegraph . 
 printf "##VOILA TSV CMD##\n$CMD_VOILA\n"

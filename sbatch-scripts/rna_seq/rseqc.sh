@@ -20,7 +20,7 @@ bams=$(readlink -f "$1")
 JOBS=$(cat $bams | wc -l)
 if [[ -z "$3" || "$3" == "-" ]];then
 #    bed="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v31.annotation.bedops.bed" #fails
-    bed="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v31.annotation.ucsc.bed12"
+    bed="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode_v31_ucsc.bed12"
 else
     bed=$(readlink -f "$3")
 fi

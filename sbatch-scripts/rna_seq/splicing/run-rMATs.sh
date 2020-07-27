@@ -128,7 +128,12 @@ cat > rmats.sbatch <<EOL
 if [[ $previous_run == "false" ]];then
     workdir="/home/pedro.barbosa/scratch/rna_seq/splicing/\$SLURM_JOB_ID"
     mkdir \$workdir && cd \$workdir
+    echo "------------"
+    echo "--- CMD ----"
+    echo "------------"
+    echo "$CMD"
     srun shifter $CMD
+
 elif [[ $previous_run == "true" ]];then
     cd $OUTDIR
 fi

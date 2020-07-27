@@ -13,9 +13,9 @@
 listbams=$(readlink -f $1)
 annotation=$(readlink -f $2)
 out_directory=$(readlink -f $3)
-#fasta=$(readlink -f "/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/GRCh38.primary.genome.fa")
+fasta=$(readlink -f "/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/GRCh38.primary.genome.fa")
 #fasta=$(readlink -f ~/mcfonseca/shared/genomes/human/hg38/all_scaffols_patches_haplotypes/GRCh38.p12.all_with_ERCC_spike-in.fa)
-fasta=$(readlink -f "/home/pedro.barbosa/mcfonseca/shared/genomes/mouse/GRCm38.p6/GRCm38.primary_assembly.genome.fa")
+#fasta=$(readlink -f "/home/pedro.barbosa/mcfonseca/shared/genomes/mouse/GRCm38.p6/GRCm38.primary_assembly.genome.fa")
 mkdir /home/pedro.barbosa/scratch/rna_seq/featureCounts/$SLURM_JOB_ID && cd /home/pedro.barbosa/scratch/rna_seq/featureCounts/$SLURM_JOB_ID
 
 readarray -t bams < $listbams

@@ -3,14 +3,44 @@ import mygene
 import pandas as pd
 import re, os
 from collections import defaultdict
-from process_voila_tsv import read_groups
 
-ensembl_genes_map = pd.read_csv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt",
-                          error_bad_lines=False,
-                          sep="\t",
-                          header=0,
-                          usecols=[0,1,2,3,4,5,6],
-                          names=["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "chr", "gene_name", "gene_description"])
+
+def retrieve_gene_table(species="human"):
+    if species == "human":
+        try:
+            ensembl_genes_map = pd.read_csv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt",
+                                  error_bad_lines=False,
+                                  sep="\t",
+                                  header=0,
+                                  usecols=[0, 1, 2, 3, 4, 5, 6],
+                                  names=["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "chr", "gene_name", "gene_description"])
+        except FileNotFoundError: #if in lobo
+            ensembl_genes_map = pd.read_csv("/mnt/nfs/lobo/MCFONSECA-NFS/mcfonseca/shared/genomes/human/hg38/mart_hg38_v33.txt",
+                                  error_bad_lines=False,
+                                  sep="\t",
+                                  header=0,
+                                  usecols=[0, 1, 2, 3, 4, 5, 6],
+                                  names=["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "chr", "gene_name", "gene_description"])
+    elif species == "mouse":
+        try:
+            ensembl_genes_map = pd.read_csv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt",
+            error_bad_lines = False,
+            sep = "\t",
+            header = 0,
+            usecols = [0, 1, 2, 3, 4, 5, 6, 7],
+            names = ["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "strand",
+                     "gene_description", "gene_name", "chr"])
+        except FileNotFoundError:
+            ensembl_genes_map = pd.read_csv("/mnt/nfs/lobo/MCFONSECA-NFS/mcfonseca/shared/genomes/mouse/GRCm38.p6/mart_mm10_ensemblv100.txt",
+            error_bad_lines = False,
+            sep = "\t",
+            header = 0,
+            usecols = [0, 1, 2, 3, 4, 5, 6, 7],
+            names = ["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "strand",
+                     "gene_description", "gene_name", "chr"])
+
+    return ensembl_genes_map
+
 
 def read_groups(groups, infiles):
 
@@ -126,18 +156,17 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
     return sign_events, header_output
 
 
-def write_output(events, header, outbasename, groups):
+def write_output(events, header, outbasename, groups, ensembl_genes_map):
     import math
     d = defaultdict(list)
     strand_map = {-1: "minus", 1: "plus", math.nan: ""}
     strand_map_to_bed = {"minus": "-", "plus": "+"}
     genes = [j[0] for i in events.values() for j in i]
-
     ensembl_map = ensembl_genes_map[ensembl_genes_map['gene_name'].isin(genes)][["gene_name", "gene_id"]]. \
         drop_duplicates(keep="first").set_index("gene_name").to_dict()['gene_id']
     mg = mygene.MyGeneInfo()
     ensembl_strand = mg.querymany(qterms=list(ensembl_map.values()), scopes="ensembl.gene", fields=["genomic_pos.strand"], returnall=True,
-                          as_dataframe = True, size=1, species="human")['out'][["genomic_pos.strand"]].to_dict()["genomic_pos.strand"]
+                          as_dataframe = True, size=1, species="mouse")['out'][["genomic_pos.strand"]].to_dict()["genomic_pos.strand"]
 
     with open(outbasename + "_vastools.csv", 'w') as out_main_table:
         out_main_table.write('\t'.join(header) + "\n")
@@ -217,23 +246,25 @@ def main():
     parser.add_argument(dest='vastools_sign', nargs="+", help='Path to the vasttools files (each file represent and '
                                                            'comparison.')
     parser.add_argument("-o", "--outbasename", required=True, help='Basename to the output file.')
-    parser.add_argument("-g", "--groups", required=True, help='Tab delimited file with groups mapping filenames.'
-                                                              'If there is only one comparison, the existing file'
-                                                              'is enough to later make the overlaps. However,'
-                                                              'bed and ggsasshimi files will not be produced.'
+    parser.add_argument("-g", "--groups", required=True, help='Tab delimited file with groups mapping filenames. '
+                                                              'If there is only one comparison, the existing file '
+                                                              'is enough to later make the overlaps. However, '
+                                                              'bed and ggsasshimi files will not be produced. '
                                                               '1st column is the filename, 2nd column the name of '
-                                                              'the comparison (group). If analysis was merged, only'
-                                                              'these two columns are required. If individual samples'
-                                                              'were analysid, a 3rd and 4th column is required with'
+                                                              'the comparison (group). If analysis was merged, only '
+                                                              'these two columns are required. If individual samples '
+                                                              'were analysid, a 3rd and 4th column is required with '
                                                               'the individual sample names per group splitted by ","')
     parser.add_argument("-t", "--threshold", type=float, default=20, help='dPSI threshold. Default:20')
+    parser.add_argument("-s", "--species", type=str, default="human", choices=("human", "mouse"),
+                        help='Species. Default:human')
 
 
     args = parser.parse_args()
-
+    ensembl_genes_map = retrieve_gene_table(args.species)
     groups, individual_samples = read_groups(args.groups, args.vastools_sign)
     sign_events, header = process_vastools_files(args.vastools_sign, args.threshold, groups, individual_samples)
-    write_output(sign_events, header, args.outbasename, groups)
+    write_output(sign_events, header, args.outbasename, groups, ensembl_genes_map)
 
 
 if __name__ == "__main__":

@@ -33,10 +33,10 @@ if [[ ! -d "$OUT" ]];then
 fi
 
 if [[ -z "$3" || "$3" == "-" ]]; then
-    #vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
-    #species="hg38"
-    vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"    
-    species="mm10"
+    vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
+    species="hg38"
+    #vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"    
+    #species="mm10"
 else
     vastDB=$(readlink -f "$3")
     species=""

@@ -4,7 +4,7 @@ echo 'Script to run Salmon for multiple fastq files.
 Read groups are automatically added to each output based on the sample basename.
 
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
--2nd argument must be the directory of the reference indexed database. (default: hg38 gencode v33)
+-2nd argument must be the directory of the reference indexed database. (default: hg38 gencode v34)
 -3rd argument must be the output directory.
 -4th argument is optional. It is the identifier to extract the sample pair names from fastq files. Default: "_R1.fq"'
 }
@@ -18,8 +18,7 @@ fi
 readarray FASTQ < $(readlink -f "$1")
 JOBS=$(( ${#FASTQ[@]} / 2 ))
 if [[ $2 == "-" ]]; then
-    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v33/"
-#    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v29_k31/"
+    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/salmon/gencode_v34/"
 else
     INDEX=$(readlink -f "$2")
 fi
@@ -41,7 +40,7 @@ fi
 cat > salmon.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=salmon
-#SBATCH --array=0-$(( $JOBS -1 ))%20
+#SBATCH --array=0-$(( $JOBS -1 ))%6
 #SBATCH --time=72:00:00
 #SBATCH --mem=75G
 #SBATCH --nodes=1

@@ -4,7 +4,7 @@ echo 'Script to run STAR for multiple fastq files.
 Read groups are automatically added to each output based on the sample basename.
 
 -1st argument must be the file listing RNA-seq pairs consecutively. One file per line.
--2nd argument must be the directory of the reference indexed database. If "-", default hg38 star index for gencode v33 will be used. 
+-2nd argument must be the directory of the reference indexed database. If "-", default hg38 star index for gencode v34 will be used. 
 -3rd argument must be the output directory.
 -4th argument is optional. It is the identifier to extract the sample pair names from fastq files. If "-" is set, defaults are employed. Default: "_1.fq".
 -5th argument is optional. Flag to output file compatible with Cufflinks and StringTie. Please set this flag to true if your data in unstranded. Available options: [true|false]. Default: false.
@@ -32,7 +32,7 @@ JOBS=$(( ${#fastq_array[@]} / 2 ))
 
 ##INDEX##
 if [[ $2 == "-" ]]; then
-    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/star/gencode_v33"
+    INDEX="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/star/gencode_v34"
 else
     INDEX=$(readlink -f "$2")
 fi

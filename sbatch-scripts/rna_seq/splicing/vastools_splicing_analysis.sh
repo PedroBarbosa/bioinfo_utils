@@ -76,12 +76,12 @@ fi
 
 
 if [[ -z "$8" || "$8" == "-" ]]; then
-    vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
-    species="hg38"
+    #vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
+    #species="hg38"
     #species="Hsa"
     #assembly="hg38"
-    #vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"
-    #species="mm10"
+    vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"
+    species="mm10"
     #species="Mmu"
     #assembly="mm10"
 else

@@ -118,7 +118,7 @@ cat > run_TrimGalore.sbatch <<EOL
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --image=docker:argrosso/htspreprocessing:0.1.1
+#SBATCH --image=mcfonsecalab/htstools_plus:latest
 #SBATCH --export=ALL
 #SBATCH --output=%j_trimGalore.log
 #SBATCH --array=0-$(( $JOBS -1 ))%10
