@@ -34,19 +34,28 @@ else
 fi
  
 files=""
-CMD="majiq psi --nproc \$SLURM_CPUS_PER_TASK --mem-profile --min-experiments $n_experiments"
+CMD="majiq psi --mem-profile --min-experiments $n_experiments"
 
 
 if [[ -z "$4" ]];then
     grouped="false"
+    declare -a RUN_ARRAY
+    while read line; do
+        sample_name="$(echo $(basename $line .majiq) | cut -f1,2 -d "_")"
+        cmd="$CMD --logger ${sample_name}_psi.log --name $sample_name -o . $line"
+        RUN_ARRAY+=("$cmd")
+   done < $majiq_files
+   printf '%s\n' "${RUN_ARRAY[@]}" > $PWD/psi_parallel_cmds.txt
+  
 else
     grouped="true"
     group_name="$4"
     while read line; do        
         files="$files $line"
     done < $majiq_files
-    CMD="$CMD --logger ${group_name}_psi.log --plotpath ${group_name}_psi_plot.pdf --name $group_name -o . $files"
+    CMD="$CMD --logger ${group_name}_psi.log --name $group_name -o \$PWD $files"
 fi
+
 cat > psi_majiq.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=majiq_psi
@@ -54,27 +63,28 @@ cat > psi_majiq.sbatch <<EOL
 #SBATCH --mem=120G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=5
 #SBATCH --output=%j_majiq_psi.log
+#SBATCH --image=mcfonsecalab/majiq:latest 
 
 scratch_out=/home/pedro.barbosa/scratch/rna_seq/majiq/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
-source activate majiq
+
 if  [ $grouped == "false" ];then
-    while read line; do
-        sample_name="\$(echo \$(basename \$line .majiq) | cut -f1,2 -d "_")"
-        cmd="$CMD --logger \${sample_name}_psi.log --plotpath \${sample_name}_psi_plot.pdf --name \$sample_name -o . \$line"
-        printf "##PSI CMD##\n\$cmd\n"
-        \$cmd
-    done < $majiq_files
+    while read line;do
+        srun shifter \$line --nproc \$SLURM_CPUS_PER_TASK
+    done < $PWD/psi_parallel_cmds.txt
+#    cat $PWD/psi_parallel_cmds.txt | parallel -j \$SLURM_CPUS_PER_TASK "srun shifter --image=mcfonsecalab/majiq:latest {}"
+#    printf '%s\n' "${RUN_ARRAY[@]}" #| parallel -j 10 echo {}
+#    parallel -j \$SLURM_CPUS_PER_TASK "srun shifter {}" ::: "${RUN_ARRAY[@]}"
 else
     printf "##PSI CMD##\n$CMD\n"
-    $CMD
+    srun shifter $CMD
 fi
-mv * $OUT
-cd ../ && rm -rf \$SLURM_JOB_ID
-conda deactivate
+#mv * $OUT
+#cd ../ && rm -rf \$SLURM_JOB_ID
+#conda deactivate
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 EOL
