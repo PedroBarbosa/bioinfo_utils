@@ -57,7 +57,7 @@ maser_obj <- maser("coverage_filt/", c(label1, label2), ftype = ftype)
 as_types <- c("A3SS", "A5SS", "SE", "RI", "MXE")
 volcano_function <- function(type, maser_obj, fdr_threshold, deltaPSI_threshold){
   pdf(paste0("volcano_", type, ".pdf"))
-  p <- maser::volcano(maser_obj, type = type, fdr = 0.05, deltaPSI = 0.2)
+  p <- maser::volcano(maser_obj, type = type, fdr = fdr_threshold, deltaPSI = deltaPSI_threshold)
   plot(p)
   dev.off()
 }
