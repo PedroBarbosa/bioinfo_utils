@@ -324,7 +324,7 @@ process_vastools <- function(pos, neg, ranks, ranks_groups, no_custom){
     p <- plot_enrichment_results(vast_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
     plot(p)
     dev.off()
-    write.table(vast_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_vastools.tsv"), quote=F, sep="\t")
+    write.table(vast_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_vastools.tsv"), row.names = F, quote=F, sep="\t")
   }
   
   
@@ -391,7 +391,7 @@ process_majiq <- function(pos, neg, no_custom){
     p <- plot_enrichment_results(majiq_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
     plot(p)
     dev.off()
-    write.table(majiq_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_majiq.tsv"), quote=F, sep="\t", row.names = F)
+    write.table(majiq_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_majiq.tsv"), row.names = F, quote=F, sep="\t")
   } 
   return(list(majiq_pos, background_genes))
 }
@@ -431,7 +431,7 @@ process_rmats <- function(pos, neg, ranks, no_custom){
       p <- plot_enrichment_results(rmats_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
       plot(p)
       dev.off()
-      write.table(rmats_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_rmats.tsv"), quote=F, sep="\t")
+      write.table(rmats_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_rmats.tsv"), row.names = F, quote=F, sep="\t")
     }
     #####################
     ###### FGSEA ########
@@ -525,7 +525,7 @@ if (length(args$tool) > 1){
     p <- plot_enrichment_results(all_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
     plot(p)
     dev.off()
-    write.table(all_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_tools_combined.tsv"), quote=F, sep="\t")
+    write.table(all_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_tools_combined.tsv"), row.names = F, quote=F, sep="\t")
   }
 }
 show("Done!")
