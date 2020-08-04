@@ -156,7 +156,7 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
     return sign_events, header_output
 
 
-def write_output(events, header, outbasename, groups, ensembl_genes_map):
+def write_output(events, header, outbasename, groups, ensembl_genes_map, species):
     import math
     d = defaultdict(list)
     strand_map = {-1: "minus", 1: "plus", math.nan: ""}
@@ -166,7 +166,7 @@ def write_output(events, header, outbasename, groups, ensembl_genes_map):
         drop_duplicates(keep="first").set_index("gene_name").to_dict()['gene_id']
     mg = mygene.MyGeneInfo()
     ensembl_strand = mg.querymany(qterms=list(ensembl_map.values()), scopes="ensembl.gene", fields=["genomic_pos.strand"], returnall=True,
-                          as_dataframe = True, size=1, species="mouse")['out'][["genomic_pos.strand"]].to_dict()["genomic_pos.strand"]
+                          as_dataframe = True, size=1, species=species)['out'][["genomic_pos.strand"]].to_dict()["genomic_pos.strand"]
 
     with open(outbasename + "_vastools.csv", 'w') as out_main_table:
         out_main_table.write('\t'.join(header) + "\n")
@@ -264,7 +264,7 @@ def main():
     ensembl_genes_map = retrieve_gene_table(args.species)
     groups, individual_samples = read_groups(args.groups, args.vastools_sign)
     sign_events, header = process_vastools_files(args.vastools_sign, args.threshold, groups, individual_samples)
-    write_output(sign_events, header, args.outbasename, groups, ensembl_genes_map)
+    write_output(sign_events, header, args.outbasename, groups, ensembl_genes_map, args.species)
 
 
 if __name__ == "__main__":

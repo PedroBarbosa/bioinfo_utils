@@ -51,13 +51,13 @@ def extract_LSV_types(deltapsi_files, voila_files):
     :return dict: Map of index and filename
     """
     if deltapsi_files is None:
-        return
+        return None, None
 
     assert len(deltapsi_files) == len(voila_files), "Number of deltapsi and voila files must be the same."
     final_lsv_type, file_map = {}, {}
     for i, file in enumerate(deltapsi_files):
         name = os.path.basename(file)
-        f = open(name, "r")
+        f = open(file, "r")
         lsvs_dict = {}
         for line in f:
             fields = line.rstrip().split("\t")

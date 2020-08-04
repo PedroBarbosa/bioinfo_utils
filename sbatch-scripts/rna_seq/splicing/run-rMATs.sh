@@ -9,7 +9,7 @@ echo 'Script to run rMATs for multiple BAM files.
 -5th argument must be the labels for each group, split by ",". If 2nd argument is set to "-", this argument is irrelevant as no statistical comparisons between groups is done.
 -6th argument is optional. Refers to whether statistical analysis should be performed. Values: [true|false|-]. Default: true
 -7th argument is optional. Whether samples are paired and this should be considered in the statistical analysis. Values: [true|false|-]. Default: false
--8th argument is optional. If a previous rmats run was performed (--task both), pipeline will start from rmats file (--task post) stored in the output directory (4th argument). Values:[true|false].Default:false
+-8th argument is optional. If a previous rmats run was performed (--task prep or --task both), pipeline will start from rmats file (if set to "post") or directly to maser (if set to "maser") stored in the output directory (4th argument). Values:[false|post|maser|-].Default:false. If "-" is set, argument is skipped and defaults apply.
 -9th argument is optional. Refers to the threshold for significance to apply, each separated by comma (min_avg_reads, fdr_threshold, deltaPSI_threshold). Default:5,0.05,0.2
 -10th argument is optional. Refers to the read type. Values [paired|single|-]. Default: paired.
 -11th argument is optional. Refers to the library type of the RNA. Values: [fr-firstsrand|fr-secondstrand|fr-unstranded|-]. Default: fr-firststrand.
@@ -33,7 +33,7 @@ else
 fi
 
 if [[ "$3" == "-" ]]; then
-    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v34.primary_assembly.annotation.gtf"
+    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode_v34_primary_assembly.gtf"
 else
     GTF=$(readlink -f "$3")
 fi
@@ -42,7 +42,7 @@ if [[ ! -d $(readlink -f "$4") ]]; then
 fi
 OUTDIR=$(readlink -f "$4")
 OUT_BASENAME=$4
-CMD="rmats.py --gtf $GTF --tmp \$PWD --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --anchorLength 3 --novelSS --b1 $BAM_1"
+CMD="rmats.py --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --anchorLength 3 --novelSS --b1 $BAM_1"
 #CMD="Darts_BHT rmats_count --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK"
 
 # If two groups should be compared
@@ -62,6 +62,7 @@ if [[ -z "$6" || "$6" == "true" || "$6" == "-" ]]; then
         exit 1
     fi
     DOWNSTREAM_STATS="true"
+    CMD+=" --tstat \$SLURM_CPUS_PER_TASK"
 elif [[ "$6" == "false" || "$BAM_2" == "-" ]]; then
     CMD+=" --statoff"
     DOWNSTREAM_STATS="false"
@@ -82,9 +83,12 @@ fi
 #From previous run
 if [[ -z "$8" || "$8" == "false" || "$8" == "-" ]]; then
     previous_run="false"
-    CMD+=" --task both"
-elif [[ "$8" == "true" ]]; then
-    CMD+=" --task post"
+    CMD+=" --task both --tmp \$PWD"
+elif [[ "$8" == "post" ]]; then
+    #rmats file should be in the output dir already
+    CMD+=" --task post --tmp $OUTDIR"
+    previous_run="false"
+elif [[ "$8" == "maser" ]]; then
     previous_run="true"
 else
     printf "Please set a valid value for the 8th argument.\n"
@@ -99,7 +103,7 @@ if [[ -z "$9" || "$9" == "-" ]]; then
     deltaPSI_threshold=0.2
 else
     IFS=","
-    read -r -a array <<< "${11}"
+    read -r -a array <<< "${9}"
     min_avg_reads=${array[0]}
     fdr_threshold=${array[1]}
     deltaPSI_threshold=${array[2]}
@@ -149,34 +153,40 @@ cat > rmats.sbatch <<EOL
 #SBATCH --mem=100G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=30
+#SBATCH --cpus-per-task=20
 #SBATCH --image=mcfonsecalab/rmats:latest
 #SBATCH --output=%j_rmats.log
 
-workdir="/home/pedro.barbosa/scratch/rna_seq/splicing/\$SLURM_JOB_ID"
-mkdir \$workdir && cd \$workdir
 echo "------------"
 echo "--- CMD ----"
 echo "------------"
 echo "$CMD"
-srun shifter $CMD
 
+if [[ $previous_run == "false" ]]; then
+    workdir="/home/pedro.barbosa/scratch/rna_seq/splicing/rMATS/\$SLURM_JOB_ID"
+    mkdir \$workdir && cd \$workdir
+    srun shifter $CMD
+fi
 
 if [[ $DOWNSTREAM_STATS == "true" ]]; then
+    if [[ $previous_run == "true" ]]; then
+        cd $OUTDIR
+    fi
     printf "Producing tables of significant events\n"
     printf "Tresholds used for the filtering (fdr, dPSI, min_avg_reads): $fdr_threshold, $deltaPSI_threshold, $min_avg_reads\n"
     echo "srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF"
-    srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF
-    srun cut -f3 coverage_filt/* | sort | uniq | grep -v "geneSymbol" | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' > ${OUT_BASENAME}_rmats_negative_list_to_GO.txt
-    srun cut -f2 sign_events_* | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | sort | uniq > ${OUT_BASENAME}_rmats_positive_list_to_GO.txt
-    srun echo "gene_id\tFDR\tdPSI\n" > ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
-    srun awk '{print \$3, \$(NF-3), \$NF}' OFS="\t" coverage_filt/* |  sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | grep -v geneSymbol >> ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
-
+    #srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF
+    #srun cut -f3 coverage_filt/* | sort | uniq | grep -v "geneSymbol" | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' > ${OUT_BASENAME}_rmats_negative_list_to_GO.txt
+    #srun cut -f2 sign_events_* | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | sort | uniq > ${OUT_BASENAME}_rmats_positive_list_to_GO.txt
+    #srun echo "gene_id\tFDR\tdPSI\n" > ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
+    #srun awk '{print \$3, \$(NF-3), \$NF}' OFS="\t" coverage_filt/* |  sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | grep -v geneSymbol >> ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
+    #rename 's/sign/${OUT_BASENAME}_sign/g' *
+    
     printf "Done\nGenerating sashimi plots from all significant events..\n"
     events=("SE" "A5SS" "A3SS" "RI" "MXE")
     for e in "\${events[@]}"; do
         printf "Looking at significant \${e} events..\n"
-        awk -F'\t' 'NR==FNR{c[\$1]++;next};c[\$1]' sign_events_\${e}.tsv \${e}.MATS.JC.txt > \${e}_toSashimi.txt
+        awk -F'\t' 'NR==FNR{c[\$1]++;next};c[\$1]' *sign_events_\${e}.tsv \${e}.MATS.JC.txt > \${e}_toSashimi.txt
         mkdir \${e}_sashimi_plots
         CMD_SASHIMI="rmats2sashimiplot --b1 \$(cat $BAM_1) --b2 \$(cat $BAM_2) -t \${e} -e \${e}_toSashimi.txt --l1 $label1 --l2 $label2 --exon_s 1 --intron_s 5 -o \${e}_sashimi_plots"
         srun shifter \$CMD_SASHIMI
@@ -190,7 +200,7 @@ else
     printf "Done. As stats were set to false. Most of the analysis won't be performed.\n"
 fi
 
-rename 's/sign/${OUT_BASENAME}_sign/g' *
+
 mv * $OUTDIR
 cd ../ && rm -rf \$SLURM_JOB_ID
 echo "Statistics for job \$SLURM_JOB_ID:"

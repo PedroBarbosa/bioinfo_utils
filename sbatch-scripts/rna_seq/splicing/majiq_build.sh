@@ -44,12 +44,12 @@ fi
 OUT=$(readlink -f "$2")
 
 if [[ -z "$3" || "$3" == "-" ]]; then
-    GFF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v34.primary_assembly.annotation.gff3"
+    GFF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode_v34_primary_assembly.gff3"
 else
     GFF=$(readlink -f "$3")
 fi
 
-CMD="majiq build --mem-profile --loger majiq_build.log"
+CMD="majiq build --mem-profile --logger majiq_build.log"
 if [[ -z "$4" || "$4" == "true" || "$4" == "-" ]]; then
     CMD="$CMD --simplify --simplify-annotated 5 --simplify-denovo 3"
 fi

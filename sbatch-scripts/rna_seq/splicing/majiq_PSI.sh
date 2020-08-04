@@ -36,25 +36,31 @@ fi
 files=""
 CMD="majiq psi --mem-profile --min-experiments $n_experiments"
 
-
+declare -a RUN_ARRAY
+# Each sample independently
 if [[ -z "$4" ]];then
-    grouped="false"
-    declare -a RUN_ARRAY
     while read line; do
         sample_name="$(echo $(basename $line .majiq) | cut -f1,2 -d "_")"
         cmd="$CMD --logger ${sample_name}_psi.log --name $sample_name -o . $line"
-        RUN_ARRAY+=("$cmd")
+        RUN_ARRAY+=("$cmd")    
    done < $majiq_files
-   printf '%s\n' "${RUN_ARRAY[@]}" > $PWD/psi_parallel_cmds.txt
-  
+   NJOBS=${#RUN_ARRAY[@]}
+   PARALLEL=5
+
+# Samples are all the same group
 else
-    grouped="true"
     group_name="$4"
     while read line; do        
         files="$files $line"
     done < $majiq_files
-    CMD="$CMD --logger ${group_name}_psi.log --name $group_name -o \$PWD $files"
+    NJOBS=1
+    PARALLEL=1
+    CMD="$CMD --logger ${group_name}_psi.log --name $group_name -o . $files"
+    RUN_ARRAY+=("$CMD")
 fi
+
+printf '%s\n' "${RUN_ARRAY[@]}" > $PWD/psi_parallel_cmds.txt
+
 
 cat > psi_majiq.sbatch <<EOL
 #!/bin/bash
@@ -66,25 +72,16 @@ cat > psi_majiq.sbatch <<EOL
 #SBATCH --cpus-per-task=5
 #SBATCH --output=%j_majiq_psi.log
 #SBATCH --image=mcfonsecalab/majiq:latest 
-
+#SBATCH --array=0-$(( $NJOBS -1 ))%$PARALLEL
 scratch_out=/home/pedro.barbosa/scratch/rna_seq/majiq/\$SLURM_JOB_ID
 mkdir \$scratch_out
 cd \$scratch_out
 
-if  [ $grouped == "false" ];then
-    while read line;do
-        srun shifter \$line --nproc \$SLURM_CPUS_PER_TASK
-    done < $PWD/psi_parallel_cmds.txt
-#    cat $PWD/psi_parallel_cmds.txt | parallel -j \$SLURM_CPUS_PER_TASK "srun shifter --image=mcfonsecalab/majiq:latest {}"
-#    printf '%s\n' "${RUN_ARRAY[@]}" #| parallel -j 10 echo {}
-#    parallel -j \$SLURM_CPUS_PER_TASK "srun shifter {}" ::: "${RUN_ARRAY[@]}"
-else
-    printf "##PSI CMD##\n$CMD\n"
-    srun shifter $CMD
-fi
-#mv * $OUT
-#cd ../ && rm -rf \$SLURM_JOB_ID
-#conda deactivate
+readarray -t JOBS < <(cat $PWD/psi_parallel_cmds.txt)
+srun shifter \${JOBS[\$SLURM_ARRAY_TASK_ID]}
+
+mv * $OUT
+cd ../ && rm -rf \$SLURM_JOB_ID
 echo "Statistics for job \$SLURM_JOB_ID:"
 sacct --format="JOBID,Start,End,Elapsed,CPUTime,AveDiskRead,AveDiskWrite,MaxRSS,MaxVMSize,exitcode,derivedexitcode" -j \$SLURM_JOB_ID
 EOL

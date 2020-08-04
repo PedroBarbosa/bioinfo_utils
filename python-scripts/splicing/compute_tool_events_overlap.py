@@ -362,7 +362,7 @@ def main():
                                                                        'discarded')
     parser.add_argument("-s", "--species", type=str, default="human", choices=("human", "mouse"),
                         help='Species. Default:human')
-    parser.add_argument('-v', '--vasttools', help='Path to the output file of process_vastools_compare script (which'
+    parser.add_argument('-v', '--vastools', help='Path to the output file of process_vastools_compare script (which'
                                                   'picks output of vasttools compare utility and filters by any event '
                                                   'with deltaPSI > 0.2 be default')
     parser.add_argument("-m", "--majiq", help='Path to the output file of process_voila_tsv script where all LSVs are'
@@ -387,7 +387,7 @@ def main():
         raise SystemExit("Error. '--use_gene_id' approach is required when using '--gene_id_from_tool' argument")
 
     ensembl_genes_map = retrieve_gene_table(args.species)
-    vast, vast_c, vast_u = process_vasttools(args.vasttools, ensembl_genes_map, args.use_gene_id,
+    vast, vast_c, vast_u = process_vasttools(args.vastools, ensembl_genes_map, args.use_gene_id,
                                              args.gene_id_from_tool, args.keep_vast)
     rmats, rmats_c, rmats_u = process_rmats(args.rmats, ensembl_genes_map, args.use_gene_id, args.gene_id_from_tool)
     majiq, majiq_c, majiq_u = process_majiq(args.majiq, ensembl_genes_map, args.use_gene_id, args.gene_id_from_tool)

@@ -3,12 +3,15 @@ parser <- ArgumentParser(description='Process gene lists/ranks to do functional 
 
 parser$add_argument('tool', nargs='+', choices=c("majiq", "vastools", "rmats"), help='Tools to analyse. If more than 1 tool is given \\
                     a combined approach (genes from each tool added) will also be performed (in addition to individual enrichment test per tool)')
-parser$add_argument('-o', '--outbasename', help='Basename to write output files')
+parser$add_argument('-o', '--outbasename', required=T,help='Basename to write output files')
 parser$add_argument('-s', '--species', choices=c("hsapiens", "mmusculus"), default="hsapiens", help='Species name')
 parser$add_argument('-n', '--no_custom', action="store_true", help='Do not use custom set of background genes in the statistical test. \\
                     Default: Use custom set of genes if "--*_negative_genes" is set. In the combined approach, custom set of background \\
                     genes will be used only if all the tools supplied have its "--*negative_genes" set. If not, custom set wont be used, \\
-                    if this argument is not set')
+                    even if this argument is not set')
+parser$add_argument('-p', '--plot_short_term', action="store_true", help='Whether to plot a subset of significant terms that have a short size')
+parser$add_argument('-t', '--term_size', type="integer", default=400, help='Size of a term to be considered as short by "--plot_short_term"')
+
 parser$add_argument('--vastools_positive_genes', help='Positive genes for GO enrichment produced by vastools')
 parser$add_argument('--vastools_negative_genes', default=NULL, help='vastools background genes for GO enrichment. \\
                     If not set, gprofiler will run without custom backround list.')
@@ -26,12 +29,37 @@ parser$add_argument('--majiq_negative_genes', default=NULL, help='MAJIQ backgrou
                     If not set, gprofiler will run without custom backround list.')
 
 args <- parser$parse_args()
-library(dplyr)
-library(readr)
-library(fgsea)
-library(gprofiler2)
-library(ggplot2)
+USE_SHORT_TERMS <<- args$plot_short_term
+SHORT_TERM_SIZE <<- args$term_size
+ORGANISM <<- args$species
+OUTBASENAME <<- args$outbasename
 
+repos <- "http://cran.us.r-project.org"
+packages <- list(
+  list(name="BiocManager"),
+  list(name="dplyr"),
+  list(name="fgsea"),
+  list(name="readr"),
+  list(name="gprofiler2"),
+  list(name="ggplot2")
+)
+
+for (i in 1:length(packages)) {
+  package <- packages[[i]]
+  installed <- require(package$name, character.only=TRUE)
+  if (installed) {
+    next
+  }
+  if (package$name == "fgsea"){
+    BiocManager::install("fgsea") 
+  } else {
+    install.packages(package$name, repos=repos)
+  }
+  installed <- require(package$name, character.only=TRUE)
+  if (!installed) {
+    stop(paste("could not install", package$name))
+  }
+}
 
 #' @title GO enrichment of splicing events
 #' @description Given a character vector of positive genes (with any relevant splicing event) 
@@ -263,7 +291,7 @@ plot_enrichment_results <- function(results_table, top_n = 15, rank_by = "log10p
           text = element_text(size = font_size))
 }
 
-process_vastools <- function(pos, neg, ranks, ranks_groups, organism, outbasename, no_custom){
+process_vastools <- function(pos, neg, ranks, ranks_groups, no_custom){
   #####################
   ### GO enrichment ###
   #####################
@@ -281,22 +309,22 @@ process_vastools <- function(pos, neg, ranks, ranks_groups, organism, outbasenam
   vast_res <- run_enrichment_gprofiler(vast_pos, custom_genes_background = background_genes,
                                      retrieve_only_sign_results = T,
                                      exclude_iea = F,
-                                     organism = organism,
+                                     organism = ORGANISM,
                                      retrieve_short_link = F,
                                      measure_under = F, 
                                      domain_scope = "annotated")
 
   if(!is.null(vast_res)){
-    pdf(paste0(outbasename, "_gostplot_vastools.pdf"))
+    pdf(paste0(OUTBASENAME, "_gostplot_vastools.pdf"))
     p <- gostplot(vast_res[[2]], interactive = FALSE)
     plot(p)
     dev.off()
     
-    pdf(paste0(outbasename, "_gprofiler_vastools.pdf"))
-    p <- plot_enrichment_results(vast_res[[1]])
+    pdf(paste0(OUTBASENAME, "_gprofiler_vastools.pdf"))
+    p <- plot_enrichment_results(vast_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
     plot(p)
     dev.off()
-    write.table(vast_res[[1]], file = paste0(outbasename, "_gprofiler_vastools.tsv"), quote=F, sep="\t")
+    write.table(vast_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_vastools.tsv"), quote=F, sep="\t")
   }
   
   
@@ -330,7 +358,7 @@ process_vastools <- function(pos, neg, ranks, ranks_groups, organism, outbasenam
   return(list(vast_pos, background_genes))
 }
 
-process_majiq <- function(pos, neg, organism, outbasename, no_custom){
+process_majiq <- function(pos, neg, no_custom){
   #####################
   ### GO enrichment ###
   #####################
@@ -348,28 +376,28 @@ process_majiq <- function(pos, neg, organism, outbasename, no_custom){
   majiq_res <- run_enrichment_gprofiler(majiq_pos, custom_genes_background = background_genes,
                                        retrieve_only_sign_results = T,
                                        exclude_iea = F,
-                                       organism = organism,
+                                       organism = ORGANISM,
                                        retrieve_short_link = F,
                                        measure_under = F, 
                                        domain_scope = "annotated")
   
   if (!is.null(majiq_res)){
-    pdf(paste0(outbasename, "_gostplot_majiq.pdf"))
+    pdf(paste0(OUTBASENAME, "_gostplot_majiq.pdf"))
     p <- gostplot(majiq_res[[2]], interactive=F)
     plot(p)
     dev.off()
 
-    pdf(paste0(outbasename, "_gprofiler_majiq.pdf"))
-    p <- plot_enrichment_results(majiq_res[[1]])
+    pdf(paste0(OUTBASENAME, "_gprofiler_majiq.pdf"))
+    p <- plot_enrichment_results(majiq_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
     plot(p)
     dev.off()
-    write.table(majiq_res[[1]], file = paste0(outbasename, "_gprofiler_majiq.tsv"), quote=F, sep="\t", row.names = F)
+    write.table(majiq_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_majiq.tsv"), quote=F, sep="\t", row.names = F)
   } 
   return(list(majiq_pos, background_genes))
 }
  
  
-process_rmats <- function(pos, neg, ranks, organism, outbasename, no_custom){
+process_rmats <- function(pos, neg, ranks, no_custom){
     #####################
     ### GO enrichment ###
     #####################
@@ -389,21 +417,21 @@ process_rmats <- function(pos, neg, ranks, organism, outbasename, no_custom){
     rmats_res <- run_enrichment_gprofiler(rmats_pos, custom_genes_background = background_genes,
                                          retrieve_only_sign_results = T,
                                          exclude_iea = F,
-                                         organism = organism,
+                                         organism = ORGANISM,
                                          retrieve_short_link = F,
                                          measure_under = F, 
                                          domain_scope = "annotated")
     if (!is.null(rmats_res)){
-      pdf(paste0(outbasename, "_gostplot_rmats.pdf"))
+      pdf(paste0(OUTBASENAME, "_gostplot_rmats.pdf"))
       p <- gostplot(rmats_res[[2]], interactive = F)
       plot(p)
       dev.off()
       
-      pdf(paste0(outbasename, "_gprofiler_rmats.pdf"))
-      p <- plot_enrichment_results(rmats_res[[1]])
+      pdf(paste0(OUTBASENAME, "_gprofiler_rmats.pdf"))
+      p <- plot_enrichment_results(rmats_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
       plot(p)
       dev.off()
-      write.table(rmats_res[[1]], file = paste0(outbasename, "_gprofiler_rmats.tsv"), quote=F, sep="\t")
+      write.table(rmats_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_rmats.tsv"), quote=F, sep="\t")
     }
     #####################
     ###### FGSEA ########
@@ -419,7 +447,7 @@ process_rmats <- function(pos, neg, ranks, organism, outbasename, no_custom){
         left_join(dplyr::select(ensembl_genes, c(gene_id, symbol))) %>%
         distinct() %>%
         arrange(-rank)
-      rmats_res_gsea <- run_fgsea_analysis(ranks_rmats, is_ranked_already = F, organism = organism, gene_list_from = "rmats")
+      rmats_res_gsea <- run_fgsea_analysis(ranks_rmats, is_ranked_already = F, organism = ORGANISM, gene_list_from = "rmats")
     }
     return(list(rmats_pos, background_genes))
 }
@@ -432,7 +460,7 @@ for (tool in args$tool){
   
   if (tool == "vastools"){
     show("Processing vastools files..")
-    genes <- process_vastools(args$vastools_positive_genes, args$vastools_negative_genes, args$vastools_ranks, args$vastools_ranks_groups, args$species, args$outbasename, args$no_custom)
+    genes <- process_vastools(args$vastools_positive_genes, args$vastools_negative_genes, args$vastools_ranks, args$vastools_ranks_groups, args$no_custom)
     combined_pos <- c(combined_pos, genes[[1]])
     if (is.null(args$vastools_negative_genes) || args$no_custom){
       null_background = T
@@ -444,7 +472,7 @@ for (tool in args$tool){
     
   else if (tool == "majiq"){
     show("Processing majiq files..")
-    genes <- process_majiq(args$majiq_positive_genes, args$majiq_negative_genes, args$species, args$outbasename, args$no_custom)
+    genes <- process_majiq(args$majiq_positive_genes, args$majiq_negative_genes, args$no_custom)
     combined_pos <- c(combined_pos, genes[[1]])
     if (is.null( args$majiq_negative_genes) || args$no_custom){
       null_background = T
@@ -456,7 +484,7 @@ for (tool in args$tool){
     
   else if (tool == "rmats"){
     show("Processing rmats files..")
-    genes <- process_rmats(args$rmats_positive_genes, args$rmats_negative_genes, args$rmats_ranks, args$species, args$outbasename, args$no_custom)
+    genes <- process_rmats(args$rmats_positive_genes, args$rmats_negative_genes, args$rmats_ranks, args$no_custom)
     combined_pos <- c(combined_pos, genes[[1]])
     if (is.null( args$majiq_negative_genes) || args$no_custom){
       null_background = T
@@ -483,21 +511,21 @@ if (length(args$tool) > 1){
   all_res <- run_enrichment_gprofiler(all_pos, custom_genes_background = all_neg,
                                       retrieve_only_sign_results = T,
                                       exclude_iea = F,
-                                      organism = args$species,
+                                      organism = ORGANISM,
                                       retrieve_short_link = F,
                                       measure_under = F, 
                                       domain_scope = "annotated")
   if(!is.null(all_res)){
-    pdf(paste0(args$outbasename, "_gostplot_tools_combined.pdf"))
+    pdf(paste0(OUTBASENAME, "_gostplot_tools_combined.pdf"))
     p <- gostplot(all_res[[2]], interactive = F)
     plot(p)
     dev.off()
     
-    pdf(paste0(args$outbasename, "_gprofiler_tools_combined.pdf"))
-    p <- plot_enrichment_results(all_res[[1]])
+    pdf(paste0(OUTBASENAME, "_gprofiler_tools_combined.pdf"))
+    p <- plot_enrichment_results(all_res[[1]], short_term_size=USE_SHORT_TERMS, size_of_short_term=SHORT_TERM_SIZE)
     plot(p)
     dev.off()
-    write.table(all_res[[1]], file = paste0(args$outbasename, "_gprofiler_tools_combined.tsv"), quote=F, sep="\t")
+    write.table(all_res[[1]], file = paste0(OUTBASENAME, "_gprofiler_tools_combined.tsv"), quote=F, sep="\t")
   }
 }
 show("Done!")
