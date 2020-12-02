@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=bamInsight
-#SBATCH --array=0-5%1
+#SBATCH --array=0-18%1
 #SBATCH --time=72:00:00
 #SBATCH --mem=240G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=20
+#SBATCH --cpus-per-task=10
 ##SBATCH --workdir=/home/pedro.barbosa/scratch/bamInsight
 #SBATCH --image=rluis/baminsight:latest 
 #SBATCH --output=%j_bamInsight.log

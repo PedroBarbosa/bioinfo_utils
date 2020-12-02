@@ -56,6 +56,7 @@ if [[ ! -z "$4" ]]; then
 fi  
 
 CACHE_DIR="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/cache"
+SCRATCH_DIR="/home/pedro.barbosa/scratch/vep/cache"
 cat > $PWD/update_vep_local_cache.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=updateCache
@@ -64,7 +65,7 @@ cat > $PWD/update_vep_local_cache.sbatch <<EOL
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
-##SBATCH --workdir=/home/pedro.barbosa/scratch/vep
+#SBATCH --workdir=/home/pedro.barbosa/scratch/vep
 #SBATCH --output=%j_vep_cache.log
 
 mkdir /home/pedro.barbosa/scratch/vep/\$SLURM_JOB_ID && cd /home/pedro.barbosa/scratch/vep/\$SLURM_JOB_ID

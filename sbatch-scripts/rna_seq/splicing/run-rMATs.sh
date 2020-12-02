@@ -41,7 +41,7 @@ if [[ ! -d $(readlink -f "$4") ]]; then
     mkdir $(readlink -f "$4")
 fi
 OUTDIR=$(readlink -f "$4")
-OUT_BASENAME=$4
+
 CMD="rmats.py --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --anchorLength 3 --novelSS --b1 $BAM_1"
 #CMD="Darts_BHT rmats_count --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK"
 
@@ -52,6 +52,7 @@ if [[ $ONLY_PSI == "false" ]]; then
     read -r -a array <<< "$5"
     label1=${array[0]} 
     label2=${array[1]}
+    OUT_BASENAME="${label1}_${label2}"
 fi
 
 #Statistical analysis
@@ -83,7 +84,7 @@ fi
 #From previous run
 if [[ -z "$8" || "$8" == "false" || "$8" == "-" ]]; then
     previous_run="false"
-    CMD+=" --task both --tmp \$PWD"
+    CMD+=" --task both --tmp ."
 elif [[ "$8" == "post" ]]; then
     #rmats file should be in the output dir already
     CMD+=" --task post --tmp $OUTDIR"
@@ -175,13 +176,12 @@ if [[ $DOWNSTREAM_STATS == "true" ]]; then
     printf "Producing tables of significant events\n"
     printf "Tresholds used for the filtering (fdr, dPSI, min_avg_reads): $fdr_threshold, $deltaPSI_threshold, $min_avg_reads\n"
     echo "srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF"
-    #srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF
-    #srun cut -f3 coverage_filt/* | sort | uniq | grep -v "geneSymbol" | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' > ${OUT_BASENAME}_rmats_negative_list_to_GO.txt
-    #srun cut -f2 sign_events_* | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | sort | uniq > ${OUT_BASENAME}_rmats_positive_list_to_GO.txt
-    #srun echo "gene_id\tFDR\tdPSI\n" > ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
-    #srun awk '{print \$3, \$(NF-3), \$NF}' OFS="\t" coverage_filt/* |  sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | grep -v geneSymbol >> ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
-    #rename 's/sign/${OUT_BASENAME}_sign/g' *
-    
+    srun shifter Rscript /python_env/run_maser.R $label1 $label2 $min_avg_reads $fdr_threshold $deltaPSI_threshold "JC" $GTF
+    srun cut -f3 coverage_filt/* | sort | uniq | grep -v "geneSymbol" | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' > ${OUT_BASENAME}_rmats_negative_list_to_GO.txt
+    srun cut -f2 sign_events_* | sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | sort | uniq > ${OUT_BASENAME}_rmats_positive_list_to_GO.txt
+    srun echo "gene_id\tFDR\tdPSI\n" > ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
+    srun awk '{print \$3, \$(NF-3), \$NF}' OFS="\t" coverage_filt/* |  sed 's/\\(ENSG[0-9]*\\)\\.[0-9]*/\\1/g' | grep -v geneSymbol >> ${OUT_BASENAME}_rmats_gene_ranks_to_GSEA.txt
+    rename 's/sign/${OUT_BASENAME}_sign/g' *
     printf "Done\nGenerating sashimi plots from all significant events..\n"
     events=("SE" "A5SS" "A3SS" "RI" "MXE")
     for e in "\${events[@]}"; do

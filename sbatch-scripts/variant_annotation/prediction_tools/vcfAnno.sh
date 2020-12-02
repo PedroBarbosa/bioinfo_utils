@@ -5,8 +5,7 @@ display_usage(){
 2nd argument is the output file. 
 3rd argument is the output directory.
 4th argument is the genome version build of the input VCF. Default: hg19. Values:[hg19|hg38|-]
-5th argument is optional. Refer to the tools to annotate, comma separated. Default: annotate all tools.
-6th argument is optional. Create and run a slurm sbatch script on the fly. Default: true. Values: [true|false|-]. Set '-' to skip the argument.\n
+5th argument is optional. Refer to the tools to annotate, comma separated. Default: annotate all tools.\n
 
 Included tools:
 gerp (hg19, hg38)
@@ -271,7 +270,9 @@ EOM
     elif [[ $1 == "gnomad_genomes" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
-file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gnomAD/hg38/gnomad.genomes.r3.0.sites.vcf.bgz"
+#with chrom
+#file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gnomAD/hg38/gnomAD_genomes_v3.0_with_chr.vcf.bgz"
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/gnomAD/hg38/gnomAD_genomes_v3.0_no_chr.vcf.bgz"
 fields=["AF","AF_nfe"]
 names=["gnomADg_AF", "gnomADg_AF_nfe"]
 ops=["self", "self"]
@@ -325,19 +326,17 @@ else
 fi
 
 if [ $custom_lua == "True" ]; then
-    cmd="vcfanno -lua $lua_file $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip  > $(basename $outfile)"
+    cmd="vcfanno -lua $lua_file $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > ${outfile}_tmp"
 else
-    cmd="vcfanno $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > $(basename $outfile)"
+    cmd="vcfanno $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > ${outfile}_tmp"
 fi
 
 
-
-if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
-   cat > $PWD/vcfAnno.sbatch <<EOL
+cat > $PWD/vcfAnno.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=vcfAnnot
 #SBATCH --time=72:00:00
-#SBATCH --mem=50G
+#SBATCH --mem=120G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
@@ -345,21 +344,10 @@ if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
 #SBATCH --image=mcfonsecalab/variantutils:latest 
 
 srun shifter $cmd
+srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf ${outfile}_tmp
+srun zcat ${outfile}_tmp | shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py - | shifter --image=ummidock/ubuntu_base:latest bgzip > $outfile
 srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf $outfile
-srun zcat $outfile | shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py - | shifter --image=ummidock/ubuntu_base:latest bgzip > spliceAI_processed.vcf.gz
-srun mv spliceAI_processed.vcf.gz $outfile && shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf $outfile
-if [[ ${outdir} != \$PWD ]]; then
-    mv ${outfile}* $outdir
-fi
+srun rm ${outfile}_tmp*
 EOL
-    sbatch $PWD/vcfAnno.sbatch
 
-elif [[ "$6" == "true" ]];then
-    echo "srun shifter --image=mcfonsecalab/variantutils:0.5 $cmd"
-#    shifter --image=mcfonsecalab/variantutils:0.5 $cmd
-else
-    printf "Please set a valid value for the 6th argument\n"
-    display_usage
-    exit 1
-fi
-
+sbatch $PWD/vcfAnno.sbatch

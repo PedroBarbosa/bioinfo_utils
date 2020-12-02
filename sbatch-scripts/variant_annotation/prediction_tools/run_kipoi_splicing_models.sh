@@ -6,8 +6,8 @@ display_usage(){
 3rd argument is the output directory.
 4th argument is the genome build. Default: hg19. Values:[hg19|hg38|-]. '-' skips the argument and uses the default.
 5th argument is optional. Refers to the models to run, comma separated. Default: all (except eclip models and labranchor).
-6th argument is optional. Refers to the fasta file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly_nochr.genome.fa'.
-7th argument is optional. Refers to the gtf file. Default: '/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.nochr.gtf'.
+6th argument is optional. Refers to the fasta file. Default: 'Fasta with no 'chr' in the headers. Files stored in lobo, for each genome build set in th 4th arg.
+7th argument is optional. Refers to the gtf file. Default: 'GTF with no 'chr' in the chromosome col. Files stored in lobo. Gencode v35'.§
 8th argument should be a file referring which RBPs will be tested (one per line). Only needed when rbp_eclip models are set. 
 
 Possible splicing models:
@@ -23,8 +23,8 @@ maxentscan_3prime
 labranchor
 rbp_eclip
 
-Possible DNA accessibility/promotor/ DNA binding models:
-basset
+Possible DNA accessibility/promotor/ DNA binding models (not yet):
+basset (basset requires fasta with chr)
 deepSEA
 deepBind\n"
 }
@@ -60,19 +60,20 @@ if [[ ! -d "$outdir" ]]; then
     mkdir $outdir
 fi 
 outfinal="$outdir/$outbasename"
-possible_models=(HAL kipoisplice_4 kipoisplice_4cons maxentscan_5prime maxentscan_3prime mmsplice_deltalogitPSI mmsplice_pathogenicity mmsplice_efficiency mmsplice labranchor rbp_eclip basset deepSEA deepBind)
+possible_models=(HAL kipoisplice_4 kipoisplice_4cons maxentscan_5prime maxentscan_3prime mmsplice_deltalogitPSI mmsplice_pathogenicity mmsplice_efficiency mmsplice labranchor rbp_eclip)
+# basset deepSEA deepBind)
 
 base_sbatch (){
 cat > $PWD/runKipoi.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=kipoi_predictions
 #SBATCH --time=72:00:00
-#SBATCH --mem=150G
+#SBATCH --mem=50G
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
 #SBATCH --output=%j_kipoi_predictions.log
-#SBATCH --image=mcfonsecalab/variantutils:0.5
+#SBATCH --image=mcfonsecalab/variantutils:latest
 
 cd /home/pedro.barbosa/scratch/vep
 mkdir \${SLURM_JOB_ID}_kipoi && cd \${SLURM_JOB_ID}_kipoi
@@ -187,7 +188,8 @@ source activate kipoi
 printf "`date` INFO: mmsplice delta logit PSI started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_deltaLogitPSI.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$2, \$3, \$15,\$12,\$17}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
+awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
+
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip  ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice delta logit PSI finished.\n"
@@ -201,7 +203,7 @@ source activate kipoi
 printf "`date` INFO: mmsplice efficiency started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_efficiency.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$2,\$3,\$15,\$12,\$17}' ${4}_mmsplice_efficiency.tsv | tail -n+2 > ${4}_mmsplice_efficiency_to_annotate.tsv
+awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_efficiency.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_efficiency_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_efficiency_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_efficiency_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_efficiency_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice efficiency finished.\n"
@@ -215,7 +217,7 @@ source activate kipoi
 printf "`date` INFO: mmsplice pathogenicity started.\n"
 kipoi predict MMSplice/pathogenicity -o ${4}_mmsplice_pathogenicity.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$2,\$3,\$15,\$12,\$17}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 > ${4}_mmsplice_pathogenicity_to_annotate.tsv
+awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_pathogenicity_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_pathogenicity_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_pathogenicity_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_pathogenicity_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice pathogenicity finished.\n"
@@ -251,9 +253,9 @@ fi
 
 if [[ -z $7 || "$7" == "-" ]]; then
     if [[ $genome_build  == "hg19" ]]; then
-        gtf="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.nochr.gtf"
+        gtf="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v35lift37.annotation_nochr.gtf"
     elif [[ $genome_build == "hg38" ]]; then
-        gtf="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v33.primary_assembly.annotation_nochr.gtf"
+        gtf="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v35.annotation_nochr.gtf"
     fi
 else
     gtf=$(readlink -f "$7")
@@ -263,12 +265,14 @@ if [[ $5 == "all" || $5 == "-" || -z "$5" ]]; then
     printf "All models will be run by default.\n"
     HAL $invcf $fasta $gtf $outfinal
     kipoiSplice_4 $invcf $fasta $gtf $outfinal 
+#    kipoiSplice_4cons $invcf $fasta $gtf $outfinal
     maxentscan_5 $invcf $fasta $gtf $outfinal
     maxentscan_3 $invcf $fasta $gtf $outfinal
     mmsplice_deltalogitPSI $invcf $fasta $gtf $outfinal
     mmsplice_efficiency $invcf $fasta $gtf $outfinal
     mmsplice_pathogenicity $invcf $fasta $gtf $outfinal
-    basset $invcf $fasta $gtf $outfinal
+#    basset $invcf $fasta $gtf $outfinal
+
 else
     IFS=','
     read -r -a array <<< "$5"
@@ -322,5 +326,5 @@ else
     done
 fi
 
-sbatch $PWD/runKipoi.sbatch
+sbatch -x compute-[1-5,12,13,17-21] $PWD/runKipoi.sbatch
 

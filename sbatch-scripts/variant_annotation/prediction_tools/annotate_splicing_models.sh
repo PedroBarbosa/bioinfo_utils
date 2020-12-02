@@ -5,8 +5,7 @@ display_usage(){
 2nd argument is the output file. (output will be automatically gzipped) 
 3rd argument is the output directory.
 4h argument is the models to annotate, comma separated. Default: no model annotation.
-5th argument are the result files of each model. Must come in the same order as the previous argument.
-6th argument is optional. Do not reate and run a slurm sbatch script on the fly. Default: false, it creates. Values: [true|false|-]. Set '-' to skip the argument.\n
+5th argument are the result files of each model. Must come in the same order as the previous argument.\n
 
 Possible tools:
 HAL
@@ -26,7 +25,7 @@ if [[ -z $1 || -z $2 || -z $3 ]]; then
     display_usage
     exit 1
 fi
-invcf=$(readlink -f $1)
+invcf=$(readlink -f "$1")
 outfile=$(readlink -f "$2")
 if [[ -z "$outfile" ]];then
     printf "Error on the output file. Please set a different string. Perhaps remove the gz extension at the end?\n"
@@ -170,8 +169,7 @@ fi
 config=$(readlink -f $PWD/anno.conf)
 cmd="vcfanno $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > ${outfile}"
 
-if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
-   cat > $PWD/vcfAnnoSplicing.sbatch <<EOL
+cat > $PWD/vcfAnnoSplicing.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=vcfAnnotSplicing
 #SBATCH --time=72:00:00
@@ -181,7 +179,7 @@ if [[ -z "$6" || $6 == "false" || $6 == "-" ]]; then
 #SBATCH --cpus-per-task=5
 ##SBATCH --workdir=/home/pedro.barbosa/scratch/vep
 #SBATCH --output=%j_vcfannoSplicing.log
-#SBATCH --image=mcfonsecalab/variantutils:0.5
+#SBATCH --image=mcfonsecalab/variantutils:latest
 
 echo "$cmd"
 srun shifter $cmd
@@ -193,14 +191,5 @@ fi
 
 cd ../ && rm -rf \$SLURM_JOB_ID
 EOL
-    sbatch $PWD/vcfAnnoSplicing.sbatch
-
-elif [[ "$6" == "true" ]];then
-    echo "srun shifter --image=mcfonsecalab/variantutils:0.5 $cmd"
-    shifter --image=mcfonsecalab/variantutils:0.5 $cmd
-else
-    printf "Please set a valid value for the 6th argument\n"
-    display_usage
-    exit 1
-fi
+sbatch $PWD/vcfAnnoSplicing.sbatch
 

@@ -198,6 +198,13 @@ def do_PCA(df, allowed_nas, groups, paired, outbasename, name, extra=None):
     PC_df = pd.DataFrame(data=PCs,
                          columns=['PC1', 'PC2', 'PC3'],
                          index=df.T.index)
+    
+    if extra is not None:
+        output="{}_{}_{}_PCs.tsv".format(outbasename, extra, name)
+    else:
+        output="{}_{}_PCs.tsv".format(outbasename, name)    
+    PC_df.to_csv(output, sep="\t")
+    
 
     cols_groups_df = ['Group', 'Ind'] if paired else ['Group']
     groups_df = pd.DataFrame.from_dict(groups, orient='index', columns=cols_groups_df)

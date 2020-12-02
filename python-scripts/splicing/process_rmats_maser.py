@@ -14,7 +14,7 @@ def read_groups(groups, dir):
         for line in f:
             l = line.rstrip()
             items = l.split("\t")
-            key, values = items[0], items[1]
+            key, values = os.path.basename(items[0]), items[1]
             d[key] = values
 
     files_in_dir = []

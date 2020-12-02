@@ -40,7 +40,7 @@ declare -a RUN_ARRAY
 # Each sample independently
 if [[ -z "$4" ]];then
     while read line; do
-        sample_name="$(echo $(basename $line .majiq) | cut -f1,2 -d "_")"
+        sample_name="$(echo $(basename $line .majiq) | cut -f1,2,3 -d "_")"
         cmd="$CMD --logger ${sample_name}_psi.log --name $sample_name -o . $line"
         RUN_ARRAY+=("$cmd")    
    done < $majiq_files

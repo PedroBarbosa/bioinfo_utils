@@ -7,7 +7,7 @@ echo 'Script to run ggsashimi for coordinates given by a config file (usually ge
 plots will be drawn using aligments from both strands.
 -3nd argument must be the output_directory.
 -4th argument is optional. It refers to the gtf annotation file. (can be just the gtf with exons). Default: "/home/mcfonseca/shared/genomes/human/hg38/gencode_v34_primary_assembly_exons.gtf". "-" ignores this argument and used the default value.
--5th is optional. Refers to the minimum number of reads supporting a junction to be drawn. Default: 2. Values:[int|-]
+-5th is optional. Refers to the minimum number of reads supporting a junction to be drawn. Default: 5. Values:[int|-]
 -6th is optional. Refers to the RNA stranded protocol. Values:[no_stranded|fr|rf|-] Default: rf.
 -7th is optional. Set this argument if you want to combine/overlay density histograms from different replicates of the same group into one single track. Default: true. Values: [true|false|-].
 -8th is optional. Set this argument if you want to aggregate counts between replicates of the same group to be displayed as a single value in the group track. Value should refer to the aggregation method. Default: no_aggregation. Values:[no_aggregation|median|median_j|mean|mean_j|-]. Requires overlay (7th arg) to be true.
@@ -38,7 +38,7 @@ fi
 
 ####MIN READS#######
 if [[ -z "$5" || "$5" == "-" ]]; then
-    MIN_READS="2"
+    MIN_READS="5"
 else
     MIN_READS="$5"
 fi

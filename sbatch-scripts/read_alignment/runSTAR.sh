@@ -160,7 +160,14 @@ outbasename=\${outbasename%.*}
 outbasename=\${outbasename/$p2/}
 echo "`date`: Analysis started for \$outbasename sample."
 ulimit -n 16384
-\$srun shifter $CMD --readFilesIn \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --outFileNamePrefix \$outbasename --outSAMattrRGline ID:\${outbasename}_id SM:\${outbasename} PL:illumina LB:lib
+FINAL_CMD="$CMD --readFilesIn \${pair1[\$SLURM_ARRAY_TASK_ID]} \$fullpathpair2 --outFileNamePrefix \$outbasename --outSAMattrRGline ID:\${outbasena    me}_id SM:\${outbasename} PL:illumina LB:lib"
+
+echo "---------"
+echo "---CMD---"
+echo "---------"
+echo "\$FINAL_CMD"
+\$srun shifter \$FINAL_CMD
+
 \$srun samtools view -b -q255 -o \${outbasename}_uniq.bam *Aligned.sortedByCoord.out.bam 
 \$srun samtools index \${outbasename}_uniq.bam
 if [[ ! -d "${OUT}/uniq" ]]; then

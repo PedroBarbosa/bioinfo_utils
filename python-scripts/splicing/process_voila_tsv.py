@@ -51,6 +51,7 @@ def extract_LSV_types(deltapsi_files, voila_files):
     :return dict: Map of index and filename
     """
     if deltapsi_files is None:
+        print("Deltapsi files were not provided. LSV type won't be inferred.")
         return None, None
 
     assert len(deltapsi_files) == len(voila_files), "Number of deltapsi and voila files must be the same."
