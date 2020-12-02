@@ -124,7 +124,11 @@ def process_vastools_files(files, psi_threshold, groups, individual_samples):
                 coord_fields = [int(item) for sublist in [re.split('-|,|\+|=', elem)
                                 for elem in l[4].split(":")[1:]] for item in sublist
                                 if item != ""]
-
+                
+                # vastools spanning coord seems to go to
+                # the boundaries of upstream (end of it)
+                # and downstream (beginning of it) exons.
+                # so surrounding exons are not included. Check better
                 spanning_coord = "{}:{}-{}".format(l[4].split(":")[0], min(coord_fields), max(coord_fields))
                 try:
                     simple_coord = [v for v in re.split(':|-', coord) if v != ""]
@@ -258,7 +262,6 @@ def main():
     parser.add_argument("-t", "--threshold", type=float, default=20, help='dPSI threshold. Default:20')
     parser.add_argument("-s", "--species", type=str, default="human", choices=("human", "mouse"),
                         help='Species. Default:human')
-
 
     args = parser.parse_args()
     ensembl_genes_map = retrieve_gene_table(args.species)

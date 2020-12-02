@@ -10,8 +10,8 @@ library(tidyverse)
 library(goseq)
 library(writexl)
 library(msigdbr)
-ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt") 
-#sensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt")
+#ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt") 
+ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt")
 names(ensembl_genes)[names(ensembl_genes) == "Gene name"] <- "symbol"
 names(ensembl_genes)[names(ensembl_genes) == "Gene description"] <- "description"
 names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"
@@ -19,29 +19,72 @@ names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"
 ########################################################
 ################# DATA EXPLORATION #####################
 ########################################################
-explore_data_based_on_transformed_variance <- function(dds, cond){
-  #Deseq2 offers 2 transformation methods to stabilize variance across the mean
-  #Which method to choose, good discussion in the vignette
-  #This is good explore data by  clustering samples by their distance of making a PCA analysis without the bias in the variance for high counts genes
-  show("Stabilizing the variance to explore the data..")
-  #v_transformed <- vst(dds, blind = TRUE)
-  v_transformed <- rlog(dds, blind = TRUE) 
-  #v_transformed <- log2(counts(dds) + 1)
+explore_data_based_on_transformed_variance <- function(dds, 
+                                                       condition, 
+                                                       transform_method=c("rlog", "vst", "log2"), 
+                                                       additional_column_to_shape = NULL,
+                                                       batch_effect_to_remove=NULL,
+                                                       blind=T, 
+                                                       ntop=500){
+  # Deseq2 offers 2 transformation methods to stabilize variance across the mean
+  # Which method to choose, good discussion in the vignette
+  # This is good explore data by  clustering samples by their distance of making a PCA analysis
+  # without the bias in the variance for high counts genes
   
-  #PCA
-  plot(DESeq2::plotPCA(v_transformed, intgroup = cond))
-
-  #Sample distances
+  transform_method <- match.arg(transform_method)
+  show("Stabilizing the variance to explore the data..")
+  
+  if (transform_method == "rlog") {
+    v_transformed <- rlog(dds, blind = blind) 
+  }
+  else if (transform_method == "vst") {
+    v_transformed <- vst(dds, blind = blind)
+  }
+  else {
+    v_transformed <- log2(counts(dds) + 1) 
+  }
+  
+  show(head(assay(v_transformed)))
+  if (!is.null(batch_effect_to_remove)){
+    assay_ <- assay(v_transformed)
+    assay_ <- limma::removeBatchEffect(assay_, batch_effect_to_remove)
+    show(head(assay_))
+    assay(v_transformed) <- assay_
+  }
+  
+  show(head(assay(v_transformed)))
+  # Dendogram and sample distances
   sampleDists <- dist(t(assay(v_transformed)))
   plot(hclust(dist(sampleDists)))
   sampleDistMatrix <- as.matrix( sampleDists )
-  #rownames(sampleDistMatrix) <- paste(colData(v_transformed))#ß[,cond])
+  #rownames(sampleDistMatrix) <- paste(colData(v_transformed))
   colnames(sampleDistMatrix) <- NULL
-  colors <- colorRampPalette(rev(brewer.pal(9, "Blues")) )(255)
+  col_ <- colorRampPalette(rev(brewer.pal(9, "Blues")) )(255)
   pheatmap(sampleDistMatrix,
            clustering_distance_rows = sampleDists,
            clustering_distance_cols = sampleDists,
-           col = colors)
+           col = col_)
+  
+  # DESeq2 PCA
+  plot(DESeq2::plotPCA(v_transformed, intgroup = condition, ntop=ntop))
+  
+  # PCA
+  rv <- rowVars(assay(v_transformed))
+  select <- order(rv, decreasing=TRUE)[seq_len(min(ntop, length(rv)))]
+  pc <- prcomp(t(assay(v_transformed)[select,]))
+  percentVar <- pc$sdev^2 / sum( pc$sdev^2 )
+  
+  pca_matrix <- as.data.frame(pc$x)
+  pca_matrix <- as.data.frame(merge(pca_matrix, colData(dds), by="row.names", all.x=TRUE)) %>% column_to_rownames(var="Row.names")
+  # colors <- c("blue", "red") 
+  # colors <- colors[as.numeric(pca_data$treatment)] 
+
+  ggplot(pca_matrix,aes_string(x="PC1", y="PC2", color=condition, shape=additional_column_to_shape)) +
+    geom_point(size=5) + 
+    xlab(paste0("PC1: ",round(percentVar[1] * 100),"% variance")) +
+    ylab(paste0("PC2: ",round(percentVar[2] * 100),"% variance")) +
+    coord_fixed() +
+    theme(legend.title=element_blank(), text = element_text(size = 20))
 }
 
 
@@ -75,24 +118,35 @@ visualize_differences_in_variance_transformation <- function(log_t, vsd, rld) {
 #while future types of shrinkage estimators will use the 'coef' approach, which is much simpler.
 #However, for the 'coef' approach, the shrinkage depends on which level is chosen as reference.
 #Expanded model matrices helped to avoid this, but introduced a lot of complexity into the modeling steps.
-run_DEseq_tests <- function(dds, test_contrast, coefficient, log2cutoff, padjcutoff, use_contrast, shrinkage_method, full) {
-  if (!is.null(full)){
-    dds <- DESeq(dds, full=full)
-  } else {
-    dds <- DESeq(dds)
-  }
+run_DEseq_tests <- function(dds, test_contrast, coefficient, stat_test, 
+                            log2cutoff, padjcutoff, use_contrast, shrinkage_method,
+                            full_model_formula, reduced_formula, return_dds) {
+
+  if (is.null(full_model_formula)) full_model_formula <- design(dds)
+
+  if (stat_test == "LRT"){
+    dds <- DESeq(dds, test=stat_test, full=full_model_formula, reduced = ~ reduced_formula)
+    }
+  else{
+    dds <- DESeq(dds, full=full_model_formula)
+    }
+
+  
   show("ResultsNames:")
   show(resultsNames(dds))
+  if (return_dds) return(dds)
+  
+  show("Extracting results for the given comparison and shrinking log2FC")
   if (use_contrast){
-    res <- results(dds, contrast = test_contrast, alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
+    res <- results(dds, contrast = test_contrast, alpha=padjcutoff, test=stat_test, independentFiltering = T, pAdjustMethod="BH")
     if (shrinkage_method == "apeglm") show("apeglm shrinkage method is not allowed when using contrast (instead of coeff)")
     res <- lfcShrink(dds, contrast = test_contrast, type=shrinkage_method, res = res)
   } else{
-    res <- results(dds, name = coefficient, alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
+    res <- results(dds, name = coefficient, alpha=padjcutoff, test=stat_test, independentFiltering = T, pAdjustMethod="BH")
     res <- lfcShrink(dds, coef = coefficient, type=shrinkage_method, res= res)
   }
+  
   summary(res)
-
   res_sign <- subset(res, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
   return(list(res,res_sign))
 }
@@ -133,7 +187,7 @@ plot_volcano <- function(res_shrinked, padjcutoff, log2cutoff, title){
   annotations <- data.frame(
     xpos = c(-3, 3),
     #ypos = c(max(-log10(res_shrinked$padj)) + 1, max(-log10(res_shrinked$padj))+ 1),
-    ypos =  c(8,8),
+    ypos =  c(175,175),
     annotateText = c(paste0("N=",ndown),
                      paste0("N=",nup)),
     col = c("#CC0000", "#000099"),
@@ -178,16 +232,16 @@ plot_expression_heatmaps <- function(genes_expression_data,
                                      color_pallete = bluered(100)){
   #Using heatmap.2
   library("gplots")
-  heatmap.2(genes_expression_data, Colv = cluster_cols, Rowv = cluster_rows, 
-            labRow = show_rownames,
-            col = color_pallete, 
-            scale = "row",  
-            trace = "none",
-            density.info = "none", 
-            cexCol = 1, 
-            #keysize = 1,
-            margins = c(5,8),
-            srtCol=45)
+  # heatmap.2(genes_expression_data, Colv = cluster_cols, Rowv = cluster_rows, 
+  #           labRow = show_rownames,
+  #           col = color_pallete, 
+  #           scale = "row",  
+  #           trace = "none",
+  #           density.info = "none", 
+  #           cexCol = 1, 
+  #           #keysize = 1,
+  #           margins = c(5,8),
+  #           srtCol=45)
   
   #Using pheatmap
   library(pheatmap)
@@ -293,10 +347,11 @@ run_enrichment_gprofiler <- function(gene_list, custom_genes_background=NULL, or
 
 
 fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlist){
-
-  fgseaRes <- fgsea(pathways=pathways, 
+  
+  # nperm=npermutations doesn't exist in new implementation
+  fgseaRes <- fgseaMultilevel(pathways=pathways, 
                     stats=ranks, 
-                    nperm=npermutations,
+                    eps = 0.0,
                     minSize = 10)
   
   #plotEnrichment(fgseaRes[["KEGG_CELLCYLE"]], ranks)
@@ -305,7 +360,7 @@ fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlis
   topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
   plotGseaTable(pathways[topPathways], ranks, fgseaRes, 
                 gseaParam = 0.5, render = T)
-  
+  dev.off()
   fgseaRes$source = source
   fgseaRes$log10padj <- -log10(fgseaRes$padj)
   fgseaRes$significant = factor(fgseaRes$padj < 0.05, levels = c(TRUE, FALSE))
@@ -328,32 +383,35 @@ fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlis
 }
 
 
-run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F, 
+ run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F, 
                                gene_list_from = c("DESeq2", "psichomics", "rmats", "vast-tools", "majiq"), 
-                               top_n = 25, npermutations = 1000, organism=c("hsapiens","mmusculus")){
+                               top_n = 25, 
+                               npermutations = 1000, 
+                               organism=c("hsapiens","mmusculus")){
+  
   #Note to GSEA users: Gene set enrichment analysis identifies gene sets consisting of co-regulated genes;
   #GO gene sets are based on ontologies and do not necessarily comprise co-regulated genes.
-  HALLMARKS_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/h.all.v7.0.symbols.gmt"
-  REAC_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/c2.cp.reactome.v7.0.symbols.gmt"
-  KEGG_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/c2.cp.kegg.v7.0.symbols.gmt"
-  GO_BP_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/c5.bp.v7.0.symbols.gmt"
-  GO_MF_GMT <- "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/GSEA/c5.mf.v7.0.symbols.gmt"
-  
   gene_list_from <- match.arg(gene_list_from)
   organism <- match.arg(organism)
   
+  show("Retrieving all human/mouse gene sets in MSigDB")
   if (organism == "mmusculus"){
-    show("Retrieving all human/mouse gene sets in MSigDB")
     m_df = msigdbr(species = "Mus musculus")
-    Hallmarks_mouse <- m_df %>% dplyr::filter(gs_cat == "H") %>% split(x = .$gene_symbol, f = .$gs_name)
-    Reactome_mouse <- m_df %>% dplyr::filter(gs_subcat == "CP:REACTOME") %>% split(x = .$gene_symbol, f = .$gs_name)
-    Kegg_mouse <- m_df %>% dplyr::filter(gs_subcat == "CP:KEGG") %>% split(x = .$gene_symbol, f = .$gs_name)
-    GO_BP_mouse <- m_df %>% dplyr::filter(gs_subcat == "BP") %>% split(x = .$gene_symbol, f = .$gs_name)
-    GO_MF_mouse <-  m_df %>% dplyr::filter(gs_subcat == "MF") %>% split(x = .$gene_symbol, f = .$gs_name)
-    #gene_list <- gene_list %>% rename(symbol_mouse = symbol)
-    #gene_list %>% left_join(dplyr::select(human_gene_symbol, gene_symbol) %>% distinct(), by=c("symbol_mouse"="gene_symbol")) %>%
-    #  rename(symbol = human_gene_symbol)
   }
+  else if (organism == "hsapiens"){
+    m_df = msigdbr(species = "Homo sapiens")
+  }
+    
+  Hallmarks <- m_df %>% dplyr::filter(gs_cat == "H") %>% split(x = .$gene_symbol, f = .$gs_name)
+  Reactome <- m_df %>% dplyr::filter(gs_subcat == "CP:REACTOME") %>% split(x = .$gene_symbol, f = .$gs_name)
+  Kegg <- m_df %>% dplyr::filter(gs_subcat == "CP:KEGG") %>% split(x = .$gene_symbol, f = .$gs_name)
+  GO_BP <- m_df %>% dplyr::filter(gs_subcat == "BP") %>% split(x = .$gene_symbol, f = .$gs_name)
+  GO_MF <-  m_df %>% dplyr::filter(gs_subcat == "MF") %>% split(x = .$gene_symbol, f = .$gs_name)
+  #gene_list <- gene_list %>% rename(symbol_mouse = symbol)
+  #gene_list %>% left_join(dplyr::select(human_gene_symbol, gene_symbol) %>% distinct(), by=c("symbol_mouse"="gene_symbol")) %>%
+  #  rename(symbol = human_gene_symbol)
+  
+  
   if (!is.null(sources)) { 
     sources <- sources
   }
@@ -388,19 +446,19 @@ run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F,
   outlist = list()
   for (source in sources){
     if (source == "Hallmarks"){
-      pathways <- if (organism == "hsapiens") gmtPathways(HALLMARKS_GMT) else Hallmarks_mouse 
+      pathways <- Hallmarks
     }
     else if (source == "KEGG"){
-      pathways <- if (organism == "hsapiens") gmtPathways(KEGG_GMT) else Kegg_mouse
+      pathways <- Kegg
     }
     else if (source == "REAC"){
-      pathways <- if (organism == "hsapiens") gmtPathways(REAC_GMT) else Reactome_mouse
+      pathways <- Reactome
     }
     else if (source == "GO:BP"){
-      pathways <- if (organism == "hsapiens") gmtPathways(GO_BP_GMT) else GO_BP_mouse
+      pathways <- GO_BP
     }
     else if (source == "GO:MF"){
-      pathways <- if (organism == "hsapiens") gmtPathways(GO_MF_GMT) else GO_MF_mouse
+      pathways <- GO_MF
     }
     else{
       stop(paste0(source, " is not a valid source."))
@@ -518,12 +576,24 @@ plot_enrichment_results <- function(results_table, top_n = 15, rank_by = "log10p
 
 
 #RuvSEQ specific
-plot_umwanted_variation_factors <-function(pdata_normalized, groups, ksize) {
+plot_umwanted_variation_factors <-function(pdata_normalized, groups, ksize, groups_to_color=NULL) {
   par(mfrow = c(ksize, 1), mar = c(3,5,3,1))
-  for (i in 1:ksize) {
-    stripchart(pdata_normalized[, i] ~ groups, vertical = TRUE, main = paste0("W", i))
-    abline(h = 0)
+  data <- pdata_normalized %>% rownames_to_column('Sample') %>% dplyr::mutate(groups=groups)
+  if (!is.null(groups_to_color)){
+    data <- data %>% dplyr::mutate(col=groups_to_color)
   }
+  else{
+    data <- data %>% dplyr::mutate(col=NULL)
+  }
+
+  for (i in 1:ksize) {
+    # fact_estimated <- paste("W_", as.character(i))
+    # p<-ggplot(data, aes(x=groups, y=fact_estimated, color=col)) +
+    #    geom_jitter(position=position_jitter(0.2))
+    stripchart(pdata_normalized[, i] ~ groups, vertical = TRUE, ylab='Factors of unwanted variation', main = paste0("W", i))
+    abline(h=0)
+    }
+
   par(mfrow = c(1, 1))
 }
 
@@ -534,45 +604,56 @@ plot_umwanted_variation_factors <-function(pdata_normalized, groups, ksize) {
 #Full refers to the full model formula. If LRT, is restricted to the formula
 # in design. If Wald, can be a model matrix constructed by the user manually
 # e.g. When there are levels of a factor without samples (individual outliers removed)
-run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff, use_contrast = F,
+run_analysis <- function(dds, group_combination, log2cutoff, padjcutoff,
+                         use_contrast = F,
                          FC_shrinkage_method = c("apeglm", "ashr", "normal"), 
+                         stat_test = c("Wald", "LRT"),
                          genome = "hg38",
-                         explore_data= F,
                          full=NULL,
-                         annotate_locally = F){
-  
-  if (explore_data == TRUE){
-    show("Data exploration is set to TRUE..")
-    explore_data_based_on_transformed_variance(dds, group_combination[[1]])  
-  }
-  else {
-    FC_shrinkage_method <- match.arg(FC_shrinkage_method)
-    if (length(group_combination) == 1){
-      if (use_contrast) stop("When using contrast, a list with different levels to test should be provided.")
-      show("An individual coefficient was passed  (test individual effect) to build the results table. 
-Please make sure it is present in the design matrix")
-      coefficient <- group_combination
-      outbasename <- group_combination
-    } else if (length(group_combination) == 2){
-      if(!use_contrast) stop("use_contrast must be set to true when two coefficients of the
-                             model are to be tested (e.g. condition effect is different 
-                             across groups of samples")
-      
-      outbasename <- paste(group_combination[[1]], "_vs_", group_combination[[2]], sep="")
-    } else if (length(group_combination == 3)){
-      coefficient <- paste0(group_combination[[1]], "_", group_combination[[2]], "_vs_", group_combination[[3]])
-      outbasename <- paste(group_combination[[2]], "_vs_", group_combination[[3]], sep="")
-    }
-    
-    show("Running DE tests and shrinking log2FC..")
-    out <-run_DEseq_tests(dds, test_contrast = group_combination,
-                          coefficient = coefficient, 
-                          log2cutoff, 
-                          padjcutoff,
-                          use_contrast,
-                          FC_shrinkage_method,
-                          full=full)
+                         reduced_formula=NULL,
+                         annotate_locally = F,
+                         return_just_dds= F){
 
+  FC_shrinkage_method <- match.arg(FC_shrinkage_method)
+  stat_test <- match.arg(stat_test)
+  genome <- match.arg(stat_test)
+  if (length(group_combination) == 1){
+    
+    if (use_contrast) stop("When using contrast, a list with different levels to test should be provided.")
+    show("An individual coefficient was passed  (test individual effect) to build the results table. Please make sure it is present in the design matrix if return_dds=F")
+    coefficient <- group_combination
+    outbasename <- group_combination
+  } 
+  else if (length(group_combination) == 2){
+    if(!use_contrast) stop("use_contrast must be set to true when two coefficients of the
+                           model are to be tested (e.g. condition effect is different 
+                           across groups of samples")
+    outbasename <- paste(group_combination[[1]], "_vs_", group_combination[[2]], sep="")
+    
+  } 
+  else if (length(group_combination == 3)){
+    coefficient <- paste0(group_combination[[1]], "_", group_combination[[2]], "_vs_", group_combination[[3]])
+    outbasename <- paste(group_combination[[2]], "_vs_", group_combination[[3]], sep="")
+  }
+  
+  if (stat_test == "LRT" & is.null(reduced_formula)){
+    stop("When setting the LRT test, a reduced model formula is required")
+  }
+  
+  show("Estimating size factors, dispersion and fitting NB GLM model..")
+  out <-run_DEseq_tests(dds, 
+                        test_contrast = group_combination,
+                        coefficient = coefficient, 
+                        stat_test = stat_test,
+                        log2cutoff, 
+                        padjcutoff,
+                        use_contrast,
+                        FC_shrinkage_method,
+                        full_model_formula=full,
+                        reduced_formula=reduced_formula,
+                        return_dds=return_just_dds)
+  
+  if (!return_just_dds){
     show("Annotating DE genes..")
     out_sign_annot <- annotate_results(out[[2]], annotate_locally, genome)
     out_sign_annot %>% rownames_to_column(var = "gene_id") %>% 
@@ -590,7 +671,11 @@ Please make sure it is present in the design matrix")
     #Plot one specific gene
     #topGene <- rownames(out[[1]])[which.min(out[[1]]$padj)]
     #plot_single_gene_variation(dds, group = "groups", topGene )
-    return(list(out[[1]], out_sign_annot))
+    return(list(out[[1]], out_sign_annot)) 
   }
+  else{
+    return(out)
+  }
+
 }
 

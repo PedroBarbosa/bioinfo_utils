@@ -1,20 +1,19 @@
 library(DESeq2)
 library(RUVSeq)
-library(dplyr)
 library(tidyr)
 library(reshape2)
 library(corrplot)
 library(tidyverse)
-library(tibble)
 library(ggplot2)
 library(ggpubr)
 library(gridExtra)
 library(tximport)
 source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
 
-########################################################
-##########FROM FEATURE COUNTS ##########################
-########################################################
+
+###################################
+######FROM FEATURE COUNTS #########
+###################################
 setwd("/Users/pbarbosa/Dropbox/imm/projects/cajal_body_rnaseq/analysis/de_analysis/")
 read_counts <- read.table("featureCounts.txt", row.names = "Geneid", sep="\t",header = TRUE)
 read_counts <- read_counts[,! colnames(read_counts) %in% c("Geneid","gene_name","Chr","Start","End","Strand","Length")]
@@ -26,25 +25,52 @@ colnames(read_counts) <- sub('myC_time','t', colnames(read_counts))
 filter <- apply(read_counts, 1, function(x) length(x[x>5])>=2)
 filtered <- read_counts[filter,]
 
-
-###################################################
-########  RUVseq spike ins control  ###############
-###################################################
-timepoints <- as.factor(rep(c("0", "12", "24", "48"), each=3))
 coldata <- data.frame(timepoints, row.names=colnames(filtered))
 dds <- DESeqDataSetFromMatrix(countData = filtered,
                               colData = coldata,
                               design = ~ timepoints)
 
+#######################
+##### FROM SALMON #####
+#######################
+setwd("/Users/pbarbosa/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/mirek_CajalBodies/new_data_spike-ins/salmon/gencode_v33/")
+timepoints <- as.factor(rep(c(0, 12, 24, 48), each=3)) 
+replicates <- as.factor(rep(c(1, 2, 3), times=4))
+myc_activation <- as.factor(rep(c(0,1), times=c(3,9)))
+coldata <- data.frame(timepoints, replicates, myc_activation)
+rownames(coldata) <- paste(paste0("t",coldata$timepoints), coldata$replicates, sep="_")
+files <- list.files(path=".", pattern = "*sf")
+names(files) <- rownames(coldata)
+
+
+# Import gene level counts by generating counts from abundance
+tx2gene <- readr::read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33_with_spikein.txt")
+tx_ids <- readr::read_tsv(file = "myC_time0_rep1_quant.sf") %>% .$Name 
+# tx_ids <- sapply(strsplit(tx_ids,"\\."), function(x) x[1])
+tx_ids <- tibble::enframe(name = NULL, x = tx_ids)
+tx2gene <- tx_ids %>% left_join(dplyr::select(tx2gene, `Transcript stable ID version`, `Gene stable ID`) ,
+                                by = c("value" = "Transcript stable ID version")) %>% drop_na()
+
+# gene level counts 
+txi <- tximport(files, type = "salmon", tx2gene = tx2gene, txIn = T)
+dds <- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ replicates + timepoints)
+
+###################################################
+########  RUVseq spike ins control  ###############
+###################################################
 genes <- rownames(dds)[grep("^ENS", rownames(dds))]
 spikes <- rownames(dds)[grep("^ERCC", rownames(dds))]
 set <- newSeqExpressionSet(counts(dds))
 
 #Data exploration
-colors <- brewer.pal(8, "Set2")
+colors <- brewer.pal(4, "Set2")
+colors <- as.factor(rep(colors, each=3))
+
+# Normalize to sample size
+plotRLE(set, outline=FALSE, col=colors, ylim=c(-4, 4))
 set <- betweenLaneNormalization(set, which="upper")
-plotRLE(set, outline=FALSE, ylim=c(-4, 4))
-plotPCA(set, col=colors, cex=1.2)
+plotRLE(set, outline=FALSE, col=colors, ylim=c(-4, 4))
+
 
 #Remove variation using spike-in control genes
 #Estimate factors of unwanted variation
@@ -53,71 +79,195 @@ plotPCA(set, col=colors, cex=1.2)
 #to be interpretable as "normalized counts". Please, note that these are intended just for 
 #visualization/exploration, as the RUV model has been tested only on supervised problems, 
 #and works better when W is inserted in the model with the original counts (rather than modeling the normalized counts).
-normalized <- RUVg(set, spikes, k=1)
-plot_umwanted_variation_factors(pData(normalized), dds$timepoints, 1)
 
-#Plot normalized counts
-plotRLE(normCounts(normalized), outline=FALSE, ylim=c(-4, 4), col=colors)
-plotPCA(normCounts(normalized), col=colors, cex=1.2)
+# If using k=1, the estimated factors of unwanted variation refer mostly
+# to large differences found at timepoint 0, probably related with variation
+# intrinic to the cells. On the other hand, using k=2 we see that the major
+# source of unwanted variation arises at timepoint 12, which is the first 
+# timepoint upon treatment and most gene expression outliers caused by mYC
+# activation may reside 
+normalized <- RUVg(set, spikes, k=2)
+plot_umwanted_variation_factors(pData(normalized), groups=dds$timepoints, ksize=2, groups_to_color=dds$replicates)
+
+#PCAs raw vs normalized
+EDASeq::plotPCA(set, k=2, labels=T, col=as.character(colors), cex=1.5)
+# Problem with this is that the first factor is included in the normcounts
+# Couldn't find a way to use just the 2nd factor
+EDASeq::plotPCA(normalized, k=2, labels=T, col=as.character(colors), cex=1.5)
 
 #rerun DEseq with the new design to reestimante the parametes and results
+dds$W2 <- normalized$W_2
 dds$W1 <- normalized$W_1
-#dds$W2 <- normalized$W_2
-#design(dds) <- ~ W2 + W1 + timepoints
-design(dds) <- ~ W1 + timepoints
+design(dds) <- ~ W2 + replicates + timepoints
 
-log2cutoff <- 1
+
+###############################
+###### Data exploration #######
+### without RUVg analysis #####
+###############################
+explore_data_based_on_transformed_variance(dds, "timepoints", 
+                                           transform_method = "rlog",
+                                           additional_column_to_shape = "replicates",
+                                           batch_effect_to_remove=dds$W2)  
+
+
+##########################
+####### DE analysis ######
+##########################
+log2cutoff <- 1.0
 padjcutoff <- 0.05
+FC_shrinkage_method <- "apeglm"
+stat_test <- "Wald"
+setwd('~/Desktop/')
+
+#####################
+##### Wald test #####
+#####################
+dds <- run_analysis(dds, 
+                   group_combination="", 
+                   log2cutoff=log2cutoff,
+                   padjcutoff=padjcutoff,
+                   use_contrast = F,
+                   FC_shrinkage_method = FC_shrinkage_method,
+                   stat_test = stat_test,
+                   reduced_formula="timepoints",
+                   annotate_locally = T,
+                   return_just_dds = T)
+
+res_12_0 <- results(dds, name = "timepoints_12_vs_0", alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
+res_12_0 <- lfcShrink(dds, coef = "timepoints_12_vs_0", type=FC_shrinkage_method, res= res_12_0)
+res_12_0 <- annotate_results(res_12_0, T, "hg38") 
+res_sign_12_0 <- subset(res_12_0, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
+
+res_24_0 <- results(dds, name = "timepoints_24_vs_0", alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
+res_24_0 <- lfcShrink(dds, coef = "timepoints_24_vs_0", type=FC_shrinkage_method, res= res_24_0)
+res_24_0 <- annotate_results(res_24_0, T, "hg38") 
+res_sign_24_0 <- subset(res_24_0, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
+
+res_48_0 <- results(dds, name = "timepoints_48_vs_0", alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
+res_48_0 <- lfcShrink(dds, coef = "timepoints_48_vs_0", type=FC_shrinkage_method, res= res_48_0)
+res_48_0 <- annotate_results(res_48_0, T, "hg38")
+res_sign_48_0 <- subset(res_48_0, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
 
 
-#########################################
-############# 12 vs 0 ###################
-#########################################
-group_combination <- c("timepoints","12", "0")
-dds$timepoints <-relevel(dds$timepoints, ref="0")
-list_de_12_0 <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38", explore_data = FALSE)
-rownames(list_de_12_0[[1]]) <- gsub("\\..*", "", rownames(list_de_12_0[[1]]))
-all_annot_12_0 <- merge(as(list_de_12_0[[1]], "data.frame") , ensembl_genes, all.x = T, by=0)
-#all_annot_12_0 <- annotate_results(list_de_8_0[[1]], "hg38") 
+#####################################
+######## Functional enrichment ######
+#####################################
+#GPROFILER
+# 12
+gprofiler_12_0 <- run_enrichment_gprofiler(rownames(res_sign_12_0),
+                                               custom_genes_background = rownames(res_12_0),
+                                               retrieve_only_sign_results = T, 
+                                               exclude_iea = F, 
+                                               retrieve_short_link = F,
+                                               measure_under = F, 
+                                               domain_scope = "annotated",
+                                               sources= NULL)
 
-write.table(all_annot_12_0, quote= FALSE, row.names = TRUE, sep="\t",file="T12_vs_T0_all_annotated.csv")
+plot_enrichment_results(gprofiler_12_0, top_n = 20, short_term_size = F, add_info_to_labels = T, size_of_short_term = 500, font_size = 12)
 
-fgseaResTidy <- run_fgsea_analysis(all_annot_12_0, "~/Downloads/c2.cp.reactome.v6.2.symbols.gmt", "Hallmark_pathways")
-write.table(fgseaResTidy$pathway, quote = FALSE,row.names = FALSE,file="enriched_pathways_T8_vs_T0.csv")
-fgseaResTidy <- run_fgsea_analysis(all_annot_12_0, "~/Downloads/c5.bp.v6.2.symbols.gmt", "GO_Biological_process")
-goseq.results <- run_goseq_analysis(all_annot_12_0, "hg19", list_de_12_0[[2]]$Row.names)
+fgsea_12_0 <- run_fgsea_analysis(res_12_0, is_ranked_already = F, top_n = 30, npermutations = 5000)
+plot_enrichment_results(dplyr::filter(fgsea_12_0, significant == T), 
+                        rank_by = "log10padj", label = "Log10 padj", top_n = 30, 
+                        font_size = 12,
+                        reverse_order = F,
+                        add_info_to_labels =  T,
+                        short_term_size = F, 
+                        size_of_short_term = 50)
 
-#########################################
-############# 24 vs 0 ###################
-#########################################
-group_combination <- c("timepoints","24", "0")
-list_de_24_0 <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38", explore_data = FALSE)
-rownames(list_de_24_0[[1]]) <- gsub("\\..*", "", rownames(list_de_24_0[[1]]))
-all_annot_24_0 <- merge(as(list_de_24_0[[1]], "data.frame") , ensembl_genes, all.x = T, by=0)
-#all_annot_24_0 <- annotate_results(list_de_24_0[[1]], "hg38") 
-write.table(all_annot_24_0, quote= FALSE, row.names = TRUE, sep="\t",file="T24_vs_T0_all_annotated.csv")
-#all_annot_24_0 <- read.table("T24_vs_T0_all_annotated.csv", row.names = 1, sep="\t", header=TRUE)
+# 24
+gprofiler_24_0 <- run_enrichment_gprofiler(rownames(res_sign_24_0),
+                                           custom_genes_background = rownames(res_24_0),
+                                           retrieve_only_sign_results = T, 
+                                           exclude_iea = F, 
+                                           retrieve_short_link = F,
+                                           measure_under = F, 
+                                           domain_scope = "annotated",
+                                           sources= NULL)
+dim(gprofiler_24_0)
+plot_enrichment_results(gprofiler_12_0, top_n = 30, short_term_size = F,
+                        add_info_to_labels = T, size_of_short_term = 500, font_size = 12)
 
-fgseaResTidy <- run_fgsea_analysis(all_annot_24_0, "~/Downloads/c2.cp.reactome.v6.2.symbols.gmt", "Hallmark_pathways")
-write.table(fgseaResTidy$pathway, quote = FALSE,row.names = FALSE,file="enriched_pathways_T8_vs_T0.csv")
-fgseaResTidy <- run_fgsea_analysis(all_annot_24_0, "~/Downloads/c5.bp.v6.2.symbols.gmt", "GO_Biological_process")
-goseq.results <- run_goseq_analysis(all_annot_24_0, "hg19", list_de_24_0[[2]]$Row.names)
+fgsea_24_0 <- run_fgsea_analysis(res_24_0, is_ranked_already = F, top_n = 30, npermutations = 5000)
+fgsea_24_0 <- fgsea_24_0 %>% filter(!str_detect(term_name, "INSULIN_LIKE_GROWTH_FACTOR_IGF"))
+plot_enrichment_results(dplyr::filter(fgsea_24_0, significant == T), 
+                        rank_by = "log10padj", label = "Log10 padj", top_n = 30, 
+                        font_size = 12,
+                        reverse_order = F,
+                        add_info_to_labels =  T,
+                        short_term_size = F, 
+                        size_of_short_term = 50)
+# 48
+gprofiler_48_0 <- run_enrichment_gprofiler(rownames(res_sign_48_0),
+                                           custom_genes_background = rownames(res_48_0),
+                                           retrieve_only_sign_results = T, 
+                                           exclude_iea = F, 
+                                           retrieve_short_link = F,
+                                           measure_under = F, 
+                                           domain_scope = "annotated",
+                                           sources= NULL)
+dim(gprofiler_48_0)
+plot_enrichment_results(gprofiler_48_0, 
+                        rank_by = "log10padj", top_n = 30, short_term_size = F, size_of_short_term = 500, font_size = 12)
 
-#########################################
-############# 48 vs 0 ###################
-#########################################
-group_combination <- c("timepoints","48", "0")
-list_de_48_0 <- run_analysis(dds, group_combination, log2cutoff, padjcutoff, "hg38", explore_data = FALSE)
-#all_annot_48_0 <- annotate_results(list_de_48_0[[1]], "hg38") 
-rownames(list_de_48_0[[1]]) <- gsub("\\..*", "", rownames(list_de_48_0[[1]]))
-all_annot_48_0 <- merge(as(list_de_48_0[[1]], "data.frame") , ensembl_genes, all.x = T, by=0)
-write.table(all_annot_48_0, quote= FALSE, row.names = TRUE, sep="\t",file="T48_vs_T0_all_annotated.csv")
-#all_annot_48_0 <- read.table("T48_vs_T0_all_annotated.csv", row.names = 1, sep="\t", header=TRUE)
+fgsea_48_0 <- run_fgsea_analysis(res_48_0, is_ranked_already = F, top_n = 30, npermutations = 5000)
+fgsea_48_0 <- fgsea_48_0 %>% filter(!str_detect(term_name, "INSULIN_LIKE_GROWTH_FACTOR_IGF"))
+plot_enrichment_results(dplyr::filter(fgsea_48_0, significant == T), 
+                        rank_by = "log10padj", label = "Log10 padj", top_n = 30, 
+                        font_size = 12,
+                        reverse_order = F,
+                        add_info_to_labels =  T,
+                        short_term_size = F, 
+                        size_of_short_term = 50)
 
-fgseaResTidy <- run_fgsea_analysis(all_annot_48_0, "~/Downloads/c2.cp.reactome.v6.2.symbols.gmt", "Hallmark_pathways")
-write.table(fgseaResTidy$pathway, quote = FALSE,row.names = FALSE,file="enriched_pathways_T8_vs_T0.csv")
-fgseaResTidy <- run_fgsea_analysis(all_annot_48_0, "~/Downloads/c5.bp.v6.2.symbols.gmt", "GO_Biological_process")
-goseq.results <- run_goseq_analysis(all_annot_48_0, "hg19", list_de_48_0[[2]]$Row.names)
+# all
+all <- run_enrichment_gprofiler(unique(c(rownames(res_sign_12_0), rownames(res_sign_24_0),rownames(res_sign_48_0))),
+                         custom_genes_background = unique(c(rownames(res_12_0), rownames(res_24_0), rownames(res_48_0))),
+                         retrieve_only_sign_results = T, 
+                         exclude_iea = F, 
+                         retrieve_short_link = F,
+                         measure_under = F, 
+                         domain_scope = "annotated",
+                         sources= NULL)
+
+plot_enrichment_results(all, 
+                        rank_by = "log10padj", top_n = 30, short_term_size = F, font_size=12, size_of_short_term = 500)
+
+
+####################
+##### LRT test #####
+####################
+source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
+stat_test <- "LRT"
+dds_lrt = run_analysis(dds, 
+                       group_combination="", 
+                       log2cutoff=log2cutoff,
+                       padjcutoff=padjcutoff,
+                       use_contrast = F,
+                       FC_shrinkage_method = FC_shrinkage_method,
+                       stat_test = stat_test,
+                       reduced_formula="W2 + replicates",
+                       annotate_locally = T,
+                       return_just_dds = F)
+
+
+dds_lrt <- DESeq(dds, test="LRT", reduced = ~ W2 + replicates)
+res_lrt <- results(dds_lrt)
+sig_res_LRT <- res_lrt %>%
+  data.frame() %>%
+  filter(padj < 0.00001) 
+sig_res_LRT <- annotate_results(sig_res_LRT, T, "hg38") 
+
+gprofiler_lrt <- run_enrichment_gprofiler(sig_res_LRT,
+                                           custom_genes_background = rownames(res_lrt),
+                                           retrieve_only_sign_results = T, 
+                                           exclude_iea = F, 
+                                           retrieve_short_link = F,
+                                           measure_under = F, 
+                                           domain_scope = "annotated",
+                                           sources= NULL)
+plot_enrichment_results(gprofiler_lrt, 
+                        rank_by = "log10padj", top_n = 30, short_term_size = T, font_size=12, size_of_short_term = 500)
 
 
 #######################################
@@ -144,32 +294,33 @@ gene_ids <- c("ENSG00000206652", "ENSG00000274585", "ENSG00000200795","ENSG00000
 df_snRNA <- tibble("gene_names" = gene_names, "gene_ids" = gene_ids)
 
 norm_cts_snRNA <- left_join(df_snRNA, cts)
-norm_cts_snRNA
 raw_cts_snRNA <- left_join(df_snRNA, raw_cts)
-raw_cts_snRNA
-########################################
-#############CAJAL BODY GENES ##########
-########################################
-cb_genes <- read.table("~/Downloads/cajal_body_project/CB_genes.txt")
-histone_genes <- read.table("~/Downloads/cajal_body_project/Histone_genes.txt")
 
-de_genes_12_0 <- list_de_12_0[[2]]$symbol
-cb_genes <- unlist(cb_genes, use.names=FALSE)
-histone_genes <- unlist(histone_genes, use.names=FALSE)
+#####################################
+######### CAJAL BODY GENES ##########
+#####################################
+all_interesting <- read.table("~/MEOCloud/analysis/cajal_bodies/all_interesting_genes.txt") %>% pull(V1)
+cb_genes <- read.table('~/MEOCloud/analysis/cajal_bodies/CB_genes.txt') %>% pull(V1)
+histone_genes <- read.table("~/MEOCloud/analysis/cajal_bodies/histone_genes.txt") %>% pull(V1)
+
+de_genes_12_0 <- res_sign_12_0$symbol
+
 paste("Number of de genes 12 vs 0:", length(de_genes_12_0))
 paste("Number of genes in the cajal body list:", length(cb_genes))
 paste("Number of cajal body genes in the DE list:", length(which(cb_genes %in% de_genes_12_0)))
-paste("Number of cajal body genes in the whole gene list:", length(which(cb_genes %in% all_annot_12_0$symbol)))
-#cb_genes not in tables: AK6 FAM71B FBL FRG1 FRG1P LSM2 NELFE NHP2L1 PPP1R10 SMN TERT
+paste("Number of cajal body genes in the whole gene list:", length(which(cb_genes %in% res_12_0$symbol)))
+# cb_genes not in tables:
+# cb_genes[which(!cb_genes %in% res_12_0$symbol)]: "FRG1P"  "NHP2L1" "SMN" 
 cb_genes_present_12_0 <- as.vector(na.omit(cb_genes[which(cb_genes %in% de_genes_12_0)]))
 
 paste("Number of genes in the histone list:", length(histone_genes))
 paste("Number of histone list in the DE list:", length(which(histone_genes %in% de_genes_12_0)))
-paste("Number of histone genes in the whole gene list:", length(which(histone_genes %in% all_annot_12_0$symbol)))
+paste("Number of histone genes in the whole gene list:", length(which(histone_genes %in% res_12_0$symbol)))
 histone_genes_present_12_0 <- as.vector(na.omit(histone_genes[which(histone_genes %in% de_genes_12_0)]))
-#histone genes not in tables: All there
+# histone genes not in tables:
+# histone_genes[which(!histone_genes %in% res_12_0$symbol)] "CPSF73" "TROVE2"
 
-de_genes_24_0 <- list_de_24_0[[2]]$symbol
+de_genes_24_0 <- res_sign_24_0$symbol
 paste("Number of de genes 24 vs 0:", length(de_genes_24_0))
 paste("Number of genes in the cajal body list:", length(cb_genes))
 paste("Number of cajal body genes in the DE list:", length(which(cb_genes %in% de_genes_24_0)))
@@ -180,7 +331,7 @@ paste("Number of histone list in the DE list:", length(which(histone_genes %in% 
 histone_genes_present_24_0 <- as.vector(na.omit(histone_genes[which(histone_genes %in% de_genes_24_0)]))
 
 
-de_genes_48_0 <- list_de_48_0[[2]]$symbol
+de_genes_48_0 <- res_sign_48_0$symbol
 paste("Number of de genes 48 vs 0:", length(de_genes_48_0))
 paste("Number of genes in the cajal body list:", length(cb_genes))
 paste("Number of cajal body genes in the DE list:", length(which(cb_genes %in% de_genes_48_0)))
@@ -188,15 +339,56 @@ cb_genes_present_48_0 <- as.vector(na.omit(cb_genes[which(cb_genes %in% de_genes
 
 paste("Number of genes in the histone list:", length(histone_genes))
 paste("Number of histone list in the DE list:", length(which(histone_genes %in% de_genes_48_0)))
-histone_genes[histone_genes %in% de_genes_48_0]
 histone_genes_present_48_0 <- as.vector(na.omit(histone_genes[which(histone_genes %in% de_genes_48_0)]))
 
-df_cb_genes <- as.data.frame(t(bind_rows(lapply(list(cb_genes_present_12_0, 
-                                                     cb_genes_present_24_0, cb_genes_present_48_0), as.data.frame.list))))
-colnames(df_cb_genes) <- c("12_vs_0", "24_vs_0", "48_vs_0")
+# Check genes from LRT
+paste("Number of cajal body genes in the DE list:", length(which(cb_genes %in% sig_res_LRT$symbol)))
+paste("Number of histone list in the DE list:", length(which(histone_genes %in% sig_res_LRT$symbol)))
+
+df_cb_genes  <- as.data.frame(t(bind_rows(lapply(list(cb_genes_present_12_0, 
+                                                     cb_genes_present_24_0, 
+                                                     cb_genes_present_48_0), 
+                                                 as.data.frame.list)))) %>% 
+  mutate_if(is.character , replace_na, replace = "-")
+colnames(df_cb_genes) <- c("12h", "24h", "48h")
+
 
 df_histone_genes <-  as.data.frame(t(bind_rows(lapply(list(histone_genes_present_12_0, 
-                                                           histone_genes_present_24_0, histone_genes_present_48_0), as.data.frame.list))))
-colnames(df_histone_genes) <- c("12_vs_0", "24_vs_0", "48_vs_0")
-write.table(df_cb_genes, quote= FALSE, row.names = FALSE, sep="\t",file="CB_genes_DE.csv")
-write.table(df_histone_genes, quote= FALSE, row.names = FALSE, sep="\t",file="histone_genes_DE.csv")
+                                                           histone_genes_present_24_0, 
+                                                           histone_genes_present_48_0), 
+                                                      as.data.frame.list)))) %>% 
+  mutate_if(is.character , replace_na, replace = "-")
+
+colnames(df_histone_genes) <- c("12h", "24h", "48h")
+write_xlsx(df_cb_genes, path = "CB_genes_DE.xlsx", col_names=T, format_headers = T)
+write_xlsx(df_histone_genes, path = "histone_genes_DE.xlsx", col_names=T, format_headers = T)
+
+
+###################################
+#### Cross check with Splicing ####
+###################################
+setwd("/Users/pbarbosa/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/mirek_CajalBodies/new_data_spike-ins/splicing/tools_overlap/")
+genes_with_splicing <- read_tsv(file ="tools_overlap_gene_id_fetched_from_symbol.tsv") %>% dplyr::select(1,2) %>% 
+  rename(gene_name = `#gene_name`) %>% 
+  dplyr::select(gene_id, gene_name) %>%
+  filter (! duplicated(gene_id)) %>%
+  drop_na() %>%
+  column_to_rownames("gene_id") 
+
+ALL_DE <- unique(c(rownames(res_sign_12_0), rownames(res_sign_24_0),rownames(res_sign_48_0)))
+splicing_obtained_and_de <- intersect(rownames(genes_with_splicing), ALL_DE)
+
+gprofiler_isec_splicing_de <- run_enrichment_gprofiler(splicing_obtained_and_de,
+                                          custom_genes_background = NULL,
+                                          retrieve_only_sign_results = T, 
+                                          exclude_iea = F, 
+                                          retrieve_short_link = F,
+                                          measure_under = F, 
+                                          domain_scope = "annotated",
+                                          sources= NULL)
+plot_enrichment_results(gprofiler_isec_splicing_de, 
+                        rank_by = "log10padj", top_n = 30, short_term_size = F, font_size=12, size_of_short_term = 500)
+
+# Check for CB and histone genes 
+paste("Number of cajal body genes in the Splicing list:", length(which(cb_genes %in% genes_with_splicing$gene_name)))
+paste("Number of histone list in the Splicing list:", length(which(histone_genes %in% genes_with_splicing$gene_name)))

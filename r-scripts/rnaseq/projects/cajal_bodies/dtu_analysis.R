@@ -10,7 +10,7 @@ source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_se
 ####################
 #####INPUT DATA#####
 ####################
-setwd("/Users/pbarbosa/analysis/cajal_bodies/salmon/")
+setwd("/Users/pbarbosa/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/mirek_CajalBodies/new_data_spike-ins/salmon/gencode_v33_with_spike-ins/")
 timepoints <- as.factor(rep(c(0, 12, 24, 48), each=3)) 
 replicates <- as.factor(rep(c("rep1", "rep2", "rep3"), times=4))
 myc_activation <- as.factor(rep(c(0,1), times=c(3,9)))
@@ -20,12 +20,17 @@ files <- list.files(path=".", pattern = "*sf")
 names(files) <- samples$sample_id
 
 
-################################
-#Import transcript level counts#
-#by generating counts from abundance
-################################
-txi <- tximport(files, type = "salmon", txIn = T, txOut = T, 
-                countsFromAbundance = "scaledTPM")
+########################################
+#### Import transcript level counts ####
+#by generating counts from abundance ###
+########################################
+
+tx2gene <- readr::read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33_with_spikein.txt")
+tx_ids <- readr::read_tsv(file = "myC_time0_rep1_quant.sf") %>% .$Name
+tx_ids <- sapply(strsplit(tx_ids,"\\."), function(x) x[1])
+tx_ids <- tibble::enframe(name = NULL, x = tx_ids)
+tx2gene <- tx_ids %>% left_join(dplyr::select(tx2gene, `Transcript stable ID`, `Gene stable ID`) , by = c("value" = "Transcript stable ID")) 
+txi <- tximport(files, type = "salmon", tx2gene = tx2gene, txIn = T, txOut = T, countsFromAbundance = )
 
 #cts <- txi$counts
 #cts <- cts[rowSums(cts) > 0, ]
