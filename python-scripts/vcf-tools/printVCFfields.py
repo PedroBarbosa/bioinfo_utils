@@ -26,20 +26,28 @@ def gets_standard_field(record, field):
             return str(record.INFO.get(field))
 
 
-def printFields(vcf,fields,printall):
-    standard_fields=["CHROM","POS","ID","REF","ALT","QUAL","FILTER","FORMAT"]
+def printFields(vcf, fields, printall):
+    standard_fields=["CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "FORMAT"]
     existing_info, final_final_existing_info=[],[]
     indexes=defaultdict(list)
     vcf_data = VCF(vcf, gts012=True)
+
+    if vcf_data.contains("ANN"):
+        VEP_TAG = "ANN"
+    elif vcf_data.contains("CSQ"):
+        VEP_TAG = "CSQ"
+    else:
+        VEP_TAG = ""
+        
     for field in vcf_data.header_iter():
         d = field.info()
         if d['HeaderType'] == "INFO":
             existing_info.append(d['ID'])
     print("#List of available INFO fields extracted from the header:\n#{}".format(existing_info))
     for field in vcf_data.header_iter():
-        if field["HeaderType"] == "INFO" and field["ID"] == "ANN":
+        if field["HeaderType"] == "INFO" and field["ID"] == VEP_TAG:
             tools = field["Description"].split("Format:")[1][:-1].strip().split("|")
-            print("#List of available fields within ANN field:\n#{}".format(tools))
+            print("#List of available fields within VEP field:\n#{}".format(tools))
             final_existing_info = list(set(existing_info) - set(tools))
             for f in fields:
                 try:
@@ -57,6 +65,7 @@ def printFields(vcf,fields,printall):
         outline=[]
         try:
             info_obj = record.INFO
+  
         except AttributeError:
             standard_where_no_info=[]
             [standard_where_no_info.append(gets_standard_field(record,f)) for f in fields if f in standard_fields]
@@ -66,17 +75,18 @@ def printFields(vcf,fields,printall):
         
         try:
             if printall:
-                info_vep = info_obj.get("ANN").split(",")
+                info_vep = info_obj.get(VEP_TAG).split(",")
             else:
-                info_vep = info_obj.get("ANN").split(",")[0].split("|")
+                info_vep = info_obj.get(VEP_TAG).split(",")[0].split("|")
         except AttributeError:
             info_vep=[]
-        
+ 
         for f in fields:
-            if printall and not info_vep:
-                print("No ANN field found in VCF, therefore --printAll argument is useless.\n")
-                exit(1)
-            elif printall:
+            if not info_vep:
+                outline.append(gets_standard_field(record, f))
+                continue
+
+            if printall:
                 for i,block in enumerate(info_vep):
                     try:
                         d[i].append(gets_standard_field(record,f)) if f in standard_fields or f in final_existing_info else d[i].append(block.split("|")[indexes[f]])
@@ -85,17 +95,16 @@ def printFields(vcf,fields,printall):
             else:
                 if f in standard_fields or f in final_existing_info:
                     outline.append(gets_standard_field(record,f))
-                elif info_vep:
-                    [outline.append(info_vep[indexes[f]]) if info_vep[indexes[f]] else outline.append('None')]
                 else:
-                    print("{} field not in VCF".format(f))
-                    exit(1)
+                    [outline.append(info_vep[indexes[f]]) if info_vep[indexes[f]] else outline.append('None')]
+
         if len(d) > 0:
             for block in d.keys():
                 print('\t'.join(d[block]))
             print('\n')
         else:
             print('\t'.join(outline))
+
 
 def main():
     parser = argparse.ArgumentParser(description='Script print specific fields from VCF to tab delimited')
@@ -104,8 +113,10 @@ def main():
     parser.add_argument('-a', '--allConsequences', action='store_true',
                         help='Flag to print the values for all consequences blocks. Default: print the first.')
     args = parser.parse_args()
-
-    printFields(args.vcf,args.fields, args.allConsequences)
+    
+    printFields(args.vcf, args.fields, args.allConsequences)
+    
+    
 if __name__ == "__main__":
     main()
 

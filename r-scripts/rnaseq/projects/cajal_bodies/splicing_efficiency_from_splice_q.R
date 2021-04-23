@@ -7,10 +7,10 @@ library(matrixStats)
 library(tibble)
 library(stringr)
 
-setwd("~/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/mirek_CajalBodies/new_data_spike-ins/splicing/splice_q/")
+setwd("~/Desktop/NFS_Carmo/mirek_CajalBodies/new_data_spike-ins/splicing/splice_q/")
 IER_files <- list.files(".", pattern = "*IER*")
-SE_files <- list.files(".", pattern = "*SE_splice*")
-SE_level2_files <- list.files(".", pattern = "level2")
+SPI_files <- list.files(".", pattern = "*SE_splice*")
+SPI_level2_files <- list.files(".", pattern = "level2")
 
 samples <- c("t0_rep1", "t0_rep2", "t0_rep3", "t12_rep1", "t12_rep2", 
              "t12_rep3", "t24_rep1", "t24_rep2", "t24_rep3", "t48_rep1", "t48_rep2", "t48_rep3")
@@ -37,7 +37,7 @@ violin <- function(df){
   ggplot(df, aes(x=timepoints, y=efficiency,fill=replicate)) + 
     geom_violin(width=1) + 
     geom_boxplot(width = 0.15, position = position_dodge(0.99), outlier.shape = NA) +
-    #facet_wrap(~timepoints, ncol = 4, scales = "free_x") + 
+    facet_wrap(~timepoints, ncol = 4, scales = "free_x") + 
     scale_fill_manual(values = colors) +
     scale_y_continuous(limits = c(0.8, 1)) + 
     theme(legend.title=element_blank(), text = element_text(size = 20))
@@ -87,18 +87,20 @@ long_IER <- IER_distinct_efficiencies %>% pivot_longer(!c(`#chr`, IStart, IEnd, 
   unite("intron", c("#chr", "IStart", "IEnd", "gene_ID"), sep="_") %>% 
   mutate(timepoints = str_replace(timepoints, "t","")) 
 
+long_IER$timepoints <- as.numeric(long_IER$timepoints)
 
 violin(long_IER)
+
 
 ### Wilcox
 wilcox <- long_IER %>% group_by(replicate) %>%
   wilcox_test(efficiency ~ timepoints, 
-              ref.group = "t0", 
+              ref.group = "0", 
               exact=T, 
               p.adjust.method = "bonferroni", 
               paired=T,
               detailed = T,
-              alternative = "greater")
+              alternative = "two.sided")
 
 ## Linear model with mixed effects
 long_IER <- mutate_at(long_IER, 'timepoints', as.integer)
@@ -114,6 +116,7 @@ long_IER_inneficiency$efficiency <- 1 - long_IER_inneficiency$efficiency
 glm_IER <- glmer(efficiency ~ timepoints + (1 | replicate) + (1 | intron),
                  data = long_IER_inneficiency, family = Gamma)
 summary(glm_IER)
+
 #####################################
 ##### Transcript-based analysis #####
 #####################################
@@ -180,10 +183,10 @@ Anova(gm1, type=3)
 
 ##########################
 ##########################
-##### SE processing ######
+#### SPI processing ######
 ##########################
 ##########################
-all_dfs <- lapply(SE_files, read_tsv)
+all_dfs <- lapply(SPI_files, read_tsv)
 for (i in seq_along(all_dfs)){
   colnames(all_dfs[[i]])[14]=samples[[i]]
   all_dfs[[i]] = all_dfs[[i]] %>% mutate("{samples[[i]]}_spliced" := sj5_cov_split+sj5_cov_split, 
@@ -193,7 +196,7 @@ for (i in seq_along(all_dfs)){
   all_dfs[[i]] = all_dfs[[i]] %>% dplyr::select(-all_of(colnames_to_remove))
 }
 
-SE_df <- Reduce(function(x, y) full_join(x, y, by = c("#chr", "sj5start", "sj5end", "sj3start", "sj3end", "strand", 
+SPI_df <- Reduce(function(x, y) full_join(x, y, by = c("#chr", "sj5start", "sj5end", "sj3start", "sj3end", "strand", 
                                                       "intron_ID", "gene_ID", "transcript_ID")), all_dfs) %>% drop_na()
 
 
@@ -201,28 +204,30 @@ SE_df <- Reduce(function(x, y) full_join(x, y, by = c("#chr", "sj5start", "sj5en
 ##### Intron-based analysis #####
 #################################
 # N = 317685
-SE_df_subset <- dplyr::select(SE_df, -c(intron_ID, strand, transcript_ID, gene_ID))
+SPI_df_subset <- dplyr::select(SPI_df, -c(intron_ID, strand, transcript_ID, gene_ID))
 
-# N = 119337
-SE_distinct_efficiencies <- SE_df_subset %>% group_by(`#chr`, sj5start, sj5end, sj3start, sj3end) %>% 
+# N = 67410
+SPI_distinct_efficiencies <- SPI_df_subset %>% group_by(`#chr`, sj5start, sj5end, sj3start, sj3end) %>% 
   distinct() %>% ungroup()
 
 ### PCA
-to_pca <- SE_distinct_efficiencies %>% mutate_at("sj5start", as.character) %>% mutate_at("sj5end", as.character) %>%
+to_pca <- SPI_distinct_efficiencies %>% mutate_at("sj5start", as.character) %>% mutate_at("sj5end", as.character) %>%
   mutate_at("sj3start", as.character) %>%  mutate_at("sj3start", as.character) %>%
   unite("id", c("#chr", "sj5start", "sj5end", "sj3start", "sj3end"), sep="_") %>% column_to_rownames("id")
 
-do_pca(to_pca) 
+do_pca(to_pca %>% dplyr::select(-contains("spliced"))) 
 
 ### Violin
-long_SE_from_efficiency <- SE_distinct_efficiencies %>%
+long_SPI_efficiency <- SPI_distinct_efficiencies %>% 
+  dplyr::select(-contains("spliced")) %>%
   pivot_longer(!c(`#chr`, sj5start, sj5end, sj3start, sj3end), names_to = "samples", values_to = "efficiency") %>%
   separate(samples, c("timepoints", "replicate"), sep = "_", remove = F) 
-violin(long_SE)
+
+violin(long_SPI_efficiency)
 
 # Generalized linear mixed model
 to_remove <- c(as.character(c("#chr", "sj5start", "sj5end", "sj3start", "sj3end")), as.character(samples))
-long_SE_from_counts <- SE_distinct_efficiencies %>%
+long_SPI_from_counts <- SPI_distinct_efficiencies %>%
   dplyr::select(!samples) %>%
   pivot_longer(!c(`#chr`, sj5start, sj5end, sj3start, sj3end), 
                names_to = c("samples", ".value"), 
@@ -235,10 +240,28 @@ long_SE_from_counts <- SE_distinct_efficiencies %>%
 
 library(lme4)
 glm_SPI <- glmer(cbind(spliced,unspliced) ~ timepoints + (1 | replicate) + (1 | intron),
-             data = long_SE_from_counts, family = binomial, nAGQ = 1)
-summary(glm_SPI)
+             data = long_SPI_from_counts, family = binomial)
 
-head(SE_distinct_efficiencies)
+summary(glm_SPI)
+# The obtained coefficient for time (-6.488e-03) is saying 
+# that for every additional hour, the logit of p (the probability of getting a spliced read)
+# decreases by 6.488e-03. 
+
+plot(glm_SPI)
+predict(glm_SPI, type="links", se.fit = T)
+
+# Predict splicing efficiency with new timepoints
+new_timepoints <- c(0:60)
+
+# Plug each value into the regression formula using the intercept and coefficients
+predict_logit <- fixef(glm_SPI)[1] + new_timepoints * fixef(glm_SPI)[2]
+
+# Convert logits to p
+inv_logit = function(input_logit) {1/(1 + exp(-input_logit))}
+pred_p <- inv_logit(predict_logit)
+
+plot(pred_p, ylim = c(0.90,1), cex.lab=1.5, cex.axis=1.5,xlab = "Time (hours)", ylab = "Predicted prob of splicing to have occurred")
+
 #####################################
 ##### Transcript-based analysis #####
 #####################################
@@ -309,7 +332,7 @@ SE_level2_df <- Reduce(function(x, y) full_join(x, y, by = c("#chr", "sj5start",
 ##### coSI processing ######
 ############################
 ############################
-setwd("~/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/mirek_CajalBodies/new_data_spike-ins/splicing/ipsa//")
+setwd("~/Desktop/NFS_Carmo/mirek_CajalBodies/new_data_spike-ins/splicing/ipsa/")
 coSI <- read_tsv(file = "all.cosi.tsv") %>% column_to_rownames("id") %>% drop_na()
 
 do_pca(coSI)

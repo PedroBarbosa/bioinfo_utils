@@ -10,8 +10,10 @@ library(tidyverse)
 library(goseq)
 library(writexl)
 library(msigdbr)
+
 #ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt") 
-ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt")
+#ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt")
+ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_ensemblv103.txt") 
 names(ensembl_genes)[names(ensembl_genes) == "Gene name"] <- "symbol"
 names(ensembl_genes)[names(ensembl_genes) == "Gene description"] <- "description"
 names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"
@@ -44,15 +46,16 @@ explore_data_based_on_transformed_variance <- function(dds,
     v_transformed <- log2(counts(dds) + 1) 
   }
   
-  show(head(assay(v_transformed)))
+
   if (!is.null(batch_effect_to_remove)){
+    show(head(assay(v_transformed)))
     assay_ <- assay(v_transformed)
     assay_ <- limma::removeBatchEffect(assay_, batch_effect_to_remove)
     show(head(assay_))
     assay(v_transformed) <- assay_
   }
   
-  show(head(assay(v_transformed)))
+
   # Dendogram and sample distances
   sampleDists <- dist(t(assay(v_transformed)))
   plot(hclust(dist(sampleDists)))
@@ -187,7 +190,7 @@ plot_volcano <- function(res_shrinked, padjcutoff, log2cutoff, title){
   annotations <- data.frame(
     xpos = c(-3, 3),
     #ypos = c(max(-log10(res_shrinked$padj)) + 1, max(-log10(res_shrinked$padj))+ 1),
-    ypos =  c(175,175),
+    ypos =  c(15,15),
     annotateText = c(paste0("N=",ndown),
                      paste0("N=",nup)),
     col = c("#CC0000", "#000099"),
@@ -245,7 +248,9 @@ plot_expression_heatmaps <- function(genes_expression_data,
   
   #Using pheatmap
   library(pheatmap)
-  pheatmap(genes_expression_data, cluster_cols = cluster_cols, cluster_rows = cluster_rows,
+  pheatmap(genes_expression_data, 
+           cluster_cols = cluster_cols, 
+           cluster_rows = cluster_rows,
            show_rownames = show_rownames,
            col = color_pallete,
            scale = "row",
@@ -349,8 +354,11 @@ run_enrichment_gprofiler <- function(gene_list, custom_genes_background=NULL, or
 fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlist){
   
   # nperm=npermutations doesn't exist in new implementation
-  fgseaRes <- fgseaMultilevel(pathways=pathways, 
-                    stats=ranks, 
+  # fgseaRes <- fgseaSimple(pathways = pathways,
+  #                         stats = ranks,
+  #                         nperm = 10000)
+  fgseaRes <- fgseaMultilevel(pathways=pathways,
+                    stats=ranks,
                     eps = 0.0,
                     minSize = 10)
   
@@ -360,7 +368,7 @@ fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlis
   topPathways <- c(topPathwaysUp, rev(topPathwaysDown))
   plotGseaTable(pathways[topPathways], ranks, fgseaRes, 
                 gseaParam = 0.5, render = T)
-  dev.off()
+
   fgseaRes$source = source
   fgseaRes$log10padj <- -log10(fgseaRes$padj)
   fgseaRes$significant = factor(fgseaRes$padj < 0.05, levels = c(TRUE, FALSE))
@@ -401,22 +409,18 @@ fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlis
   else if (organism == "hsapiens"){
     m_df = msigdbr(species = "Homo sapiens")
   }
-    
+ 
   Hallmarks <- m_df %>% dplyr::filter(gs_cat == "H") %>% split(x = .$gene_symbol, f = .$gs_name)
   Reactome <- m_df %>% dplyr::filter(gs_subcat == "CP:REACTOME") %>% split(x = .$gene_symbol, f = .$gs_name)
   Kegg <- m_df %>% dplyr::filter(gs_subcat == "CP:KEGG") %>% split(x = .$gene_symbol, f = .$gs_name)
-  GO_BP <- m_df %>% dplyr::filter(gs_subcat == "BP") %>% split(x = .$gene_symbol, f = .$gs_name)
-  GO_MF <-  m_df %>% dplyr::filter(gs_subcat == "MF") %>% split(x = .$gene_symbol, f = .$gs_name)
-  #gene_list <- gene_list %>% rename(symbol_mouse = symbol)
-  #gene_list %>% left_join(dplyr::select(human_gene_symbol, gene_symbol) %>% distinct(), by=c("symbol_mouse"="gene_symbol")) %>%
-  #  rename(symbol = human_gene_symbol)
-  
-  
+  GO_BP <- m_df %>% dplyr::filter(gs_subcat == "GO:BP") %>% split(x = .$gene_symbol, f = .$gs_name)
+  GO_MF <-  m_df %>% dplyr::filter(gs_subcat == "GO:MF") %>% split(x = .$gene_symbol, f = .$gs_name)
+
   if (!is.null(sources)) { 
     sources <- sources
   }
   else{
-    sources <- c("Hallmarks", "KEGG", "REAC", "GO:BP", "GO:MF")
+    sources <- c("Hallmarks", "KEGG", "REAC", "GO:BP")#, "GO:MF")
   }
   
   if (!is_ranked_already){
@@ -464,6 +468,7 @@ fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlis
       stop(paste0(source, " is not a valid source."))
     }
     outlist <- fgsea_function(pathways, ranks, top_n, npermutations, source, outlist)
+
   }
   out_df <- do.call("rbind", outlist)
   return(out_df)

@@ -38,10 +38,13 @@ repos <- "http://cran.us.r-project.org"
 packages <- list(
   list(name="BiocManager"),
   list(name="dplyr"),
+  list(name="tidyr"),
   list(name="fgsea"),
   list(name="readr"),
   list(name="gprofiler2"),
-  list(name="ggplot2")
+  list(name="ggplot2"),
+  list(name="biomaRt"),
+  list(name="msigdbr")
 )
 
 for (i in 1:length(packages)) {
@@ -60,6 +63,7 @@ for (i in 1:length(packages)) {
     stop(paste("could not install", package$name))
   }
 }
+
 
 #' @title GO enrichment of splicing events
 #' @description Given a character vector of positive genes (with any relevant splicing event) 
@@ -151,10 +155,10 @@ run_enrichment_gprofiler <- function(gene_list, custom_genes_background=NULL,
 
 fgsea_function <- function(pathways, ranks, top_n, npermutations, source, outlist){
   
-  fgseaRes <- fgsea(pathways=pathways, 
+  fgseaRes <- fgseaMultilevel(pathways=pathways, 
                     stats=ranks, 
-                    nperm=npermutations,
-                    minSize = 10)
+                    eps=0,
+                    minSize = 5)
   
   #plotEnrichment(fgseaRes[["KEGG_CELLCYLE"]], ranks)
   topPathwaysUp <- fgseaRes[ES > 0][head(order(padj), n=7), pathway]
@@ -199,7 +203,7 @@ run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F,
     show("Retrieving all human gene sets in MSigDB")
     m_df = msigdbr(species = "Homo sapiens")
   }
-  show(m_df)
+
   Hallmarks <- m_df %>% dplyr::filter(gs_cat == "H") %>% split(x = .$gene_symbol, f = .$gs_name)
   Reactome <- m_df %>% dplyr::filter(gs_subcat == "CP:REACTOME") %>% split(x = .$gene_symbol, f = .$gs_name)
   Kegg <- m_df %>% dplyr::filter(gs_subcat == "CP:KEGG") %>% split(x = .$gene_symbol, f = .$gs_name)
@@ -225,13 +229,15 @@ run_fgsea_analysis <- function(gene_list, sources = NULL, is_ranked_already = F,
     else if (gene_list_from == "rmats" | gene_list_from == "vast-tools" | gene_list_from == "majiq"){
       gene_list <- gene_list  %>% mutate(stat = rank)
     }
+
     res <- as_tibble(gene_list) %>% 
-      dplyr::select(symbol, stat) %>% 
+      dplyr::select(gene_id, stat) %>% 
       na.omit() %>% 
       distinct() %>% 
-      group_by(symbol) %>% 
+      group_by(gene_id) %>% 
       dplyr::summarize(stat=mean(stat))
-    ranks <- deframe(res)
+   
+    ranks <- tibble::deframe(res)
     
   } else{
     ranks <- gene_list
@@ -335,21 +341,21 @@ process_vastools <- function(pos, neg, ranks, ranks_groups, no_custom){
     if(is.null(ranks_groups)){
       stop("If '--vastools_ranks' is set, you must pass '--vastools_ranks_groups' as well.")
     }
-  
-    to_rank <- read_tsv(ranks) %>% separate(col = EVENT, into = c("symbol", "eventid"), sep="=")
-    groups <- strsplit(ranks_groups)
+    
+    to_rank <- read_tsv(ranks) %>% tidyr::separate(col = EVENT, into = c("symbol", "eventid"), sep="=")
+    groups <- strsplit(ranks_groups, split=",")
     if (length(groups != 2)){
       stop("Two groups must exist in the '--vastools_ranks_groups' split by ','")
     }
+
     to_rank$groups[[1]] <- rowMeans(subset(to_rank, select = grepl(groups[[1]], colnames(to_rank))), na.rm = T)
     to_rank$groups[[2]] <- rowMeans(subset(to_rank, select = grepl(groups[[2]], colnames(to_rank))), na.rm = T)
-    
+    show(to_rank)
     
     ranks_vasttools <- to_rank %>% mutate(dPSI = groups[[2]] - groups[[1]]) %>% group_by(symbol) %>% 
       drop_na(dPSI) %>%
       summarise(rank=max(dPSI)) %>%
       filter(symbol != "") %>%
-      left_join(dplyr::select(ensembl_genes, c(gene_id, symbol))) %>%
       distinct() %>%
       arrange(-rank)
     
@@ -437,14 +443,26 @@ process_rmats <- function(pos, neg, ranks, no_custom){
     ###### FGSEA ########
     #####################
     if (!is.null(ranks)){
+      if (ORGANISM == "mmusculus") {
+        ensembl = useEnsembl(biomart="ensembl", dataset="mmusculus_gene_ensembl")
+      }
+      else{
+        ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+      }
+  
       to_rank <- read_tsv(ranks, col_names = c("gene_id", "padj", "dPSI"))
       to_rank$gene_id <- gsub("\\..*","", to_rank$gene_id)
-      show(to_rank)
+      
+      genedesc <-  getBM(attributes=c('ensembl_gene_id','external_gene_name'), 
+                         filters = 'ensembl_gene_id', values = to_rank$gene_id , mart =ensembl)
+      to_rank$symbol <- genedesc$external_gene_name[match(to_rank$gene_id, genedesc$ensembl_gene_id)]
+      
+      
       ranks_rmats <- to_rank %>% mutate(padj = ifelse(padj == 1, 0.9999999, ifelse(padj == 0, 1e-20, padj)),
                                         dPSI = -dPSI, value = -log10(padj) * dPSI) %>% 
         group_by(gene_id) %>%  
         summarise(rank=mean(value)) %>%
-        left_join(dplyr::select(ensembl_genes, c(gene_id, symbol))) %>%
+        # left_join(dplyr::select(ensembl_genes, c(gene_id, symbol))) %>%
         distinct() %>%
         arrange(-rank)
       rmats_res_gsea <- run_fgsea_analysis(ranks_rmats, is_ranked_already = F, organism = ORGANISM, gene_list_from = "rmats")

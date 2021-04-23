@@ -47,7 +47,7 @@ group_combination <- c("treatment","CBE", "mock")
 #####################
 #####From Salmon#####
 #####################
-setwd("/Users/pbarbosa/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/christian/human_fibroblasts/cbe_ctrl_april_2019/salmon")
+setwd("//Users/pbarbosa/Desktop/NFS_Carmo/christian/human_fibroblasts/cbe_ctrl_april_2019/salmon")
 files <- list.files(".", pattern = "*sf")
 
 treatment <- as.factor(unlist(lapply(strsplit(files, split = "_"), `[`, 2)))
@@ -79,9 +79,9 @@ group_combination <- c("treatment","CBE", "mock")
 #########################
 #####DATA EXPLORATION####
 #########################
-run_analysis(dds_fc, group_combination, 1, 0.05, "hg38", explore_data = T)
+explore_data_based_on_transformed_variance(dds_salmon, "treatment", "rlog", blind=T)
 #Dendogram
-dists <- dist(t(assay(rld_fc)))
+dists <- dist(t(assay(rld_salmon)))
 plot(hclust(dists))
 
 ########################
@@ -93,7 +93,7 @@ plot(hclust(dists))
 #norm_counts_fc <- 1 + as.data.frame(counts(dds_norm_fc, normalized=F))
 
 rld_salmon <- rlog(dds_salmon)
-rld_fc <- rlog(dds_fc)
+# rld_fc <- rlog(dds_fc)
 DESeq2::plotPCA(rld_fc, ntop=500, intgroup = "treatment")
 pca_data <- DESeq2::plotPCA(rld_fc, intgroup = "treatment", returnData=T)
 
@@ -102,22 +102,22 @@ ggplot(pca_data,aes(x=PC1, y=PC2, color=name)) +
   scale_color_manual(values=c("skyblue3", "skyblue4", "darkseagreen3", "darkseagreen4", "brown3", "brown4"))
 
 ########################
-##### Manual 2DPCA #####
+##### Manual 2D PCA ####
 ########################
 rv <- rowVars(assay(rld_salmon))
-rv <- rowVars(assay(rld_fc))
+# rv <- rowVars(assay(rld_fc))
 select <- order(rv, decreasing=TRUE)[seq_len(min(500, length(rv)))]
 pc <- prcomp(t(assay(rld_salmon)[select,]))
 percentVar <- pc$sdev^2 / sum( pc$sdev^2 )
 
 pca_matrix <- as.data.frame(pc$x)
-pca_matrix <- as.data.frame(merge(pca_matrix, colData(dds_salmon), by="row.names", all.x=TRUE)) %>% column_to_rownames(var="Row.names")
+# pca_matrix <- as.data.frame(merge(pca_matrix, colData(dds_salmon), by="row.names", all.x=TRUE)) %>% column_to_rownames(var="Row.names")
 colors <- c("blue", "red") 
 colors <- colors[as.numeric(pca_data$treatment)] 
-ggplot(pca_matrix,aes(x=PC1, y=PC2, color=cellline, shape=treatment)) +
+ggplot(pca_matrix,aes(x=PC2, y=PC3, color=cellline, shape=treatment)) +
   geom_point(size=5) + 
-  xlab(paste0("PC1: ",round(percentVar[1] * 100),"% variance")) +
-  ylab(paste0("PC2: ",round(percentVar[2] * 100),"% variance")) +
+  xlab(paste0("PC2: ",round(percentVar[2] * 100),"% variance")) +
+  ylab(paste0("PC3: ",round(percentVar[3] * 100),"% variance")) +
   coord_fixed() +
   theme(legend.title=element_blank(), text = element_text(size = 20))
 
@@ -194,7 +194,7 @@ setwd("~/Desktop/")
 #### salmon #####
 #################
 list_de_salmon <- run_analysis(dds_salmon, group_combination, log2cutoff, padjcutoff, use_contrast = F, FC_shrinkage_method = "apeglm", 
-                               genome = "hg38", annotate_locally = T, explore_data = F)
+                               genome = "hg38", annotate_locally = T)
 
 de_genes_salmon_apeglm_shrinkage <- rownames(list_de_salmon[[2]])
 all_annot_salmon <- annotate_results(list_de_salmon[[1]], T, "hg38") 
@@ -281,10 +281,11 @@ plot_enrichment_results(dplyr::filter(out_df_goseq, significant == T),
 
 #FGSEA
 out <- run_fgsea_analysis(all_annot_salmon, is_ranked_already = F, top_n = 20, npermutations = 5000)
+out <- out %>% dplyr::filter(source == "KEGG")
 plot_enrichment_results(dplyr::filter(out, significant == T), 
-                        rank_by = "NES", label = "Normalized Enrichment Score", top_n = 20, 
+                        rank_by = "log10padj", label = "-log10(corrected p-value)", top_n = 15, 
                         font_size = 15,
-                        reverse_order = T,
+                        reverse_order = F,
                         add_info_to_labels =  F,
                         short_term_size = F, 
                         size_of_short_term = 50)
