@@ -4,7 +4,7 @@ echo 'Script to run rMATs for multiple BAM files.
 
 -1st argument must be the file listing the replicates for condition 1. Replicates must be split by ",".
 -2st argument must be the file listing the replicates for condition 2. Replicates must be split by ",". If not set (by using "-") PSI quantifications will be performed for the samples present in the 1st arg. No differential splicing will be tested. This is useful to have inclusion tables and perform PCA on the data, for instance.
--3rd argument must be the GTF annotation file (must be unzipped). Use "-" to skip argument and use default. Default: gencode hg38 v34 primary assembly.
+-3rd argument must be the GTF annotation file (must be unzipped). Use "-" to skip argument and use default. Default: gencode hg38 v36 primary assembly.
 -4th argument must be the output directory. (will serve also as basename of main output files).
 -5th argument must be the labels for each group, split by ",". If 2nd argument is set to "-", this argument is irrelevant as no statistical comparisons between groups is done.
 -6th argument is optional. Refers to whether statistical analysis should be performed. Values: [true|false|-]. Default: true
@@ -33,7 +33,7 @@ else
 fi
 
 if [[ "$3" == "-" ]]; then
-    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode_v34_primary_assembly.gtf"
+    GTF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v36.primary_assembly.annotation.gtf"
 else
     GTF=$(readlink -f "$3")
 fi

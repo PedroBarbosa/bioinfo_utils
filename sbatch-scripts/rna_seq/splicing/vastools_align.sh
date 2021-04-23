@@ -72,7 +72,8 @@ cat > vast_align.sbatch <<EOL
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --output=%j_vast_align.log
-#SBATCH --image=vastgroup/vast-tools:v2.4.0
+##SBATCH --image=vastgroup/vast-tools:v2.4.0
+#SBATCH --image=vastgroup/vast-tools:latest
 #SBATCH --array=0-$(( $JOBS -1 ))%26
 
 scratch_out=/home/pedro.barbosa/scratch/rna_seq/splicing/vasttools/\$SLURM_JOB_ID

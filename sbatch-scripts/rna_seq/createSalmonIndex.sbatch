@@ -10,5 +10,5 @@
 
 fasta_file=$(readlink -f "$1")
 idx_name=$2
-srun shifter salmon index --gencode --keepDuplicates -i $idx_name -t $fasta_file
+srun shifter salmon index --gencode -i $idx_name -t $fasta_file
 

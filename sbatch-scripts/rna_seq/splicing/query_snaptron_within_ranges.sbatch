@@ -10,6 +10,7 @@
 SNAPTRON_R_SCRIPT="/home/pedro.barbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/splicing/query_snaptron.R"
 intervals=$(readlink -f $1)
 
+echo "Processing $intervals file.."
 source activate r_env
 Rscript $SNAPTRON_R_SCRIPT $intervals
 conda deactivate

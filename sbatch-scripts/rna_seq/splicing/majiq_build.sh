@@ -4,7 +4,7 @@ display_usage(){
  Usage:
     -1nd argument must the file that describes the input data (2cols, 1st filepath, 2nd sample group). Bam location is assumed to be the same for all files. Dirname will be extracted to create the config file.
     -2th argument must the file the output directory.
-    -3rd argument is optional. Refers to the gff file. If not given (-), gencode hg38 v34 primary assembly will be used.
+    -3rd argument is optional. Refers to the gff file. If not given (-), gencode hg38 v36 primary assembly will be used.
     -4th argument is optional. Refers whether to run simplifier to remove non-relevant splicing variations. Default: true. Values:[true|false|-].
     -5th argument is optional. Refers to the genome version to use in the config. Default: 'hg38'. Use '-' to skip argument.
     -6th argument is optional. Refers to the strandness of the RNAseq protocol: Default: 'reverse'. Values:[reverse|forward|None]. Use '-' to skip the argument.
@@ -44,7 +44,7 @@ fi
 OUT=$(readlink -f "$2")
 
 if [[ -z "$3" || "$3" == "-" ]]; then
-    GFF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode_v34_primary_assembly.gff3"
+    GFF="/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg38/gencode.v36.primary_assembly.annotation.gff3.gz"
 else
     GFF=$(readlink -f "$3")
 fi

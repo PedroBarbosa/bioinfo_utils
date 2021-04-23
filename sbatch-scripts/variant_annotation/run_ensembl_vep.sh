@@ -246,7 +246,7 @@ FINAL_OUT=$OUT
 #####################
 if [[ "${11}" != "true" ]]; then
     if [[ -z "${10}" || ${10} == "vcf" || ${10} == "-" ]]; then
-        BASE_CMD="$BASE_CMD --vcf --vcf_info_field ANN --compress_output bgzip --output_file ${OUT}.vcf.bgz"
+        BASE_CMD="$BASE_CMD --vcf --compress_output bgzip --output_file ${OUT}.vcf.bgz"
     elif [[ ${10} == "tab" || ${10} == "json" ]]; then
         if [[ $runTools == "true" ]]; then
             printf "INFO. You set 10th argument to write output in ${10} format. Therefore only prediction tools bundled with VEP will be run. Additional tools (run through vcfanno) require input file in VCF format.\n"
@@ -322,7 +322,7 @@ elif [[ "${11}" == "true" ]]; then
 cd $WORKDIR 
 readarray -t chrom_list < listChroms.txt
 mkdir \${SLURM_JOB_ID}_withParallel && cd \${SLURM_JOB_ID}_withParallel
-$BASE_CMD --chr \${chrom_list[\$SLURM_ARRAY_TASK_ID]} --output_file \${chrom_list[\$SLURM_ARRAY_TASK_ID]}.vcf.bgz --vcf --vcf_info_field ANN --compress_output bgzip
+$BASE_CMD --chr \${chrom_list[\$SLURM_ARRAY_TASK_ID]} --output_file \${chrom_list[\$SLURM_ARRAY_TASK_ID]}.vcf.bgz --vcf --compress_output bgzip
 srun shifter --image=ummidock/ubuntu_base:latest tabix -p vcf \${chrom_list[\$SLURM_ARRAY_TASK_ID]}.vcf.bgz
 mv \${chrom_list[\$SLURM_ARRAY_TASK_ID]}.vcf.bgz* ../
 cd ../ && rm -rf \$SLURM_JOB_ID*

@@ -4,280 +4,375 @@ from matplotlib_venn import venn2, venn3
 from itertools import chain
 import matplotlib.pyplot as plt
 import upsetplot
+import mygene
 import pandas as pd
 
 
-def retrieve_gene_table(species="human"):
-    if species == "human":
-        try:
-            ensembl_genes_map = pd.read_csv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt",
-                                            error_bad_lines=False,
-                                            sep="\t",
-                                            header=0,
-                                            usecols=[0, 1, 2, 3, 4, 5, 6],
-                                            names=["gene_id", "gene_id_version", "transcript_id",
-                                                   "transcript_id_version", "chr", "gene_name", "gene_description"])
-        except FileNotFoundError:  # if in lobo
-            ensembl_genes_map = pd.read_csv(
-                "/mnt/nfs/lobo/MCFONSECA-NFS/mcfonseca/shared/genomes/human/hg38/mart_hg38_v33.txt",
-                error_bad_lines=False,
-                sep="\t",
-                header=0,
-                usecols=[0, 1, 2, 3, 4, 5, 6],
-                names=["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "chr", "gene_name",
-                       "gene_description"])
-    elif species == "mouse":
-        try:
-            ensembl_genes_map = pd.read_csv(
-                "/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt",
-                error_bad_lines=False,
-                sep="\t",
-                header=0,
-                usecols=[1, 2, 3, 4, 5, 6, 7, 8],
-                names=["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "strand",
-                       "gene_description", "gene_name", "chr"])
-        except FileNotFoundError:
-            ensembl_genes_map = pd.read_csv(
-                "/mnt/nfs/lobo/MCFONSECA-NFS/mcfonseca/shared/genomes/mouse/GRCm38.p6/mart_mm10_ensemblv100.txt",
-                error_bad_lines=False,
-                sep="\t",
-                header=0,
-                usecols=[0, 1, 2, 3, 4, 5, 6, 7],
-                names=["gene_id", "gene_id_version", "transcript_id", "transcript_id_version", "strand",
-                       "gene_description", "gene_name", "chr"])
+def build_gene_table(file: str):
+    """
+    Builds gene map table. Ensembl geneID
+    version numbers are removed, if they exist
 
-    return ensembl_genes_map
+    :param str file: Input file
+    :return dict: Dictionary with geneIDs as keys
+    and gene names as values
+    """
+    ensembl_gene_map = {}
+    with open(file, 'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if line.startswith("ENS"):
+                _l = line.split("\t")
+                if _l[0] in ensembl_gene_map:
+                    raise ValueError("Duplicate entry in gene map file: {}".format(_l[0]))
+
+                ensembl_gene_map[_l[0]] = _l[1]
+
+    f.close()
+    if not ensembl_gene_map:
+        raise ValueError("Are you sure the gene map file has Ensembl gene IDs in the first column ?")
+
+    return ensembl_gene_map
 
 
-def process_vasttools(vastfile, ensembl_genes_map, use_gene_id=False, gene_id_from_tool=False, keep_vast=False):
+def process_vasttools(vast_file: str, genes_map: dict, use_gene_names: bool, keep_vast: bool):
+    """
+    Process vast-tools processed file and return event counts
+    
+    :param str vast_file: Path to the input vast-tools processed
+    file (which is the output of process_vastools_compare script)
+    :param dict genes_map: Dictionary mapping ensembl geneIDs
+    to gene names. If `None` and use_gene_names is `False, `
+    gene IDs are retrieved from main input file
+    :param bool use_gene_names: Whether gene names should be used to
+    compute counts and overlaps
+    :param bool keep_vast: Keep events that do not have geneID and gene 
+    names.
+    
+    :return Counter: Number of vast-tools events per gene
+    :return Counter: Number of vast-tools events per event type
+    :return list: List with geneIDs or names that were not
+    matched against the genes map.
+    """
     unmatched = []
     try:
-        with open(vastfile, 'r') as infile:
+        with open(vast_file, 'r') as infile:
             infile.readline()
-            genes, events = [], []
+            genes, events, unmatched = [], [], []
             for line in infile:
                 if line.split('\t')[0] != "":
-                    if line.split('\t')[1] == "":
-                        if keep_vast:
-                            genes.append(line.split('\t')[0])
-                            events.append(line.split('\t')[7])
+                    event_id = line.split('\t')[0]
+                    gene_name = line.split('\t')[1]
+                    gene_id = line.split('\t')[2]
+                    event_type = line.split('\t')[7]
+
+                    if use_gene_names:
+                        if gene_name == "":
+                            if keep_vast:
+                                genes.append(event_id)
+                                events.append(event_type)
+                            else:
+                                print("Vast event ID {} does not have a match "
+                                      "to a gene name. Event will be discarded".format(event_id))
+                                
+                        elif genes_map is None:
+             
+                            genes.append(gene_name)
+                            events.append(event_type)
+                                
                         else:
-                            print("Vast event ID {} does not have a match to a gene name.".format(line.split('\t')[0]))
-
-                    elif use_gene_id and not gene_id_from_tool:
-                        gene_id = ensembl_genes_map[ensembl_genes_map['gene_name'] == line.split('\t')[1]][
-                            ["gene_name", "gene_id"]]. \
-                            drop_duplicates(keep="first")["gene_id"].to_string(index=False)
-
-                        if "ENS" in gene_id:
-                            genes.append(line.split('\t')[1])
-                            events.append(line.split('\t')[7])
-                        else:
-                            unmatched.append(line.split('\t')[1])
-
-                    elif use_gene_id and gene_id_from_tool:
-                        if "ENS" in line.split('\t')[2]:
-                            genes.append(line.split('\t')[2])
-                            events.append(line.split('\t')[7])
+                            names = list(genes_map.values())
+                            if gene_name in names:
+                                genes.append(gene_name)
+                                events.append(event_type)
+                            else:
+                                unmatched.append(gene_name)
 
                     else:
-                        genes.append(line.split('\t')[1])
-                        events.append(line.split('\t')[7])
 
-            vasttools_counter = Counter(genes)
-            vastools_event_types = Counter(events)
+                        if gene_id == "":
+                            if keep_vast:
+                                genes.append(event_id)
+                                events.append(event_type)
+                            else:
+                                print("Vast event ID {} does not have a match "
+                                      "to a gene ID. Event will be discarded".format(event_id))
+
+                        elif genes_map is None:
+                            genes.append(gene_id)
+                            events.append(event_type)
+
+                        else:
+                            if gene_id in genes_map:
+                                genes.append(gene_id)
+                                events.append(event_type)
+                            else:
+                                unmatched.append(gene_id)
 
         infile.close()
+        vasttools_counter = Counter(genes)
+        vastools_event_types = Counter(events)
         return vasttools_counter, vastools_event_types, unmatched
 
     except TypeError:
         return None, None, None
 
 
-def process_majiq(voilafile, ensembl_genes_map, use_gene_id=False, gene_id_from_tool=False):
+def process_majiq(voila_file, genes_map, use_gene_names: bool):
+    """
+    Process MAJIQ processed file and return event counts
+
+    :param str voila_file: Path to the input MAJIQ file (which is the
+    output of process_voila_tsv script)
+    :param dict genes_map: Dictionary mapping ensembl geneIDs
+    to gene names. If `None` and use_gene_names is `False, `
+    gene IDs are retrieved from main input file
+    :param bool use_gene_names: Whether gene names should be used to
+    compute counts and overlaps
+
+    :return Counter: Number of MAJIQ events per gene
+    :return Counter: Number of MAJIQ events per event type
+    :return list: List with geneIDs or names that were not
+    matched against the genes map.
+    """
     unmatched = []
     try:
-        with open(voilafile, 'r') as infile:
+        with open(voila_file, 'r') as infile:
             infile.readline()
             genes, events = [], []
+
             for line in infile:
                 if line.split('\t')[0] != "":
-                    if use_gene_id and not gene_id_from_tool:
-                        gene_id = ensembl_genes_map[ensembl_genes_map['gene_name'] == line.split('\t')[1]][
-                            ["gene_name", "gene_id"]]. \
-                            drop_duplicates(keep="first")["gene_id"].to_string(index=False)
+                    event_type = line.split('\t')[4]
+                    if event_type:
+                        if use_gene_names:
+                            gene_name = line.split('\t')[1]
 
-                        if "ENS" in gene_id:
-                            genes.append(line.split('\t')[1])
-                            events.append(line.split('\t')[4])
+                            if genes_map is None:
+                                genes.append(gene_name)
+                                events.append(event_type)
+                            else:
+                                names = list(genes_map.values())
+                                if gene_name in names:
+                                    genes.append(gene_name)
+                                    events.append(event_type)
+                                else:
+                                    unmatched.append(gene_name)
+
                         else:
-                            unmatched.append(line.split('\t')[1])
+                            gene_id = line.split('\t')[2].split(".")[0]
+                            if genes_map is None:
+                                genes.append(gene_id)
+                                events.append(event_type)
 
-                    elif gene_id_from_tool:
-                        genes.append(line.split('\t')[2])
-                        events.append(line.split('\t')[4])
+                            else:
+                                if gene_id in genes_map:
+                                    genes.append(gene_id)
+                                    events.append(event_type)
+                                else:
+                                    unmatched.append(gene_id)
 
-                    else:
-                        genes.append(line.split('\t')[1])
-                        events.append(line.split('\t')[4])
-
-            majiq_counter = Counter(genes)
-            majiq_event_types = Counter(events)
         infile.close()
+        majiq_counter = Counter(genes)
+        majiq_event_types = Counter(events)
+
         return majiq_counter, majiq_event_types, unmatched
 
     except TypeError:
         return None, None, None
 
 
-def process_rmats(rmatsfile, ensembl_genes_map, use_gene_id=False, gene_id_from_tool=False):
+def process_rmats(rmats_file: str, genes_map: dict, use_gene_names: bool):
+    """
+    Process rMATS processed file and return event counts
+
+    :param str rmats_file: Path to the input rMATS file (which is the
+    output of process_rmats_maser script)
+    :param dict genes_map: Dictionary mapping ensembl geneIDs
+    to gene names. If `None` and use_gene_names is `False, `
+    gene IDs are retrieved from main input file
+    :param bool use_gene_names: Whether gene names should be used to
+    compute counts and overlaps
+    
+    :return Counter: Number of rMATS events per gene
+    :return Counter: Number of rMATS events per event type
+    :return list: List with geneIDs or names that were not 
+    matched against the genes map.
+    """
     unmatched = []
     try:
-        with open(rmatsfile, 'r') as infile:
+        with open(rmats_file, 'r') as infile:
             infile.readline()
             genes, events = [], []
             for line in infile:
                 if line.split('\t')[0] != "":
-                    if use_gene_id and not gene_id_from_tool:
-                        gene_id = ensembl_genes_map[ensembl_genes_map['gene_name'] == line.split('\t')[1]][
-                            ["gene_name", "gene_id"]]. \
-                            drop_duplicates(keep="first")["gene_id"].to_string(index=False)
+                    event_type = line.split('\t')[3]
+                    # Use gene names
+                    if use_gene_names:
+                        gene_name = line.split('\t')[1]
 
-                        if "ENS" in gene_id:
-                            genes.append(line.split('\t')[1])
-                            events.append(line.split('\t')[3])
+                        # If gene map, confirms the existance of
+                        # the gene name
+                        if genes_map is None:
+                            genes.append(gene_name)
+                            events.append(event_type)
+
                         else:
-                            unmatched.append(line.split('\t')[1])
+                            names = list(genes_map.values())
+                            if gene_name in names:
+                                genes.append(gene_name)
+                                events.append(event_type)
+                            else:
+                                unmatched.append(gene_name)
 
-                    elif gene_id_from_tool:
-                        genes.append(line.split('\t')[2])
-                        events.append(line.split('\t')[3])
+                    # Use gene IDs
                     else:
-                        genes.append(line.split('\t')[1])
-                        events.append(line.split('\t')[3])
+                        gene_id = line.split('\t')[2].split(".")[0]
 
-            rmats_counter = Counter(genes)
-            rmats_type_events = Counter(events)
+                        if genes_map is None:
+                            genes.append(gene_id)
+                            events.append(event_type)
+
+                        else:
+                            if gene_id in genes_map:
+                                genes.append(gene_id)
+                                events.append(event_type)
+                            else:
+                                unmatched.append(gene_id)
+
         infile.close()
+        rmats_counter = Counter(genes)
+        rmats_type_events = Counter(events)
         return rmats_counter, rmats_type_events, unmatched
 
     except TypeError:
         return None, None, None
 
 
-def process_psichomics(psichomicsfile, ensembl_genes_map, use_gene_id=False, gene_id_from_tool=False):
-    unmatched = []
-    genes = []
-    event_ids = []
-    events = []
-    map_event = {'SE': 'ES'}
-    try:
-        with open(psichomicsfile, 'r') as infile:
-            infile.readline()
-            for line in infile:
-                if line.split('\t')[0] in event_ids:
-                    continue
-                else:
-                    event_ids.append(line.split('\t')[0])
+# def process_psichomics(psichomicsfile, ensembl_genes_map, use_gene_id=False, gene_id_from_tool=False):
+#     unmatched = []
+#     genes = []
+#     event_ids = []
+#     events = []
+#     map_event = {'SE': 'ES'}
+#     try:
+#         with open(psichomicsfile, 'r') as infile:
+#             infile.readline()
+#             for line in infile:
+#                 if line.split('\t')[0] in event_ids:
+#                     continue
+#                 else:
+#                     event_ids.append(line.split('\t')[0])
+# 
+#                 if use_gene_id and not gene_id_from_tool:
+#                     gene_id = ensembl_genes_map[ensembl_genes_map['gene_name'] == line.split('\t')[1]][
+#                         ["gene_name", "gene_id"]]. \
+#                         drop_duplicates(keep="first")["gene_id"].to_string(index=False)
+# 
+#                     if "ENSG" in gene_id:
+#                         genes.append(line.split('\t')[1])
+#                         ev = line.split('\t')[4]
+#                         events.append(map_event.get(ev, ev))
+#                     else:
+#                         unmatched.append(line.split('\t')[1])
+# 
+#                 elif gene_id_from_tool:
+#                     genes.append(line.split('\t')[2])
+#                     ev = line.split('\t')[4]
+#                     events.append(map_event.get(ev, ev))
+#                 else:
+#                     genes.append(line.split('\t')[1])
+#                     ev = line.split('\t')[4]
+#                     events.append(map_event.get(ev, ev))
+# 
+#             psichomics_counter = Counter(genes)
+#             events_counter = Counter(events)
+# 
+#         infile.close()
+#         return psichomics_counter, events_counter, unmatched
+# 
+#     except TypeError:
+#         return None, None, None
 
-                if use_gene_id and not gene_id_from_tool:
-                    gene_id = ensembl_genes_map[ensembl_genes_map['gene_name'] == line.split('\t')[1]][
-                        ["gene_name", "gene_id"]]. \
-                        drop_duplicates(keep="first")["gene_id"].to_string(index=False)
 
-                    if "ENSG" in gene_id:
-                        genes.append(line.split('\t')[1])
-                        ev = line.split('\t')[4]
-                        events.append(map_event.get(ev, ev))
-                    else:
-                        unmatched.append(line.split('\t')[1])
+def compute_overlaps(d: dict, unmatched: list, genes_map: dict,
+                     use_gene_names: bool):
+    """
+    Compute tools overlap
 
-                elif gene_id_from_tool:
-                    genes.append(line.split('\t')[2])
-                    ev = line.split('\t')[4]
-                    events.append(map_event.get(ev, ev))
-                else:
-                    genes.append(line.split('\t')[1])
-                    ev = line.split('\t')[4]
-                    events.append(map_event.get(ev, ev))
-
-            psichomics_counter = Counter(genes)
-            events_counter = Counter(events)
-
-        infile.close()
-        return psichomics_counter, events_counter, unmatched
-
-    except TypeError:
-        return None, None, None
-
-
-def compute_overlaps(d, unmatched, ensembl_genes_map, species, use_gene_id=False, gene_id_from_tool=False):
+    :param dict d: Dict with event counts per gene, per tool
+    :param list unmatched: List of unmatched gene IDs/names
+    across any tool
+    :param dict genes_map: Ensembl gene map
+    :param bool use_gene_names: Whether event counts were performed
+    based on gene names
+    :param str species: Species to consider in the experiment
+    """
     final_table = defaultdict(list)
     sets = []
 
-    if use_gene_id and not gene_id_from_tool:
-        outbasename = "tools_overlap_gene_id_fetched_from_symbol"
-    elif gene_id_from_tool:
-        outbasename = "tools_overlap_gene_id_from_tool"
+    if use_gene_names:
+        outbasename = "tools_overlap_gene_names" if genes_map is None else "tools_overlap_valid_gene_names"
     else:
-        outbasename = "tools_overlap_gene_name"
+        outbasename = "tools_overlap_gene_ids" if genes_map is None else "tools_overlap_valid_gene_ids"
 
     for tool, counter in d.items():
         sets.append((tool, set(counter.keys())))
         for gene in counter:
             final_table[gene].append([tool, counter[gene]])
 
-    with open("{}.tsv".format(outbasename), "w") as outw:
+    outw = open("{}.tsv".format(outbasename), "w")
 
-        if gene_id_from_tool:
-            import mygene
-            mg = mygene.MyGeneInfo()
-            gene_ids = [k for k in final_table.keys()]
-            # Get symbols from geneIDs
-            ens_map = mg.querymany(qterms=gene_ids, scopes="ensembl.gene", fields=["symbol"],
-                                   returnall=True,
-                                   as_dataframe=True,
-                                   size=1,
-                                   species=species)['out'][["symbol"]].to_dict()['symbol']
+    gene_final_map = {}
+    if use_gene_names:
+        gene_names = [k for k in final_table.keys()]
 
-            ensembl_map = {k for k, v in ens_map.items() if isinstance(v, float)}
-            with open("{}_unmatched_genes.tsv".format(outbasename), "w") as nogene:
-                nogene.write("\n".join(list(ensembl_map)) + "\n")
-            nogene.close()
+        if genes_map is not None:
 
-        else:
-            gene_names = [k for k in final_table.keys()]
-            # Get gene IDs from symbols
-            # ens_map = mg.querymany(qterms=gene_names, scopes="symbol", fields=["ensembl.gene"], returnall=True,
-            #             as_dataframe=True, size=1, species="human")['out'][["ensembl.gene"]].to_dict()['ensembl.gene']
-            # ensembl_map = {k for k, v in ens_map.items() if isinstance(v, float)}
-            # many unknown as well as genes mapping to multiple IDs (due to the use of haplotype regions)
+            for gene in gene_names:
+                gene_final_map[gene] = list(genes_map.keys())[list(genes_map.values()).index(gene)]
 
-            ens_map = ensembl_genes_map[ensembl_genes_map['gene_name'].isin(gene_names)][["gene_name", "gene_id"]]. \
-                drop_duplicates(keep="first").set_index("gene_name").to_dict()['gene_id']
-
-            with open("{}_unmatched_genes.tsv".format(outbasename), "w") as nogene:
-                if not use_gene_id:  # if using gene names, unfetched gene names are only checked here
-                    unmatched = [v for v in gene_names if v not in list(ens_map.keys())]
-
-                nogene.write("\n".join(list(unmatched)) + "\n")
-            nogene.close()
-
-        if gene_id_from_tool:
-            outw.write("#gene_id\tgene_name\ttools_with_event\tnumber_of_events" + "\n")
-        else:
+            if len(unmatched) > 0:
+                out_unmatched = open("{}_unmatched_genes.tsv".format(outbasename), "w")
+                out_unmatched.write("\n".join(unmatched))
+                out_unmatched.close()
             outw.write("#gene_name\tgene_id\ttools_with_event\tnumber_of_events" + "\n")
+        else:
+            outw.write("#gene_name\ttools_with_event\tnumber_of_events" + "\n")
 
-        for k, v in final_table.items():
-            flat_list = [item for sublist in v for item in sublist]
-            tools = [t for t in flat_list if isinstance(t, str)]
-            number_of_events = [str(t) for t in flat_list if isinstance(t, int)]
-            try:
-                outw.write(k + "\t" + ens_map[k] + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
-            except TypeError:  # e.g. cases where a vast-tools eventID is reported
-                outw.write(k + "\t" + "" + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
-            except KeyError:  # e.g. cases where geneID doesn't exist for the given symbol
-                outw.write(k + "\t" + "" + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
+    else:
+        gene_ids = [k for k in final_table.keys()]
+
+        if genes_map is not None:
+
+            for gene_id in gene_ids:
+                gene_final_map[gene_id] = genes_map[gene_id]
+
+            if len(unmatched) > 0:
+                out_unmatched = open("{}_unmatched_genes.tsv".format(outbasename), "w")
+                out_unmatched.write("\n".join(unmatched))
+                out_unmatched.close()
+            outw.write("#gene_id\tgene_name\ttools_with_event\tnumber_of_events" + "\n")
+
+        else:
+            outw.write("#gene_id\ttools_with_event\tnumber_of_events" + "\n")
+
+    for k, v in final_table.items():
+        flat_list = [item for sublist in v for item in sublist]
+        tools = [t for t in flat_list if isinstance(t, str)]
+        number_of_events = [str(t) for t in flat_list if isinstance(t, int)]
+
+        if genes_map is not None:
+            outline = [k, gene_final_map[k], ",".join(tools), ",".join(number_of_events)]
+        else:
+            outline = [k, ",".join(tools), ",".join(number_of_events)]
+        outw.write('\t'.join(outline) + "\n")
+        # try:
+        #     outw.write(k + "\t" + ens_map[k] + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
+        # except TypeError:  # e.g. cases where a vast-tools eventID is reported
+        #     outw.write(k + "\t" + "" + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
+        # except KeyError:  # e.g. cases where geneID doesn't exist for the given symbol
+        #     outw.write(k + "\t" + "" + "\t" + ",".join(tools) + "\t" + ",".join(number_of_events) + "\n")
 
     outw.close()
     plt.figure()
@@ -287,17 +382,20 @@ def compute_overlaps(d, unmatched, ensembl_genes_map, species, use_gene_id=False
     labels = [v[0] for v in sets]
     just_sets = [v[1] for v in sets]
 
-    if use_gene_id and not gene_id_from_tool:
-        converted_sets = []
-        for s in just_sets:
-            new_s = set()
-            for gene in s:
-                try:
-                    new_s.add(ens_map[gene])
-                except KeyError:
-                    continue
-            converted_sets.append(new_s)
-        just_sets = converted_sets
+    # # If ensembl gene map was provided in the first place
+    # # include only
+    # if gene_final_map is not None:
+    #     converted_sets = []
+    #
+    #     for s in just_sets:
+    #         new_s = set()
+    #         for gene in s:
+    #             try:
+    #                 new_s.add(gene_final_map[gene])
+    #             except KeyError:
+    #                 continue
+    #         converted_sets.append(new_s)
+    #     just_sets = converted_sets
 
     if len(just_sets) == 2:
         venn2(just_sets, tuple(labels))
@@ -315,7 +413,15 @@ def compute_overlaps(d, unmatched, ensembl_genes_map, species, use_gene_id=False
     plt.close()
 
 
-def write_counts(input_dict, use_gene_id=False, gene_id_from_tool=False):
+def write_event_type_counts(input_dict, gene_map: dict, use_gene_names: bool):
+    """
+    Write counts to file
+
+    :param dict input_dict: Dict with event counts per tool
+    :param dict gene_map: Ensembl gene map
+    :param bool use_gene_names: Whether counts were obtained from gene names
+
+    """
     out = defaultdict(list)
     tool_order = []
     majiq_complex = 0
@@ -337,12 +443,10 @@ def write_counts(input_dict, use_gene_id=False, gene_id_from_tool=False):
                 out["Complex"] = ["-"] * len(d.keys())
                 out["Complex"][i] = majiq_complex
 
-    if use_gene_id and not gene_id_from_tool:
-        outbasename = "gene_id_fetched_from_symbol"
-    elif gene_id_from_tool:
-        outbasename = "gene_id_from_tool"
+    if use_gene_names:
+        outbasename = "gene_names" if gene_map is None else "valid_gene_names"
     else:
-        outbasename = "gene_name"
+        outbasename = "gene_ids" if gene_map is None else "valid_gene_ids"
 
     with open("events_table_{}.csv".format(outbasename), "w") as file:
         file.write('Event_type' + "\t" + "\t".join(tool_order) + "\n")
@@ -353,57 +457,84 @@ def write_counts(input_dict, use_gene_id=False, gene_id_from_tool=False):
 def main():
     parser = argparse.ArgumentParser(description='Script to compute gene-based event overlaps across different '
                                                  'splicing methods.')
-    parser.add_argument('-g', '--use_gene_id', action='store_true', help='Whether venn plots should be done based on' \
-                                                                         'ensembl gene IDs, rather than gene names.')
-    parser.add_argument('-t', '--gene_id_from_tool', action='store_true', help='When -g is true, use gene IDs from '
-                                                                               'each tool file, rather than fecthing mygene')
-    parser.add_argument('-k', '--keep_vast', action='store_true', help='Keep vast-tools events that did not have a'
-                                                                       'gene name/ID match. Default: events are '
-                                                                       'discarded')
-    parser.add_argument("-s", "--species", type=str, default="human", choices=("human", "mouse"),
-                        help='Species. Default:human')
-    parser.add_argument('-v', '--vastools', help='Path to the output file of process_vastools_compare script (which'
-                                                  'picks output of vasttools compare utility and filters by any event '
-                                                  'with deltaPSI > 0.2 be default')
-    parser.add_argument("-m", "--majiq", help='Path to the output file of process_voila_tsv script where all LSVs are'
-                                              'presented (if multiple conditions tested, results come processed.')
-    parser.add_argument("-r", "--rmats", help='Path to the output file of process_rmats_maser script where all splicing'
-                                              ' events are presented (il multiple conditions tested, results come '
-                                              'processed')
-    parser.add_argument("-p", "--psichomics", help='Path to the output file of psichomics processing pipeline where all'
-                                                   'relevant splicing events are presented (il multiple conditions tested,'
-                                                   ' results come concatenated.')
+
+    parser.add_argument('-e', '--ensembl_gene_map', metavar="",
+                        help='Tab delimited file mapping Ensembl gene IDs (1st col) '
+                             'to gene names (2nd col). Use Biomart, for example, to '
+                             'get this file. If set, gene IDs (or gene names '
+                             'if \"--use_gene_names\") obtained by each tool will be '
+                             'checked against this mapping. Only valid IDs will be '
+                             'considered')
+
+    parser.add_argument('-g', '--use_gene_names', action='store_true',
+                        help='Whether venn plots should be done based '
+                             'on gene names, rather than ensembl gene '
+                             'IDs, used by default')
+
+    parser.add_argument('-k', '--keep_vast', action='store_true',
+                        help='Keep vast-tools events that did not have a'
+                             'gene name/ID match. Default: events are '
+                             'discarded')
+
+    parser.add_argument('-v', '--vastools', metavar="", help='Path to the output file of process_vastools_compare '
+                                                             'script (which picks output of vast-tools compare utility '
+                                                             'and filters by any event with deltaPSI > 0.2 by default')
+
+    parser.add_argument("-m", "--majiq", metavar="", help='Path to the output file of process_voila_tsv script '
+                                                          'where all LSVs are presented (if multiple conditions '
+                                                          'tested, results come processed.')
+
+    parser.add_argument("-r", "--rmats", metavar="", help='Path to the output file of process_rmats_maser script '
+                                                          'where all splicing events are presented (if multiple '
+                                                          'conditions tested, results come processed')
+
+    # parser.add_argument("-p", "--psichomics", metavar="", help='Path to the output file of psichomics processing '
+    #                                                            'pipeline where all relevant splicing events are '
+    #                                                            'presented (if multiple conditions tested, results '
+    #                                                            'come concatenated.')
     args = parser.parse_args()
     is_given = 0
-    for arg in vars(args):
-        if getattr(args, arg):
+    for arg in [args.vastools, args.majiq, args.rmats]: # , args.psichomics]:
+        if arg:
             is_given += 1
 
     if is_given < 2:
-        raise SystemExit("Minimum of two files are required to compute overlaps. {} file(s) were "
-                         "given.".format(is_given))
+        raise ValueError("Minimum of two files are required to compute overlaps. {} "
+                         "file(s) were given.".format(is_given))
 
-    if args.gene_id_from_tool and not args.use_gene_id:
-        raise SystemExit("Error. '--use_gene_id' approach is required when using '--gene_id_from_tool' argument")
+    if args.ensembl_gene_map:
+        genes_map = build_gene_table(args.ensembl_gene_map)
+    else:
+        genes_map = None
 
-    ensembl_genes_map = retrieve_gene_table(args.species)
-    vast, vast_c, vast_u = process_vasttools(args.vastools, ensembl_genes_map, args.use_gene_id,
-                                             args.gene_id_from_tool, args.keep_vast)
-    rmats, rmats_c, rmats_u = process_rmats(args.rmats, ensembl_genes_map, args.use_gene_id, args.gene_id_from_tool)
-    majiq, majiq_c, majiq_u = process_majiq(args.majiq, ensembl_genes_map, args.use_gene_id, args.gene_id_from_tool)
-    psichomics, psichomics_c, psichomics_u = process_psichomics(args.psichomics, ensembl_genes_map, args.use_gene_id,
-                                                                args.gene_id_from_tool)
+    vast, vast_c, vast_u = process_vasttools(args.vastools,
+                                             genes_map,
+                                             args.use_gene_names,
+                                             args.keep_vast)
 
-    u = [x for x in [vast_u, rmats_u, majiq_u, psichomics_u] if x]
+    rmats, rmats_c, rmats_u = process_rmats(args.rmats,
+                                            genes_map,
+                                            args.use_gene_names)
+
+    majiq, majiq_c, majiq_u = process_majiq(args.majiq,
+                                            genes_map,
+                                            args.use_gene_names)
+
+    # psichomics, psichomics_c, psichomics_u = process_psichomics(args.psichomics,
+    #                                                             genes_map,
+    #                                                             args.use_gene_names)
+
+    u = [x for x in [vast_u, rmats_u, majiq_u] if x]  # , psichomics_u
 
     unmatched = list(set(list(chain.from_iterable(u))))
-    c = {"vast-tools": vast_c, "rMATS": rmats_c, "MAJIQ": majiq_c, "psichomics": psichomics_c}
-    write_counts(c, args.use_gene_id, args.gene_id_from_tool)
-    d = {"vast-tools": vast, "rMATS": rmats, "MAJIQ": majiq, "psichomics": psichomics}
+
+    c = {"vast-tools": vast_c, "rMATS": rmats_c, "MAJIQ": majiq_c}  # , "psichomics": psichomics_c}
+    write_event_type_counts(c, genes_map, args.use_gene_names)
+    d = {"vast-tools": vast, "rMATS": rmats, "MAJIQ": majiq}  # , "psichomics": psichomics}
     filtered = {k: v for k, v in d.items() if v is not None}
     d.clear()
     d.update(filtered)
-    compute_overlaps(d, unmatched, ensembl_genes_map, args.species, args.use_gene_id, args.gene_id_from_tool)
+    compute_overlaps(d, unmatched, genes_map, args.use_gene_names)
 
 
 if __name__ == "__main__":

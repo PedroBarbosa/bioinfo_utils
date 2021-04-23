@@ -76,12 +76,11 @@ fi
 
 
 if [[ -z "$8" || "$8" == "-" ]]; then
-    #vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
-    #species="hg38"
-    #species="Hsa"
-    #assembly="hg38"
-    vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"
-    species="mm10"
+    vastDB="/home/mcfonseca/shared/genomes/human/hg38/vast-tools/"
+    species="Hs2"
+    assembly="hg38"
+    #vastDB="/home/mcfonseca/shared/genomes/mouse/GRCm38.p6/vast-tools/"
+    #species="mm10"
     #species="Mmu"
     #assembly="mm10"
 else
@@ -111,7 +110,8 @@ cat > vast_splicing_analysis.sbatch <<EOL
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=10
 #SBATCH --output=%j_vast_splicing.log
-#SBATCH --image=vastgroup/vast-tools:v2.4.0
+##SBATCH --image=vastgroup/vast-tools:v2.4.0
+#SBATCH --image=vastgroup/vast-tools:latest
 
 cd $DIR
 

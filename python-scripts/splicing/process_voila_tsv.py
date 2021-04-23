@@ -5,7 +5,7 @@ import os, re
 
 def read_groups(infiles, groups=None):
     """
-    Map voila files to specific majiq run
+    Maps voila files to specific majiq run
     provided in the groups argument.
 
     :param list infiles: List of voila files
@@ -208,9 +208,9 @@ def write_output(final_lsvs, outbasename, enrichment_data, groups):
     group_overlaps = defaultdict(list)
     strand_map = {"-": "minus", "+": "plus"}
 
-    lsvs_f = open(outbasename + "_lsvs.tsv", 'w')
-    sashimi_f = open(outbasename + "_toGGsashimi.tsv", 'w')
-    bed_f = open(outbasename + "_lsvs.bed", 'w')
+    lsvs_f = open(outbasename + "_majiq_lsvs.tsv", 'w')
+    sashimi_f = open(outbasename + "_majiq_toGGsashimi.tsv", 'w')
+    bed_f = open(outbasename + "_majiq_lsvs.bed", 'w')
     lsvs_f.write('\t'.join(header) + "\n")
 
     for lsv_id, data in final_lsvs.items():
@@ -250,7 +250,7 @@ def write_output(final_lsvs, outbasename, enrichment_data, groups):
     bed_f.close()
 
     if groups is not None:
-        lsv_group_overlap_f = open(outbasename + "_lsvs_group_maps.tsv", "w")
+        lsv_group_overlap_f = open(outbasename + "_majiq_group_maps.tsv", "w")
         for k, v in group_overlaps.items():
             lsv_group_overlap_f.write(k + "\t" + ";".join(v) + "\n")
         lsv_group_overlap_f.close()
@@ -279,14 +279,14 @@ def write_output(final_lsvs, outbasename, enrichment_data, groups):
 def main():
     parser = argparse.ArgumentParser(description='Script to retrieve significant LSVs from voila runs')
     parser.add_argument(dest='voila', nargs="+", help='Path to the voila file(s)')
-    parser.add_argument("-d", "--deltapsi", nargs="+", help='Path to the deltapsi tsv output file(s)'
-                                                            ' so LSV type can be extracted. Order of files must'
-                                                            ' match with voila argument.')
+    parser.add_argument("-d", "--deltapsi", metavar="", nargs="+", help='Path to the deltapsi tsv output file(s)'
+                                                                        ' so LSV type can be extracted. Order of '
+                                                                        'files must match with voila argument.')
     parser.add_argument("-o", "--outbasename", required=True, help='Basename to the output file')
-    parser.add_argument("-g", "--groups",
+    parser.add_argument("-g", "--groups", metavar="",
                         help='Tab delimited file with groups (2snd col):q mapping filenames (1st col)')
-    parser.add_argument("-t", "--threshold", type=float, default=0.2, help='dPSI threshold. Default:0.2')
-    parser.add_argument("-p", "--probability", type=float, default=0.9,
+    parser.add_argument("-t", "--threshold", metavar="", type=float, default=0.2, help='dPSI threshold. Default:0.2')
+    parser.add_argument("-p", "--probability", metavar="", type=float, default=0.9,
                         help='probability threshold. Only LSVs with higher probability than this'
                              'value will be kept. Default:0')
     args = parser.parse_args()

@@ -8,12 +8,16 @@ display_usage(){
 5th argument is optional. Refer to the tools to annotate, comma separated. Default: annotate all tools.\n
 
 Included tools:
+MVP (hg19)
+primateAI (hg19,hg38)
+cardioboost (hg19)
 gerp (hg19, hg38)
 phastcons (hg19, hg38)
 phyloP (hg19, hg38)
 fitcons (hg19)
 linsight (hg19)
 siphy (hg19)
+cdts (hg19, hg38)
 gwava (hg19)
 eigen (hg19)
 fathmmMKL (hg19)
@@ -75,6 +79,17 @@ names=["SpliceAI_ind"]
 ops=["self"]
 
 EOM
+
+    elif [[ $1 == "cdts" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/CDTS/hg19/CDTS_hg19_N11257all.bed.gz"
+columns=[4,5]
+names=["CDTS_score", "CDTS_percentile"]
+ops=["self", "self"]
+
+EOM
+
     elif [[ $1 == "gerp" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
@@ -170,6 +185,16 @@ ops=["self"]
 
 EOM
 
+    elif [[ $1 == "fathmmMKL" ]]; then #nochr 
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/wgsa_dbNSFP/resources/fathmmMKL/hg19/fathmm-MKL_Current.txt.gz"
+columns=[6]
+names=["fathmmMKL"]
+ops=["self"]
+
+EOM
+
     elif [[ $1 == "funseq" ]]; then #nochr 
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
@@ -179,6 +204,7 @@ names=["funseq2","funseq2_mean"]
 ops=["self","mean"]
 
 EOM
+
     elif [[ $1 == "traP" ]]; then #nochr
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
@@ -205,6 +231,36 @@ file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/S-CAP/scap_COMBINED_v1.0.vcf
 fields=["SCAP","SCAP"]
 names=["SCAP","SCAP"]
 ops=["self","self"]
+
+EOM
+
+   elif [[ $1 == "MVP" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/MVP/hg19/MVP_hg19.tsv.gz"
+columns=[9]
+names=["MVP"]
+ops=["self"]
+
+EOM
+
+    elif [[ $1 == "primateAI" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/primateAI/hg19/primateAI_scores_v0.2.tsv.gz"
+columns=[11]
+names=["PrimateAI"]
+ops=["self"]
+
+EOM
+
+   elif [[ $1 == "cardioboost" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/CardioBoost/hg19/CardioBoost_hg19.tsv.gz"
+columns=[8]
+names=["CardioBoost"]
+ops=["self"]
 
 EOM
 
@@ -237,6 +293,18 @@ names=["SpliceAI_ind"]
 ops=["self"]
 
 EOM
+
+    elif [[ $1 == "cdts" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/CDTS/hg38/CDTS_hg38_N11257all.bed.gz"
+columns=[4,5]
+names=["CDTS_score", "CDTS_percentile"]
+ops=["self", "self"]
+
+EOM
+
+
     elif [[ $1 == "gerp" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
@@ -246,7 +314,7 @@ names=["GERP"]
 ops=["mean"]
 
 EOM
-    
+
     elif [[ $1 == "phastcons" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]] 
@@ -267,6 +335,16 @@ ops=["mean"]
 
 EOM
 
+    elif [[ $1 == "primateAI" ]]; then
+cat <<EOM >>$PWD/anno.conf
+[[annotation]]
+file="/mnt/nfs/lobo/IMM-NFS/ensembl_vep/custom_data/primateAI/hg38/primateAI_scores_v0.2.tsv.gz"
+columns=[11]
+names=["PrimateAI"]
+ops=["self"]
+
+EOM
+
     elif [[ $1 == "gnomad_genomes" ]]; then
 cat <<EOM >>$PWD/anno.conf
 [[annotation]]
@@ -281,7 +359,8 @@ EOM
    fi
 }
 
-tools=(gerp phastcons phyloP fitcons linsight siphy gwava fathmmMKL eigen remm dann funseq traP spidex spliceai scap gnomad_genomes)
+tools=(gerp phastcons phyloP fitcons cdts linsight siphy gwava fathmmMKL eigen remm dann funseq traP spidex spliceai scap MVP cardioboost primateAI gnomad_genomes)
+do_spliceAI="false"
 
 if [[ -f "$PWD/anno.conf" ]]; then
     rm "$PWD/anno.conf"
@@ -289,6 +368,7 @@ fi
 
 
 if [[ $5 == "-" || -z "$5" ]]; then
+    do_spliceAI="true"
     for elem in "${tools[@]}"
         do
         if [[ $genome_version == "hg19" ]]; then
@@ -307,6 +387,10 @@ else
                 display_usage
                 exit 1
             else
+                if [[ "${elem}" == "spliceai" ]]; then
+                    do_spliceAI="true"
+                fi
+
                 if [[ $genome_version == "hg19" ]]; then
                     annotate_hg19 $elem
                 elif [[ $genome_version == "hg38" ]]; then
@@ -331,7 +415,6 @@ else
     cmd="vcfanno $config $invcf | shifter --image=ummidock/ubuntu_base:latest bgzip > ${outfile}_tmp"
 fi
 
-
 cat > $PWD/vcfAnno.sbatch <<EOL
 #!/bin/bash
 #SBATCH --job-name=vcfAnnot
@@ -344,10 +427,17 @@ cat > $PWD/vcfAnno.sbatch <<EOL
 #SBATCH --image=mcfonsecalab/variantutils:latest 
 
 srun shifter $cmd
-srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf ${outfile}_tmp
-srun zcat ${outfile}_tmp | shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py - | shifter --image=ummidock/ubuntu_base:latest bgzip > $outfile
+
+if [[ $do_spliceAI == "true" ]]; then
+    srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf ${outfile}_tmp
+    srun zcat ${outfile}_tmp | shifter python /home/pedro.barbosa/git_repos/bioinfo_utils/python-scripts/vcf-tools/prediction_tools/split_SpliceAI_field.py - | shifter --image=ummidock/ubuntu_base:latest bgzip > $outfile
+    srun rm ${outfile}_tmp*
+
+else
+    mv ${outfile}_tmp ${outfile}
+fi
+
 srun shifter --image=ummidock/ubuntu_base:latest tabix --force -p vcf $outfile
-srun rm ${outfile}_tmp*
 EOL
 
 sbatch $PWD/vcfAnno.sbatch

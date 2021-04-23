@@ -52,7 +52,7 @@ cat <<EOM >>$PWD/anno.conf
 file="$2"
 columns=[5]
 names=["mmsplice_deltaPSI"]
-ops=["self"]
+ops=["max"]
 
 EOM
     

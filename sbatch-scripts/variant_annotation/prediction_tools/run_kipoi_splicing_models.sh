@@ -94,7 +94,7 @@ while read line; do
     printf "`date`INFO: \$line RBP started.\n"
     kipoi veff score_variants rbp_eclip/\$line -o ${4}_\${line}_rbp_eclip.vcf --dataloader_args='{"gtf_file":"/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/gencode.v28lift37.annotation.gtf", "fasta_file":"/home/pedro.barbosa/mcfonseca/shared/genomes/human/hg19/GRCh37.primary_assembly.genome.fa"}' -i ${4}_eclip_specific.vcf
 #    kipoi veff score_variants rbp_eclip/\$line -o ${4}_\${line}_rbp_eclip.vcf --dataloader_args='{"gtf_file":"$3", "fasta_file":"$2"}' -i "$1"
-    shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_\${line}_rbp_eclip.vcf
+    shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_\${line}_rbp_eclip.vcf
     shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_\${line}_rbp_eclip.vcf.gz
 done < "$5"
 conda deactivate
@@ -118,7 +118,7 @@ printf "`date` INFO: HAL started.\n"
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi veff score_variants HAL -o ${4}_HAL.vcf --dataloader_args='{"gtf_file":"$3", "fasta_file":"$2"}' -i "$1"
 conda deactivate
-awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_HAL.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_HAL.vcf.gz
+awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_HAL.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip -f > ${4}_HAL.vcf.gz
 shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_HAL.vcf.gz
 printf "`date` INFO: HAL finished.\n"
 EOL
@@ -131,7 +131,7 @@ source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi predict KipoiSplice/4 -o ${4}_kipoisplice_4.tsv --dataloader_args='{"fasta_file":"$2", "gtf_file":"$3", "vcf_file":"$1"}'
 conda deactivate
 awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4_to_annotate.tsv
-sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_kipoisplice_4_to_annotate.tsv
+sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_kipoisplice_4_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -s1 -b2 -e2 ${4}_kipoisplice_4_to_annotate.tsv.gz
 printf "`date` INFO: kipoiSplice_4 finished.\n"
 EOL
@@ -144,7 +144,7 @@ source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi predict KipoiSplice/4cons -o ${4}_kipoisplice_4cons.tsv --dataloader_args='{"fasta_file":"$2", "gtf_file":"$3", "vcf_file":"$1"}'
 conda deactivate
 awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4cons.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4cons_to_annotate.tsv
-sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4cons_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_kipoisplice_4cons_to_annotate.tsv
+sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4cons_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_kipoisplice_4cons_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -s1 -b2 -e2 ${4}_kipoisplice_4cons_to_annotate.tsv.gz
 printf "`date` INFO: kipoiSplice_4cons finished.\n"
 EOL
@@ -159,7 +159,7 @@ conda deactivate
 if [[ ! -f "${4}_maxentscan_5.vcf" ]]; then
     printf "`date` INFO: maxentscan_5 did not score any variant"
 else
-    awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_5.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_maxentscan_5.vcf.gz
+    awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_5.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip -f > ${4}_maxentscan_5.vcf.gz
     shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_maxentscan_5.vcf.gz
     printf "`date` INFO: maxentscan_5 finished.\n"
 fi
@@ -175,7 +175,7 @@ conda deactivate
 if [[ ! -f "${4}_maxentscan_3.vcf" ]] ;then
     printf "`date` INFO: maxentscan_3 did not score any variant"
 else
-    awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_3.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_maxentscan_3.vcf.gz
+    awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_maxentscan_3.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip -f > ${4}_maxentscan_3.vcf.gz
     shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_maxentscan_3.vcf.gz
     printf "`date` INFO: maxentscan_3 finished.\n"
 fi
@@ -186,11 +186,14 @@ mmsplice_deltalogitPSI (){
 cat >> $PWD/runKipoi.sbatch <<EOL
 source activate kipoi
 printf "`date` INFO: mmsplice delta logit PSI started.\n"
+CMD="kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_deltaLogitPSI.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'"
+echo \$CMD
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_deltaLogitPSI.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
+
 conda deactivate
 awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 
-sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip  ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
+sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f  ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice delta logit PSI finished.\n"
 EOL
@@ -204,7 +207,7 @@ printf "`date` INFO: mmsplice efficiency started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_efficiency.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
 awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_efficiency.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_efficiency_to_annotate.tsv
-sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_efficiency_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_efficiency_to_annotate.tsv
+sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_efficiency_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_mmsplice_efficiency_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_efficiency_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice efficiency finished.\n"
 EOL
@@ -218,7 +221,7 @@ printf "`date` INFO: mmsplice pathogenicity started.\n"
 kipoi predict MMSplice/pathogenicity -o ${4}_mmsplice_pathogenicity.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
 awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_pathogenicity_to_annotate.tsv
-sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_pathogenicity_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip ${4}_mmsplice_pathogenicity_to_annotate.tsv
+sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_pathogenicity_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_mmsplice_pathogenicity_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_pathogenicity_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice pathogenicity finished.\n"
 EOL
@@ -231,7 +234,7 @@ printf "`date` INFO: basset started.\n"
 kipoi veff score_variants Basset -o ${4}_basset.vcf --dataloader_args='{"fasta_file":"$2"}' -i "$1"
 
 conda deactivate
-awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_basset.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip > ${4}_basset.vcf.gz
+awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_basset.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip -f > ${4}_basset.vcf.gz
 shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_basset.vcf.gz
 printf "`date` INFO: basset finished.\n"
 
