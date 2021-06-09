@@ -3,7 +3,11 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
+from process_voila_tsv import get_relevant_type
 import plotnine as p9
+from tqdm import tqdm
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def process_vasttools(file: str, allowed_nas: int, groups: dict) -> pd.DataFrame:
@@ -107,22 +111,115 @@ def process_rMATS(files: list, allowed_nas: int, groups: dict,
     return concat_df
 
 
-def _compute_LSV_junction_variance(row: pd.Series) -> pd.Series:
+def _extract_majiq_binary_decisions(row: pd.Series):
+    """
+    Extracts PSI level of inclusion group
+    of simple LSV type
+    :param lsv_type:
+    :param lsv_type_str:
+    :param dPSIs:
+    :param probabilities_dPSIs:
+    :return:
+    """
+    output = []
+    # Pure RI events do not need to know
+    # source of target info, because its
+    # inclusion on the 2nd group vs 1st group
+    # is given in the last jx of the LSV
+    if row.lsv_type == "RI":
+        for name, psis in row.iteritems():
+            if name not in ['lsv_id', 'lsv_type']:
+
+                if len(psis.split(";")) == 2:
+                    output.append(round(float(psis.split(";")[-1]), 5))
+
+                else:
+                    print("Problem in IR event in an LSV.")
+                    exit(1)
+
+    # binary dPSI orientation of 2nd group vs 1st group
+    # is extracted based on source|target tags for ES|ALT3SS|ALT5SS
+    #################################
+    # source exon - most left junction
+    # refers to the inclusion
+    ################################
+    if row.lsv_id.split(":")[1] == "s":
+        for name, psis in row.iteritems():
+            if id not in ['lsv_id', 'lsv_type']:
+
+                # ALTSS inclusion form is always the shortest transcript
+                if len(psis.split(";")) == 2:
+                    if row.lsv_type in ['ES', 'A5SS']:
+                        inc_idx = 0
+                        output.append(round(float(psis.split(";")[inc_idx]), 5))
+
+                    elif row.lsv_type == "A3SS":
+                        inc_idx = 1
+                        output.append(round(float(psis.split(";")[inc_idx]), 5))
+
+                # if multiple inclusion jx, do average
+                elif len(psis.split(";")) > 2:
+
+                    if row.lsv_type in ['ES', 'A5SS']:
+                        output.append(round(np.mean([float(x) for x in psis.split(";")[:-1]]), 5))
+
+                    elif row.lsv_type == "A3SS":
+                        output.append(round(np.mean([float(x) for x in psis.split(";")[1:]]), 5))
+
+    ######################
+    # target exon - most left junction
+    # refers to the skipping
+    ######################
+    elif row.lsv_id.split(":")[1] == "t":
+        for name, psis in row.iteritems():
+            if name not in ['lsv_id', 'lsv_type']:
+                if row.lsv_type in ['A3SS', 'A5SS']:
+                    print("SHIT. AltSS when main exon is target(t). {}".format(row.lsv_type))
+                    exit(1)
+
+                # binary dPSI orientation of 2nd group vs 1st group
+                # is extracted based on source|target tags
+                elif len(psis.split(";")) == 2:
+                    inc_idx = 1
+                    output.append(round(float(psis.split(";")[inc_idx]), 5))
+
+                # if multiple inclusion jx, do average
+                elif len(psis.split(";")) > 2:
+                    output.append(round(np.mean([float(x) for x in psis.split(";")[1:]]), 5))
+
+    return output
+
+
+def _get_informative_junction(row: pd.Series) -> pd.Series:
     """
     Extracts index of the junction with the greatest
-    variance
+    variance (if complex event), otherwise extracts
+    the PSI level for the inclusion group
 
     :param pd.Series row: PSI quantifications for a given LSV
 
     :return pd.Series: Junction from LSV with greatest variance
     """
-    junctions = row.str.split(";", expand=True).apply(pd.to_numeric, errors='coerce')
-    idx_top_variance = junctions.var().idxmax()
-    try:
-        return junctions.iloc[:, idx_top_variance]
-    except ValueError:
-        # If not possible to calculate variance (e.g. Only 1 sample with no NaN values)
-        return
+    # if complex event, extract jx with greatest variance
+    if ";" in row.lsv_type:
+
+        junctions = row.str.split(";", expand=True).apply(pd.to_numeric, errors='coerce').drop('lsv_type')
+        idx_top_variance = junctions.var().idxmax()
+
+        try:
+            top_jx = junctions.iloc[:, idx_top_variance].copy()
+            top_jx['lsv_id'] = row.lsv_id
+            top_jx['lsv_type'] = "Complex"
+            return top_jx.reindex(index = ['lsv_id', 'lsv_type'] + [x for x in list(top_jx.index)
+                                                                    if x not in ['lsv_id', 'lsv_type']])
+
+        except ValueError:
+            # If not possible to calculate variance (e.g. Only 1 sample with no NaN values)
+            return
+
+    else:
+        out = _extract_majiq_binary_decisions(row)
+        return pd.Series([row.lsv_id, row.lsv_type] + out, index=row.index)
 
 
 def process_majiq(files: list, allowed_nas: int, groups: dict) -> pd.DataFrame:
@@ -142,8 +239,9 @@ def process_majiq(files: list, allowed_nas: int, groups: dict) -> pd.DataFrame:
     :return pd.DataFrame: Df of Majiq junctions that pass the NA filter
     """
 
-    psi_col = "E(PSI) per LSV junction"
+    psi_col = ["E(PSI) per LSV junction"]
     lsv_id_col = "LSV ID"
+    lsv_types = ["A5SS", "A3SS", "ES"]
     psi_dict = {}
     with open(files) as f:
         file_list = f.read().splitlines()
@@ -157,7 +255,11 @@ def process_majiq(files: list, allowed_nas: int, groups: dict) -> pd.DataFrame:
     # Per sample dict of PSI for each LSV
     for i, file in enumerate(file_list):
         _df = pd.read_csv(file, sep="\t", low_memory=False)
-        _d = pd.Series(_df[psi_col].values, index=_df[lsv_id_col]).to_dict()
+        _df['type'] = _df[lsv_types].apply(get_relevant_type, axis=1).apply(lambda x: ';'.join(x))
+        _df['type'] = np.where(_df['IR coords'].isnull(), _df.type, _df.type + ";RI")
+
+        _d = _df.set_index(lsv_id_col)[['type'] + psi_col].T.to_dict('list')
+
         list_samples_psis.append(_d)
         colnames.append(list(groups.keys())[i])
         print("{} {}".format(os.path.basename(file), list(groups.keys())[i]))
@@ -171,13 +273,36 @@ def process_majiq(files: list, allowed_nas: int, groups: dict) -> pd.DataFrame:
                 psi_dict[lsv_id] = _update
             else:
                 _new_val = [None] * len(list_samples_psis)
+
                 _new_val[i] = lsv_psis
                 psi_dict[lsv_id] = _new_val
 
     df = pd.DataFrame.from_dict(psi_dict, orient="index", columns=colnames)
+
+    def lsv_type_to_col(row: pd.Series):
+        """
+        Put event type to a single column
+        :param pd.Series row: Single row
+        """
+        _type = ""
+        out = []
+        for col in list(row):
+            if not _type:
+                if col:
+                    _type = col[0]
+            out.append(col[1] if col else col)
+
+        return pd.Series([_type] + out)
+
+    df = df.apply(lsv_type_to_col, axis=1)
+    df.columns = ['lsv_type'] + colnames
+    df = df.rename_axis('lsv_id').reset_index()
     df = df.dropna(axis=0, thresh=len(df.columns) - allowed_nas)
-    print("Calculating top variance junction per LSV")
-    return df.apply(_compute_LSV_junction_variance, axis=1).dropna(how='all')
+
+    print("Selecting informative junction per LSV")
+    tqdm.pandas()
+    df_ = df.progress_apply(_get_informative_junction, axis=1, result_type='broadcast').dropna(how='all')
+    return pd.DataFrame(df_)
 
 
 def do_PCA(df: pd.DataFrame, allowed_nas: int, groups: dict,
@@ -208,6 +333,12 @@ def do_PCA(df: pd.DataFrame, allowed_nas: int, groups: dict,
 
     """
     print("Number of {} events that will be used in the PCA: {}".format(name, df.shape[0]))
+
+    if name == "majiq":
+        df = df[df.lsv_type != "Complex"]
+        print("Events used after removing complex majiq lsvs: {}".format(df.shape[0]))
+        df = df.set_index(['lsv_id', 'lsv_type'])
+
     if allowed_nas > 0:
         print("Doing imputation of missing values")
         df = df.apply(lambda x: x.fillna(x.median()), axis=1)
@@ -259,9 +390,59 @@ def do_PCA(df: pd.DataFrame, allowed_nas: int, groups: dict,
         p1.save(output, verbose=False)
 
 
+def draw_heatmap(df: pd.DataFrame,
+                 allowed_nas: int,
+                 groups: dict,
+                 tool: str,
+                 outbasename: str):
+    """
+    :param pd.DataFrame df: PSI df for the subset of target genes
+    :param dict groups:
+    :param str tool:
+    :param str outbasename:
+
+    """
+
+    to_rename = {}
+    for k, v in groups.items():
+        to_rename[k] = v[0] + "_" + k
+    df = df.rename(columns=to_rename)
+
+    if allowed_nas > 0:
+        print("Doing imputation of missing values")
+        df = df.apply(lambda x: x.fillna(x.median()), axis=1)
+
+    cm = sns.clustermap(df,
+                        cmap='viridis',
+                        yticklabels=False,
+                        vmin=0,
+                        vmax=1,
+                        figsize=(8, 6),
+                        cbar_kws={'label': 'Inclusion levels'},
+                        z_score=0)
+
+    # Aesthetics of the clustergrid
+    cm.ax_row_dendrogram.set_visible(False)
+    cm.ax_col_dendrogram.set_visible(True)
+    cm.cax.set_visible(True)
+    ax = cm.ax_heatmap
+
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=80)
+
+    # Add vertical lines
+    ax.vlines(range(0, df.shape[1]), ymin=0, ymax=df.shape[0], colors='black', linewidths=0.5)
+    ax.axhline(y=0, color='k', linewidth=3)
+    ax.axhline(y=df.shape[0], color='k', linewidth=3)
+    ax.axvline(x=0, color='k', linewidth=3)
+    ax.axvline(x=df.shape[1], color='k', linewidth=3)
+
+    plt.savefig(outbasename + "_" + tool + "_heatmap.pdf", bbox_inches='tight', pad_inches=0)
+    plt.close()
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Script to generate PCAs from inclusion levels of splicing events '
-                                                 'quantified by different tools.')
+    parser = argparse.ArgumentParser(description='Script to generate PCAs/heatmaps from inclusion levels '
+                                                 'of splicing events quantified by different tools.')
     parser.add_argument(dest='tool', choices=("rmats", "majiq", "vastools"), help="Generate samples PCAs from "
                                                                                   "quantifications of given tool")
     parser.add_argument('--groups', required=True, help='2 (or 3) column file with the sample name (1st col) and group'
@@ -287,6 +468,7 @@ def main():
                                                                         "than this number of samples, their names "
                                                                         "won't be shown, just the groups which "
                                                                         "they belong. Default: `10`.")
+    parser.add_argument('--gene_list', help="Plot heatmap of inclusion levels given a specific group of genes.")
 
     rmats = parser.add_argument_group('rMATS related arguments')
     rmats.add_argument('--rmats_files', help='Events files produced by rMATS ([ev_type].MATS.[JC|JCEC].txt, one per '
@@ -318,6 +500,9 @@ def main():
                                              "accordingly. "
         df = process_rMATS(args.rmats_files, args.NAs_allowed, groups_dict, args.paired, args.idx_to_use,
                            args.outbasename, args.n_to_show_names)
+        print(df)
+        print(df.shape)
+        exit(1)
         do_PCA(df, args.NAs_allowed, groups_dict, args.paired,
                args.outbasename, args.n_to_show_names, "all", "rMATS")
 
@@ -330,9 +515,21 @@ def main():
     elif args.tool == "majiq":
         assert args.majiq_files is not None, "When producing PCA from MAJIQ, please set its group arguments " \
                                              "accordingly. "
-        df = process_majiq(args.majiq_files, args.NAs_allowed, groups_dict)
-        do_PCA(df, args.NAs_allowed, groups_dict, args.paired, args.outbasename,
-               args.n_to_show_names, "majiq")
+        # df = process_majiq(args.majiq_files, args.NAs_allowed, groups_dict)
+        # do_PCA(df, args.NAs_allowed, groups_dict, args.paired, args.outbasename,
+        #         args.n_to_show_names, "majiq")
+
+        if args.gene_list:
+            genes = [line.rstrip() for line in open(args.gene_list, 'r') if not line.startswith("#")]
+            # df[['gene_id', 'tag', 'exon_coord']] = df.lsv_id.str.split(":", expand=True)
+            # df['gene_id'] = df.gene_id.str.split('.').str[0]
+            # df = df[df.gene_id.isin(genes)]
+            # df.drop(columns=['gene_id', 'tag', 'exon_coord'], inplace=True)
+            # df = df.set_index(['lsv_id', 'lsv_type'])
+            df = pd.read_csv("TEST_DF.csv")
+            draw_heatmap(df, args.NAs_allowed, groups_dict, "majiq_withComplexLSVs", args.outbasename)
+            df = df[df.index.get_level_values('lsv_type') != "Complex"]
+            draw_heatmap(df, args.NAs_allowed, groups_dict, "majiq", args.outbasename)
 
 
 if __name__ == "__main__":

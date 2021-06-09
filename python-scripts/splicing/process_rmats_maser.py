@@ -3,13 +3,14 @@ import os
 import glob
 from collections import defaultdict
 import re
+import pandas as pd
 import numpy as np
-import math
+import plotnine as p9
 import matplotlib.pyplot as plt
 from typing import Union
 
 
-def read_groups(groups: str) -> dict:
+def read_groups(groups: str) -> tuple:
     """
     Gather differential splicing files from
     several rmats runs. It looks for files 
@@ -21,8 +22,13 @@ def read_groups(groups: str) -> dict:
     runID/comparison (e.g. ctrl_vs_treatment)
 
     :return dict: Dictionary grouping a comparison
-    name with corresponding rmats output files
+    name with corresponding rmats significant dPSI
+     output files
+
+    :return dict: Dict grouping a comparison name
+    with corresponding rmats output files
     """
+
     events = ["SE", "MXE", "A3SS", "A5SS", "RI"]
     d = {}
     with open(groups, 'r') as f:
@@ -35,15 +41,18 @@ def read_groups(groups: str) -> dict:
             else:
                 raise ValueError("{} directory does not exist.".format(items[0]))
 
-    groups_dict = {}
+    sign_groups_dict = {}
+    all_groups_dict = {}
     for _dir, group in d.items():
-        files_in_dir = []
+        files_in_dir_sign = []
+        files_in_dir_all_ev = []
         for ev in events:
-            files_in_dir.extend(glob.glob(os.path.join(_dir, "*sign*{}*".format(ev))))
+            files_in_dir_sign.extend(glob.glob(os.path.join(_dir, "*sign*{}*".format(ev))))
+            files_in_dir_all_ev.extend(glob.glob(os.path.join(_dir, "all_events_from_maser_{}.tsv".format(ev))))
+        sign_groups_dict[group] = files_in_dir_sign
+        all_groups_dict[group] = files_in_dir_all_ev
 
-        groups_dict[group] = files_in_dir
-
-    return groups_dict
+    return sign_groups_dict, all_groups_dict
 
 
 def get_clean_coordinates(coord, event_type):
@@ -62,23 +71,52 @@ def get_clean_coordinates(coord, event_type):
     """
     coord_fields = coord.split(":")
     chrom = coord_fields[0]
-  
+
     coord_fields = [item for sublist in [elem.split("-") for elem in coord_fields[2:]] for item in sublist]
 
     if event_type == "MXE":
         target_exon = "{}:{}-{};{}:{}-{}".format(chrom, coord_fields[0], coord_fields[1],
                                                  chrom, coord_fields[2], coord_fields[3])
-    
+
     else:
         target_exon = "{}:{}-{}".format(chrom, coord_fields[0], coord_fields[1])
     spanning_coord = "{}:{}-{}".format(chrom, min(coord_fields), max(coord_fields))
-    
+
     return target_exon, spanning_coord
+
+
+def get_volcano_data(file: str,
+                     event_type: str,
+                     all_ev: list,
+                     group_name: str = None):
+    """
+    Process native rMATs output files to extract
+    info for volcano plot generation
+    """
+    event_type_map = {"SE": "ES"}
+
+    with open(file, 'r') as infile:
+        next(infile)
+        for line in infile:
+
+            l = line.rstrip().split("\t")
+            geneid = l[1].split(".")[0]
+            gene_name = l[2]
+            fdr = float(l[4])
+            dpsi = -float(l[5])
+            inc_g1 = l[6]
+            inc_g2 = l[7]
+            id = ':'.join(l[8:14])
+            ev = event_type_map.get(event_type, event_type)
+            all_ev.append([id, dpsi, fdr, geneid, gene_name, ev, group_name, inc_g1, inc_g2])
+
+    infile.close()
+    return all_ev
 
 
 def get_relevant_fields(file: str,
                         event_type: str,
-                        sign_events: defaultdict, 
+                        sign_events: defaultdict,
                         psi_threshold: float,
                         fdr_threshold: float,
                         group_name: str = None):
@@ -96,10 +134,10 @@ def get_relevant_fields(file: str,
     :param str group_name: Name of the group
     comparison, if any.
 
-    :return defaultdict: Updated dict
+    :return defaultdict: Updated dicts
     """
     event_type_map = {"SE": "ES"}
-   
+
     with open(file, 'r') as infile:
         next(infile)
         for line in infile:
@@ -116,6 +154,7 @@ def get_relevant_fields(file: str,
             psi_1 = l[6]
             psi_2 = l[7]
             coordinates = ':'.join(l[8:14])
+
             if abs(float(deltapsi)) < psi_threshold or float(fdr) > fdr_threshold:
                 continue
 
@@ -131,9 +170,9 @@ def get_relevant_fields(file: str,
     return sign_events
 
 
-def process_rmats_files(input_data: Union[str, dict],
-                        psi_threshold: float,
-                        fdr_threshold: float):
+def process_sign_rmats_files(input_data: Union[str, dict],
+                             psi_threshold: float,
+                             fdr_threshold: float):
     """
     Process rMATS files so that readable tables are output
 
@@ -156,7 +195,6 @@ def process_rmats_files(input_data: Union[str, dict],
               "PSI_1", "PSI_2", "target_coordinates", "spanning_coordinates"]
 
     sign_events = defaultdict(list)
-
     if isinstance(input_data, dict):
         header.append("group")
 
@@ -170,8 +208,9 @@ def process_rmats_files(input_data: Union[str, dict],
                 else:
                     event_type = event_type[0]
                     sign_events = get_relevant_fields(f, event_type,
-                                                      sign_events, psi_threshold,
-                                                      fdr_threshold, group_name=group)
+                                                      sign_events,
+                                                      psi_threshold, fdr_threshold,
+                                                      group_name=group)
     else:
         for ev in events:
             file = glob.glob(os.path.join(input_data, "*sign*{}*".format(ev)))
@@ -179,13 +218,121 @@ def process_rmats_files(input_data: Union[str, dict],
                 f = file[0]
                 sign_events = get_relevant_fields(f, ev, sign_events,
                                                   psi_threshold, fdr_threshold)
+
             elif len(file) > 1:
                 raise ValueError('Multiple {} files found in the input directory {}'.format(ev, input_data))
 
     return sign_events, header
 
 
-def write_output(events: defaultdict, header: str, 
+def process_all_events_files(input_data: Union[str, dict]):
+    """
+    Process
+    :param input_data:
+    :return:
+    """
+    events = ["SE", "MXE", "A3SS", "A5SS", "RI"]
+
+    all_events = []
+    if isinstance(input_data, dict):
+
+        for group, files in input_data.items():
+            for f in files:
+                event_type = [ev for ev in events if ev in f]
+                if len(event_type) > 1:
+                    raise ValueError('Multiple event type flags found in the {} file ({}).'.format(f, event_type))
+                elif len(event_type) == 0:
+                    raise ValueError('No rMATS event type tag found in the {} file.'.format(f))
+                else:
+                    event_type = event_type[0]
+                    all_events = get_volcano_data(f,
+                                                  event_type,
+                                                  all_events,
+                                                  group_name=group)
+    else:
+        for ev in events:
+            file = glob.glob(os.path.join(input_data, "all_events_from_maser_{}.tsv".format(ev)))
+            if len(file) == 1:
+                f = file[0]
+                all_events = get_volcano_data(f, ev, all_events)
+            elif len(file) > 1:
+                raise ValueError('Multiple {} files found in the input directory {}'.format(ev, input_data))
+
+    return all_events
+
+
+def generate_volcano(data: list,
+                     dpsi_threshold: float,
+                     fdr_threshold: float,
+                     outbasename):
+    """
+    Draw volcano plots of differential splicing analysis
+
+    :param dict data: Dictionary with the data and event types to plot
+    """
+
+    def _draw(df: pd.DataFrame):
+
+        inc = df[(df.dPSI > 0.2) & (df.log10_FDR > - np.log10(fdr_threshold))].shape[0]
+        exc = df[(df.dPSI < -0.2) & (df.log10_FDR > - np.log10(fdr_threshold))].shape[0]
+        annotations = pd.DataFrame({'xpos': [-0.5, 0.5],
+                                   'ypos': [10, 10],
+                                   'annotateText': ["N={}".format(exc), "N={}".format(inc)],
+                                   'col': ["goldenrod", "skyblue"],
+                                   'size': [30, 30]})
+
+        p1 = (p9.ggplot(df, p9.aes(x='dPSI', y='log10_FDR')) +
+              p9.geom_point(size=1, colour="grey") +
+              p9.geom_point(data=df[(df.dPSI > 0.2) & (df.log10_FDR > - np.log10(fdr_threshold))], size=1, colour="skyblue") +
+              p9.geom_point(data=df[(df.dPSI < -0.2) & (df.log10_FDR > - np.log10(fdr_threshold))], size=1, colour="goldenrod") +
+              p9.scale_colour_manual(["goldenrod", "skyblue"]) +
+              p9.geom_text(data=annotations, mapping=p9.aes(x='xpos', y='ypos',
+                                                            label='annotateText',
+                                                            color='col')) +
+              p9.theme_bw() +
+              p9.theme(text=p9.element_text(size=12), legend_position="none") +
+              p9.geom_vline(xintercept=[-dpsi_threshold, dpsi_threshold], size=0.3) +
+              p9.geom_hline(yintercept=-np.log10(fdr_threshold), size=0.3) +
+              p9.xlab("dPSI change") +
+              p9.ylab("-Log10 p-value adjusted")
+              )
+
+        return p1
+
+    def _plot_per_type(data: pd.DataFrame, name: str = "rmats"):
+        """
+        Dataframe to plot the data
+        """
+        p9_plot = _draw(data)
+        p9_plot.save('{}_{}_all_events_volcano.pdf'.format(outbasename, name), verbose=False)
+        plt.close()
+
+        for n, group in data.groupby('event_type'):
+
+            p9_plot = _draw(group)
+            p9_plot.save('{}_{}_{}_volcano.pdf'.format(outbasename, name, n), verbose=False)
+            plt.close()
+
+    df = pd.DataFrame.from_records(data, columns=['id', 'dPSI', 'FDR', 'gene_id', 'gene_name',
+                                                  'event_type', 'group', 'inc_g1', 'inc_g2'])
+
+    psi_proportions = open(outbasename + "_rmats_psi_proportions.tsv", 'w')
+    df.to_csv(psi_proportions, sep="\t", index=False)
+    df[['dPSI', 'FDR']] = df[['dPSI', 'FDR']].apply(pd.to_numeric)
+    df['FDR'] = df['FDR'].replace(0, 0.000001)
+    df['log10_FDR'] = -np.log10(df['FDR'])
+
+    if df.iloc[0]['group']:
+        for name, group in df.groupby('group'):
+            _plot_per_type(group, name)
+
+        # print(grouped.name())
+
+    else:
+        _plot_per_type(df)
+
+
+def write_output(events: defaultdict, header: list,
                  outbasename: str, groups: dict = None):
     """
     From a dictionary of significant events, writes the 
@@ -198,13 +345,13 @@ def write_output(events: defaultdict, header: str,
     :param dict groups: If there are multiple comparison, this
     dict lists their names and corresponding files 
     """
-    
+
     groups_events_map = defaultdict(list)
     strand = {"-": "minus", "+": "plus"}
-    
+
     main_output = open(outbasename + "_rmats.tsv", 'w')
     main_output.write('\t'.join(header) + "\n")
-    
+
     ggsashimi = open(outbasename + "_rmats_toGGsashimi.tsv", 'w')
     bed_spanning = open(outbasename + "_spanning_rmats.bed", "w")
     bed_target = open(outbasename + "_target_rmats.bed", "w")
@@ -281,20 +428,27 @@ def main():
     if args.input_dir:
 
         if os.path.isdir(args.input_dir):
-            groups = None
-            sign_events, header = process_rmats_files(args.input_dir,
-                                                      args.threshold,
-                                                      args.fdr)
+            sign_ev_groups = None
+            sign_events, header = process_sign_rmats_files(args.input_dir,
+                                                           args.threshold,
+                                                           args.fdr)
+
+            volcano_data = process_all_events_files(args.input_dir)
+
         else:
             raise ValueError('Please set a valid directory where rmats file are located.')
 
     else:
-        groups = read_groups(args.input_groups)
-        sign_events, header = process_rmats_files(groups,
-                                                  args.threshold,
-                                                  args.fdr)
+        sign_ev_groups, all_ev_groups = read_groups(args.input_groups)
 
-    write_output(sign_events, header, args.outbasename, groups)
+        sign_events, header = process_sign_rmats_files(sign_ev_groups,
+                                                       args.threshold,
+                                                       args.fdr)
+
+        volcano_data = process_all_events_files(all_ev_groups)
+
+    generate_volcano(volcano_data, args.threshold, args.fdr, args.outbasename)
+    write_output(sign_events, header, args.outbasename, sign_ev_groups)
 
 
 if __name__ == "__main__":

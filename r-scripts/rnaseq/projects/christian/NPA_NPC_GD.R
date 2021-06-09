@@ -18,7 +18,8 @@ files <- list.files(".", pattern = "*sf")
 # Remove bad sample
 files <- files[!grepl("GM13205", files)]
 
-files <- files[grepl("NPA|NPC|CTRL", files)]
+files <- files[grepl("NPA|NPC|CTRL|GD", files)]
+
 files <- files[grepl("S|GD", files)]
 
 names <- unlist(lapply(strsplit(files, split = ".sf"), `[`, 1))
@@ -40,6 +41,11 @@ txi_salmon <- tximport(files, type = "salmon", txIn = T, tx2gene = tx2gene, igno
 dds <- DESeqDataSetFromTximport(txi = txi_salmon,
                                 colData = coldata,
                                 design = ~ groups)
+
+# dds <- DESeqDataSetFromTximport(txi = txi_salmon,
+#                                   colData = coldata,
+#                                   design = ~ batch + groups)
+
 
 keep <- rowSums(counts(dds) >= 10) >= 5
 dds <- dds[keep,]
@@ -135,19 +141,20 @@ setwd('~/Desktop/')
 #####################
 ##### Wald test #####
 #####################
+
 design(dds) <- ~ groups
 design(dds) <- ~ batch + phenotype
 #design(dds) <- ~ batch 
 dds_ <- run_analysis(dds, 
-                    group_combination="", 
-                    log2cutoff=log2cutoff,
-                    padjcutoff=padjcutoff,
-                    use_contrast = F,
-                    FC_shrinkage_method = FC_shrinkage_method,
-                    stat_test = stat_test,
-                    reduced_formula="phenotype",
-                    annotate_locally = T,
-                    return_just_dds = T)
+                     group_combination="", 
+                     log2cutoff=log2cutoff,
+                     padjcutoff=padjcutoff,
+                     use_contrast = F,
+                     FC_shrinkage_method = FC_shrinkage_method,
+                     stat_test = stat_test,
+                     reduced_formula="phenotype",
+                     annotate_locally = T,
+                     return_just_dds = T)
 
 
 res_gd_ctrl <- results(dds_, name = "groups_GD_vs_CTRL", alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
@@ -155,19 +162,27 @@ res_gd_ctrl <- lfcShrink(dds_, coef = "groups_GD_vs_CTRL", type=FC_shrinkage_met
 res_gd_ctrl <- annotate_results(res_gd_ctrl, T, "hg38") 
 res_sign_gd_ctrl <- subset(res_gd_ctrl, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
 dim(res_sign_gd_ctrl)
+splicing_genes_logFC_gd <- left_join(genes, res_gd_ctrl, by=c("gene" = "symbol")) %>% drop_na()
+splicing_genes_logFC_gd %>% dplyr::select(c(gene, description, log2FoldChange, pvalue, padj)) %>%
+  write_xlsx(., path = paste0("gd.xlsx", sep=""), col_names=T, format_headers = T)
 
 res_npa_ctrl <- results(dds_, name = "groups_NPA_vs_CTRL", alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
 res_npa_ctrl <- lfcShrink(dds_, coef = "groups_NPA_vs_CTRL", type=FC_shrinkage_method, res= res_npa_ctrl)
 res_npa_ctrl <- annotate_results(res_npa_ctrl, T, "hg38") 
 res_sign_npa_ctrl <- subset(res_npa_ctrl, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
 dim(res_sign_npa_ctrl)
+splicing_genes_logFC_npa <- left_join(genes, res_npa_ctrl, by=c("gene" = "symbol")) %>% drop_na()
+splicing_genes_logFC_npa %>% dplyr::select(c(gene, description, log2FoldChange, pvalue, padj)) %>%
+  write_xlsx(., path = paste0("npa.xlsx", sep=""), col_names=T, format_headers = T)
 
 res_npc_ctrl <- results(dds_, name = "groups_NPC_vs_CTRL", alpha=padjcutoff, test="Wald", independentFiltering = T, pAdjustMethod="BH")
 res_npc_ctrl <- lfcShrink(dds_, coef = "groups_NPC_vs_CTRL", type=FC_shrinkage_method, res= res_npc_ctrl)
 res_npc_ctrl <- annotate_results(res_npc_ctrl, T, "hg38")
 res_sign_npc_ctrl <- subset(res_npc_ctrl, padj<=padjcutoff & abs(log2FoldChange)>=log2cutoff)
 dim(res_sign_npc_ctrl)
-
+splicing_genes_logFC_npc <- left_join(genes, res_npc_ctrl, by=c("gene" = "symbol")) %>% drop_na()
+splicing_genes_logFC_npc %>% dplyr::select(c(gene, description, log2FoldChange, pvalue, padj)) %>%
+  write_xlsx(., path = paste0("npc.xlsx", sep=""), col_names=T, format_headers = T)
 
 ############################
 ## Results of single gene ##
@@ -201,12 +216,12 @@ grid::grid.draw(plt)
 #####################################
 #GPROFILER
 res <- run_enrichment_gprofiler(rownames(res_sign_gd_ctrl),custom_genes_background = NULL,
-                                               retrieve_only_sign_results = T, 
-                                               exclude_iea = F, 
-                                               retrieve_short_link = F,
-                                               measure_under = F, 
-                                               domain_scope = "annotated",
-                                               sources= NULL)
+                                retrieve_only_sign_results = T, 
+                                exclude_iea = F, 
+                                retrieve_short_link = F,
+                                measure_under = F, 
+                                domain_scope = "annotated",
+                                sources= NULL)
 dim(res)
 plot_enrichment_results(res, top_n = 30, short_term_size = F,  font_size = 14, add_info_to_labels = T, size_of_short_term = 500)
 
@@ -236,6 +251,85 @@ source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_se
 plot_expression_heatmaps(rld_de_genes)
 
 dev.off()
+
+
+#####################################
+##### Heatmap for groups of genes ###
+#####################################
+library("RColorBrewer")
+library(pheatmap)
+library(ComplexHeatmap)
+
+# No batch removal
+rld <- rlog(dds, blind = F)
+plotPCA(rld, intgroup="batch")
+
+# Remove batch effect Limma
+rld <- rlog(dds, blind = F)
+mat <- assay(rld)
+mat <- limma::removeBatchEffect(mat, rld$batch)
+assay(rld) <- mat
+plotPCA(rld, intgroup="groups")
+
+# Remove batch effects CombatSeq
+adjusted <- sva::ComBat_seq(assay(dds), batch = colData(dds)$batch)
+
+new <- DESeqDataSetFromMatrix(adjusted, colData = coldata, design = ~groups)
+rld <- rlog(new, blind=F)
+plotPCA(rld, intgroup="groups")
+
+# Gene lists
+genes <- read_tsv("~/Desktop/rbps_splicing_all_merged.txt", col_names = c("gene"))
+genes <- read_tsv("~/Desktop/lysosomal_genes.txt") %>% rename(gene = `Gene Symbol`)
+
+gene_ids <- left_join(genes, ensembl_genes %>% dplyr::select(gene_id, symbol) %>% distinct(), by=c("gene" = "symbol"))
+gene_ids <- gene_ids[gene_ids$gene_id %in% rownames(assay(rld)),]
+
+gene_ids$gene_id %>% write.table('~/Desktop/lysosomal_gene_ids.tsv', quote=F, col.names = F)
+
+rld_de_genes <- assay(rld[gene_ids$gene_id ,])
+
+reordered_cols <- c("S3y_CTRL", "S10y_CTRL", "S11y_CTRL", "IMM2040_CTRL", "GM05659_CTRL", "GM2037_CTRL", "GM17913_NPC", "GM03123_NPC",
+                    "GM18417_NPC", "GM16485_NPA", "GM16195_NPA", "GD1_GD", "GD2_GD", "GD3_GD" )
+reordered_cols <- c("IMM2040_CTRL", "GM05659_CTRL", "GM2037_CTRL", "GM17913_NPC", "GM03123_NPC",
+                    "GM18417_NPC", "GM16485_NPA", "GM16195_NPA") 
+reordered_cols <- c("S3y_CTRL", "S10y_CTRL", "S11y_CTRL", "GD1_GD", "GD2_GD", "GD3_GD" )
+rld_de_genes <- rld_de_genes[,reordered_cols]
+rld_de_genes <- left_join(as.data.frame(rld_de_genes) %>% rownames_to_column(., var="gene_id"), gene_ids) %>% 
+  column_to_rownames('symbol') %>% dplyr::select(!gene_id)
+
+col <- colorRampPalette(brewer.pal(11, "RdYlBu"))(256)
+
+ha = HeatmapAnnotation(foo = anno_block(gp = gpar(fill = 2:4), labels = c("NPA","NPC", "GD", "CTRL")))
+split = rep(1:4, times = c(6,3,2,3))
+
+Heatmap(rld_de_genes, name="rlog counts", col = col, column_split = split, column_title = NULL, top_annotation = ha, show_row_names = T, cluster_rows = T,cluster_columns = T)
+Heatmap(pheatmap:::scale_rows(rld_de_genes), name="z-score", column_title = NULL, col = col, show_row_names = T, cluster_rows = T,cluster_columns = T)
+
+#DE genes
+gd_de <-  readxl::read_xlsx('~/Dropbox/RNA_Seq_NPA_NPC/gene_expression/gd_independent/DE/GD_vs_CTRL.xlsx')
+npa_de <- readxl::read_xlsx('~/Dropbox/RNA_Seq_NPA_NPC/gene_expression/npa_npc_independent/DE/NPA_vs_CTRL.xlsx')
+npc_de <- readxl::read_xlsx('~/Dropbox/RNA_Seq_NPA_NPC/gene_expression/npa_npc_independent/DE/NPC_vs_CTRL.xlsx')
+all_de <- rbind(gd_de, npc_de) %>% dplyr::select(gene_id, symbol) %>% distinct()
+gene_ids <- all_de[all_de$gene_id %in% gene_ids$gene_id,] 
+
+setwd('~/Desktop/')
+library(VennDiagram)
+grid.newpage()    
+
+plt <- venn.diagram(x = list(gene_ids$gene_id, gd_de$gene_id, npa_de$gene_id, npc_de$gene_id),
+                    #x = list(genes_old_analysis, de_genes_fc_apeglm_shrinkage, de_genes_salmon_apeglm_shrinkage)
+                    na = "remove",
+                    category.names = c("Lysosomal genes", "GD_DE_genes", "NPA_DE_genes", "NPC_DE_genes"),
+                    fill = c('lightyellow', 'paleturquoise', 'lightgreen', 'grey'),
+                    #alpha = c(0.5, 0.5, 0.5, 0.5),
+                    #category.names = c("Old FC" , "FC normal shrinkage" , "Salmon normal shrinkage"),
+                    #fill = c('lightyellow', 'paleturquoise', 'lightgreen'),
+                    #alpha = c(0.5, 0.5, 0.5),
+                    print.mode = c("raw"),
+                    filename = NULL,
+                    output = T)
+grid::grid.draw(plt)
 
 #####################################
 #######SPLICING INTERSECTION ########

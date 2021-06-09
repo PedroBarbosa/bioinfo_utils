@@ -49,12 +49,12 @@ source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_se
 #####################
 #####From Salmon#####
 #####################
-setwd("/Users/pbarbosa/Desktop/lobo/MCFONSECA-NFS/mcfonseca/shared/christian/mouse_neurons_may_2020/salmon/")
+setwd("/Users/pbarbosa/Desktop/NFS_Carmo/christian/mouse_neurons_may_2020/salmon")
 files <- list.files(".", pattern = "*sf")
 #files <- files[grepl('NSC', files)]
 files <- files[grepl('BC', files)]
-#files <- files[grepl('B6', files)]
-#files <- files[!grepl('B62', files)]
+files <- files[grepl('B6', files)]
+files <- files[!grepl('B62_mock', files)]
 strain <- rep(c("B6", "BC", "NSC"), each=6)
 treatment <- files %>% strsplit("_") %>% sapply(.,'[', 2)
 samples <- files %>% strsplit("_R1") %>% sapply(., '[', 1)
@@ -68,7 +68,7 @@ coldata
 tx_ids <- readr::read_tsv(file = files[[1]]) %>% .$Name 
 tx_ids <- sapply(strsplit(tx_ids,"\\."), function(x) x[1])
 
-tx2gene <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt") %>% 
+tx2gene <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv102_complete.txt") %>% 
   dplyr::select(`Transcript stable ID`, `Gene stable ID`)
 txi_salmon <- tximport(files, type = "salmon", txIn = T, tx2gene = tx2gene, ignoreTxVersion = T)
 
@@ -273,21 +273,24 @@ plotRLE(set_g, outline=F, ylim=c(-2, 2))
 ######### DE ##########
 #######################
 log2cutoff <- 1
-padjcutoff <- 0.05
+padjcutoff <- 0.0.5
 setwd("~/Desktop/")
 
 #################
 #### salmon #####
 #################
+#####################################################################
+### ESTIMATING MODEL PARAMETERS WITH COUNTS FROM OTHER GROUPS ###
 # This is a tricky example, where we have with grouped individuals (B6, BC and NSC),
 # and we seek to test the group-specific effect of the CBE treatment while controlling 
 # for individual effects (paired samples) 
 dds_salmon$ind.n <- factor(rep(rep(1:3,each=2),3))
+dds_salmon$ind.n <- factor(rep(rep(1:2,each=2)))
 
 # Removing outlier sample (B62)
 dds_salmon <- dds_salmon[, !(colnames(dds_salmon) %in% c("B62_mock", "B62_CBE"))]
 dds_salmon$ind.n <- factor(c(as.character(rep(1:2,each=2)), as.character(rep(rep(1:3,each=2),2))))
-design(dds_salmon) <- ~ strain + + strain:ind.n + strain:treatment
+design(dds_salmon) <- ~ strain + strain:ind.n + strain:treatment
 ml <- model.matrix( ~ strain + strain:ind.n + strain:treatment, colData(dds_salmon))
 ml
 
@@ -331,23 +334,36 @@ all.zero <- apply(ml, 2, function(x) all(x==0))
 idx <- which(all.zero)
 ml <- ml[,-idx]
 
-ml
-
 # Contrasts
 group_combination <- list("strainNSC", "strainBC")
 
-source("/Users/pbarbosa/git_repos/bioinfo_utils/r-scripts/rnaseq/standard_rna_seq.R")
-
+#####################################
+############ RUN DE #################
+#####################################
 list_de_salmon <- run_analysis(dds_salmon, group_combination,log2cutoff, padjcutoff, use_contrast = F, 
                                FC_shrinkage_method = "apeglm", 
-                               genome = "mm10", annotate_locally = T, explore_data = F)
+                               genome = "mm10", annotate_locally = T)
 
 de_genes_salmon_apeglm_shrinkage <- rownames(list_de_salmon[[2]])
 all_annot_salmon <- annotate_results(list_de_salmon[[1]], T, "mm10") 
 
+# Missing genes from previous B6 analysis
+all_annot_salmon[all_annot_salmon$symbol %in% c("Cavin1", "Tm4sf1", "Col8a2", "Clec3b"),]
 
-as.data.frame(list_de_salmon[[1]])%>% rownames_to_column %>% filter(str_detect(rowname, 'ENSMUSG00000113149'))
-as.data.frame(counts(dds_salmon), normalized=T) %>% rownames_to_column %>% filter(str_detect(rowname, 'ENSMUSG00000113149'))
+all_annot_salmon %>%  filter(str_detect(symbol, 'Clec3b'))
+as.data.frame(counts(dds_salmon), normalized=T) %>% rownames_to_column %>% filter(str_detect(rowname, 'ENSMUSG00000056174'))
+
+#########################
+### Splicing factors ####
+#########################
+homologues <- read_tsv("~/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_hg38_homologues.txt")
+genes <- read_tsv("~/Desktop/rbps_splicing_all_merged.txt", col_names = c("gene"))
+gene_ids <- left_join(genes, homologues , by=c("gene" = "gene_name_human")) %>% dplyr::select(gene_name_mouse, gene_id_mouse, gene_description_mouse) %>% 
+  distinct() %>% drop_na()
+
+dds_salmon <- DESeq(dds_salmon)
+expression_splicing_genes <- left_join(gene_ids, as.data.frame(counts(dds_salmon, normalized=T)) %>% rownames_to_column(var = 'gene_id_mouse')) %>% drop_na()
+write_xlsx(expression_splicing_genes, 'expression_splicing_factors_BC.xlsx', format_headers = T)
 
 
 ###### Cross check if different approaches harbor the same genes ######
@@ -378,7 +394,7 @@ grid::grid.draw(plt)
 ######## Functional enrichment ######
 #####################################
 #GPROFILER
-mock_cbe_gprofiler <- run_enrichment_gprofiler(de_genes_salmon_apeglm_shrinkage,custom_genes_background = rownames(all_annot_salmon),
+mock_cbe_gprofiler <- run_enrichment_gprofiler(de_genes_salmon_apeglm_shrinkage,custom_genes_background = NULL,
                                                retrieve_only_sign_results = F, 
                                                exclude_iea = F, 
                                                retrieve_short_link = F,

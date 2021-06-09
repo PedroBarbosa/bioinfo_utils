@@ -296,7 +296,7 @@ def process_rmats(rmats_file: str, genes_map: dict, use_gene_names: bool):
 
 
 def compute_overlaps(d: dict, unmatched: list, genes_map: dict,
-                     use_gene_names: bool):
+                     use_gene_names: bool, outbasename: str):
     """
     Compute tools overlap
 
@@ -307,14 +307,15 @@ def compute_overlaps(d: dict, unmatched: list, genes_map: dict,
     :param bool use_gene_names: Whether event counts were performed
     based on gene names
     :param str species: Species to consider in the experiment
+    :para str outbasename
     """
     final_table = defaultdict(list)
     sets = []
 
     if use_gene_names:
-        outbasename = "tools_overlap_gene_names" if genes_map is None else "tools_overlap_valid_gene_names"
+        outbasename += "_tools_overlap_gene_names" if genes_map is None else "_tools_overlap_valid_gene_names"
     else:
-        outbasename = "tools_overlap_gene_ids" if genes_map is None else "tools_overlap_valid_gene_ids"
+        outbasename += "_tools_overlap_gene_ids" if genes_map is None else "_tools_overlap_valid_gene_ids"
 
     for tool, counter in d.items():
         sets.append((tool, set(counter.keys())))
@@ -400,8 +401,8 @@ def compute_overlaps(d: dict, unmatched: list, genes_map: dict,
     if len(just_sets) == 2:
         venn2(just_sets, tuple(labels))
     elif len(just_sets) > 3:
-        if use_gene_id:
-            d = {tool: just_sets[i] for i, tool in enumerate(labels)}
+
+        d = {tool: just_sets[i] for i, tool in enumerate(labels)}
         data = upsetplot.from_contents(d)
 
         upset = upsetplot.UpSet(data, subset_size="count", intersection_plot_elements=4, show_counts='%d')
@@ -413,14 +414,14 @@ def compute_overlaps(d: dict, unmatched: list, genes_map: dict,
     plt.close()
 
 
-def write_event_type_counts(input_dict, gene_map: dict, use_gene_names: bool):
+def write_event_type_counts(input_dict, gene_map: dict, use_gene_names: bool, outbasename: str):
     """
     Write counts to file
 
     :param dict input_dict: Dict with event counts per tool
     :param dict gene_map: Ensembl gene map
     :param bool use_gene_names: Whether counts were obtained from gene names
-
+    :param str outbasename
     """
     out = defaultdict(list)
     tool_order = []
@@ -444,11 +445,11 @@ def write_event_type_counts(input_dict, gene_map: dict, use_gene_names: bool):
                 out["Complex"][i] = majiq_complex
 
     if use_gene_names:
-        outbasename = "gene_names" if gene_map is None else "valid_gene_names"
+        outbasename += "_gene_names" if gene_map is None else "_valid_gene_names"
     else:
-        outbasename = "gene_ids" if gene_map is None else "valid_gene_ids"
+        outbasename += "_gene_ids" if gene_map is None else "_valid_gene_ids"
 
-    with open("events_table_{}.csv".format(outbasename), "w") as file:
+    with open("{}_events_table.csv".format(outbasename), "w") as file:
         file.write('Event_type' + "\t" + "\t".join(tool_order) + "\n")
         for ev, c in out.items():
             file.write(ev + "\t" + "\t".join(map(str, c)) + "\n")
@@ -458,6 +459,7 @@ def main():
     parser = argparse.ArgumentParser(description='Script to compute gene-based event overlaps across different '
                                                  'splicing methods.')
 
+    parser.add_argument(dest='outbasename', help="output basename")
     parser.add_argument('-e', '--ensembl_gene_map', metavar="",
                         help='Tab delimited file mapping Ensembl gene IDs (1st col) '
                              'to gene names (2nd col). Use Biomart, for example, to '
@@ -529,12 +531,12 @@ def main():
     unmatched = list(set(list(chain.from_iterable(u))))
 
     c = {"vast-tools": vast_c, "rMATS": rmats_c, "MAJIQ": majiq_c}  # , "psichomics": psichomics_c}
-    write_event_type_counts(c, genes_map, args.use_gene_names)
+    write_event_type_counts(c, genes_map, args.use_gene_names, args.outbasename)
     d = {"vast-tools": vast, "rMATS": rmats, "MAJIQ": majiq}  # , "psichomics": psichomics}
     filtered = {k: v for k, v in d.items() if v is not None}
     d.clear()
     d.update(filtered)
-    compute_overlaps(d, unmatched, genes_map, args.use_gene_names)
+    compute_overlaps(d, unmatched, genes_map, args.use_gene_names, args.outbasename)
 
 
 if __name__ == "__main__":
