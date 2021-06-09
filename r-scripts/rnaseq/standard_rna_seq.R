@@ -12,8 +12,8 @@ library(writexl)
 library(msigdbr)
 
 #ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_v33.txt") 
-#ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv100.txt")
-ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_ensemblv103.txt") 
+ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/mm10/mart_mm10_ensemblv102_complete.txt")
+#ensembl_genes <- read_tsv("/Users/pbarbosa/MEOCloud/analysis/genome_utilities/hg38/mart_hg38_ensemblv103.txt") 
 names(ensembl_genes)[names(ensembl_genes) == "Gene name"] <- "symbol"
 names(ensembl_genes)[names(ensembl_genes) == "Gene description"] <- "description"
 names(ensembl_genes)[names(ensembl_genes) == "Gene stable ID"] <- "gene_id"

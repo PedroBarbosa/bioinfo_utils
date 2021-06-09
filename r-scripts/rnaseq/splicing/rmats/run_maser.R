@@ -18,18 +18,26 @@ if (ftype == "JC"){
   ftype_long = "JC.txt"
 } else if (ftype == "JCEC"){
   ftype_long = "JCEC.txt"
+} else if (ftype == "JunctionCountOnly"){
+  ftype_long = "JunctionCountOnly.txt"
 }
+
 #########################
 ####Coverage filter######
 #########################
 files <- list.files(path = ".", pattern=ftype_long)
 get_mean <- function(x){
+  # Ensure that max between inc/exc isoform on both groups is higher than min_avg_reads 
   inc_s1 <- base::sapply(strsplit(as.character(x["IJC_SAMPLE_1"]), ",", fixed=T), function(x) base::mean(as.numeric(x)))
   exc_s1 <- base::sapply(strsplit(as.character(x["SJC_SAMPLE_1"]), ",", fixed=T), function(x) base::mean(as.numeric(x)))
   inc_s2 <- base::sapply(strsplit(as.character(x["IJC_SAMPLE_2"]), ",", fixed=T), function(x) base::mean(as.numeric(x)))
   exc_s2 <- base::sapply(strsplit(as.character(x["SJC_SAMPLE_2"]), ",", fixed=T), function(x) base::mean(as.numeric(x)))
-  return(min(c(inc_s1, exc_s1, inc_s2, exc_s2)))
-}
+  max_g1 <- max(c(inc_s1, inc_s2))
+  max_g2 <- max(c(inc_s2, inc_s2))
+  
+  return(min(c(max_g1, max_g2)))
+
+  }
 
 for (f in files){
   inclusion_table <- read.table(f, header = T)
@@ -42,7 +50,7 @@ for (f in files){
   if(!dir.exists("coverage_filt/")){
     dir.create("coverage_filt/")
   }
-  write.table(filtered_table, file = paste0("coverage_filt/", f), sep = "\t", quote=F)
+  write.table(filtered_table, file = paste0("coverage_filt/", f), sep = "\t", quote=F, row.names=F)
 }
 
 
@@ -95,6 +103,8 @@ for (event in c("SE","A5SS","A3SS","RI","MXE")){
   tryCatch(
     {
       top = maser::summary(maser_top_events, type = event)
+      all = maser::summary(maser_obj, type = event)
+      write.table(all, quote = F, sep= "\t", row.names = F, file=paste0("all_events_from_maser_", event, ".tsv"))
       write.table(top, quote = F, sep= "\t", row.names = F, file=paste0("sign_events_", event, ".tsv"))
       if(plot_transcripts){
         base::apply(top, 1, plot_transcript_tracks,maser_top_events,ens_gtf,event)  

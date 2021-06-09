@@ -1,6 +1,9 @@
 import argparse
 from collections import defaultdict
 import os, re
+import pandas as pd
+import plotnine as p9
+import matplotlib.pyplot as plt
 
 
 def read_groups(infiles, groups=None):
@@ -38,6 +41,78 @@ def read_groups(infiles, groups=None):
     return
 
 
+def generate_volcano(data: list,
+                     dpsi_threshold: float,
+                     prob_threshold: float,
+                     outbasename: str):
+    """
+    Draw volcano plots of differential splicing analysis
+
+    :param list data: List with the data and event types to plot
+    :param float dpsi_threshold: dPSI threshold to call an event as significant
+    :param float prob_threshold: probability threshold to call an event as significant
+    :param str outbasename: Basenome for the output
+    """
+    print("Generating volcano plots.")
+
+    def _draw(df: pd.DataFrame):
+
+        inc = df[(df.dPSI > dpsi_threshold) & (df.prob > prob_threshold)].shape[0]
+        exc = df[(df.dPSI < -dpsi_threshold) & (df.prob > prob_threshold)].shape[0]
+        annotations = pd.DataFrame({'xpos': [-0.5, 0.5],
+                                   'ypos': [prob_threshold - 0.1, prob_threshold - 0.1],
+                                   'annotateText': ["N={}".format(exc), "N={}".format(inc)],
+                                   'col': ["goldenrod", "skyblue"],
+                                   'size': [30, 30]})
+
+        p1 = (p9.ggplot(df, p9.aes(x='dPSI', y='prob')) +
+              p9.geom_point(size=1, colour="grey") +
+              p9.geom_point(data=df[(df.dPSI > 0.2) & (df.prob > prob_threshold)], size=1, colour="skyblue") +
+              p9.geom_point(data=df[(df.dPSI < -0.2) & (df.prob > prob_threshold)], size=1, colour="goldenrod") +
+              p9.scale_colour_manual(["goldenrod", "skyblue"]) +
+              p9.geom_text(data=annotations, mapping=p9.aes(x='xpos', y='ypos',
+                                                            label='annotateText',
+                                                            color='col')) +
+              p9.theme_bw() +
+              p9.theme(text=p9.element_text(size=12), legend_position="none") +
+              p9.geom_vline(xintercept=[-dpsi_threshold, dpsi_threshold], size=0.3) +
+              p9.geom_hline(yintercept=prob_threshold, size=0.3) +
+              p9.xlab("dPSI change") +
+              p9.ylab("Probability (dPSI > {})".format(dpsi_threshold))
+              )
+
+        return p1
+
+    def _plot_per_type(data: pd.DataFrame, name: str = "majiq"):
+        """
+        Dataframe to plot the data
+        """
+        p9_plot = _draw(data)
+        p9_plot.save('{}_{}_all_events_volcano.pdf'.format(outbasename, name), verbose=False)
+        plt.close()
+
+        for n, group in data.groupby('event_type'):
+
+            p9_plot = _draw(group)
+            p9_plot.save('{}_{}_{}_volcano.pdf'.format(outbasename, name, n), verbose=False)
+            plt.close()
+
+    df = pd.DataFrame.from_records(data, columns=['dPSI', 'prob', 'gene_id', 'event_type', 'group'])
+
+    df = df[~df.event_type.str.contains(';')]
+
+    df[['dPSI', 'prob']] = df[['dPSI', 'prob']].apply(pd.to_numeric)
+    if df.iloc[0]['group'] != "single_run":
+        for name, group in df.groupby('group'):
+
+            _plot_per_type(group, name)
+
+        # print(grouped.name())
+
+    else:
+        _plot_per_type(df)
+
+
 def extract_LSV_types(deltapsi_files, voila_files):
     """
     Extract LSVs type from deltaPSI files.
@@ -59,6 +134,7 @@ def extract_LSV_types(deltapsi_files, voila_files):
     for i, file in enumerate(deltapsi_files):
         name = os.path.basename(file)
         f = open(file, "r")
+        next(f)
         lsvs_dict = {}
         for line in f:
             fields = line.rstrip().split("\t")
@@ -78,17 +154,22 @@ def get_relevant_type(lsvtype):
     :return list: Types of junctions present
     in a given LSV
     """
+
+    if isinstance(lsvtype, pd.Series):
+        lsvtype = lsvtype.tolist()
+
     d = {0: "A5SS", 1: "A3SS", 2: "ES"}
-    return [d[i] for i, v in enumerate(lsvtype) if v == 'True']
+
+    return [d[i] for i, v in enumerate(lsvtype) if v == 'True' or v is True]
 
 
-def get_new_junctions(junctions_flag):
+def get_new_junctions(junctions_flag: list):
     """
     Returns information about the number of junctions
     within an LSV that pass the significance threshold
     and are known or new
     :param list: junctions_flag: List of binary values
-    flagging whether significant junctions within a LSV
+    flagging whether junctions within a LSV
     are known or new (1 known, 0 new)
     :return tuple: Tuple with relevant information
     about the novelty of each significant junciton
@@ -97,6 +178,93 @@ def get_new_junctions(junctions_flag):
     number_new_junctions = junctions_flag.count("0")
     return (known_junctions, False, number_new_junctions) if number_new_junctions == 0 else (known_junctions, True,
                                                                                              number_new_junctions)
+
+
+def extract_binary_decisions(lsv_type: str, lsv_type_str: str,
+                             dPSIs: str,
+                             probabilities_dPSIs: str):
+    dPSI_inc_jx, prob_dPSI, inc_idx = 0, 0, 0
+    # Pure RI events do not need to know
+    # source of target info, because its
+    # inclusion on the 2nd group vs 1st group
+    # is given in the last jx of the LSV
+    if lsv_type_str == "RI":
+
+        if len(dPSIs.split(";")) == 2:
+            inc_idx = 1
+            dPSI_inc_jx = round(float(dPSIs.split(";")[-1]), 2)
+            prob_dPSI = round(float(probabilities_dPSIs.split(";")[-1]), 2)
+
+        else:
+            print("Problem in IR event in an LSV.")
+            exit(1)
+
+    # binary dPSI orientation of 2nd group vs 1st group
+    # is extracted based on source|target tags for ES|ALT3SS|ALT5SS
+    #################################
+    # source exon - most left junction
+    # refers to the inclusion
+    ################################
+    if lsv_type.split("|")[0] == "s":
+
+        # ALTSS inclusion form is always the shortest transcript
+        if len(dPSIs.split(";")) == 2:
+            if lsv_type_str in ['ES', 'A5SS']:
+                inc_idx = 0
+                dPSI_inc_jx = round(float(dPSIs.split(";")[0]), 2)
+                prob_dPSI = round(float(probabilities_dPSIs.split(";")[0]), 2)
+
+            elif lsv_type_str == "A3SS":
+                inc_idx = 1
+                dPSI_inc_jx = round(float(dPSIs.split(";")[1]), 2)
+                prob_dPSI = round(float(probabilities_dPSIs.split(";")[1]), 2)
+
+        elif len(dPSIs.split(";")) > 2:
+            dPSI_inc_jx, prob_dPSI = 0, 0
+            if lsv_type_str in ['ES', 'A5SS']:
+                inc_idx = 0
+                for idx, x in enumerate(dPSIs.split(";")[:-1]):
+                    if abs(float(x)) > abs(dPSI_inc_jx):
+                        dPSI_inc_jx = round(float(x), 2)
+                        prob_dPSI = round(float(probabilities_dPSIs.split(";")[:-1][idx]), 2)
+                        if lsv_type_str == 'ES':
+                            inc_idx = idx
+
+            elif lsv_type_str == "A3SS":
+                inc_idx = 1
+                for idx, x in enumerate(dPSIs.split(";")[1:]):
+                    if abs(float(x)) > abs(dPSI_inc_jx):
+                        dPSI_inc_jx = round(float(x), 2)
+                        prob_dPSI = round(float(probabilities_dPSIs.split(";")[1:][idx]), 2)
+
+
+    ######################
+    # target exon - most left junction
+    # refers to the skipping
+    ######################
+    elif lsv_type.split("|")[0] == "t":
+
+        if lsv_type_str in ['A3SS', 'A5SS']:
+            print("SHIT. AltSS when main exon is target(t). {}".format(lsv_type))
+            exit(1)
+
+        # binary dPSI orientation of 2nd group vs 1st group
+        # is extracted based on source|target tags
+        elif len(dPSIs.split(";")) == 2:
+            inc_idx = 1
+            dPSI_inc_jx = round(float(dPSIs.split(";")[1]), 2)
+            prob_dPSI = round(float(probabilities_dPSIs.split(";")[1]), 2)
+
+        elif len(dPSIs.split(";")) > 2:
+            dPSI_inc_jx, prob_dPSI = 0, 0
+            for idx, x in enumerate(dPSIs.split(";")[1:]):
+
+                if abs(float(x)) > abs(dPSI_inc_jx):
+                    dPSI_inc_jx = round(float(x), 2)
+                    prob_dPSI = round(float(probabilities_dPSIs.split(";")[1:][idx]), 2)
+                    inc_idx = idx
+
+    return dPSI_inc_jx, prob_dPSI, inc_idx
 
 
 def process_voila_files(files, threshold, probability_threshold, groups, lsv_types, dPSI_file_map):
@@ -120,12 +288,15 @@ def process_voila_files(files, threshold, probability_threshold, groups, lsv_typ
     order
     :return dict: Significant LSVs dict of that will be outputted
     :return tuple: Genes info for downstream functional enrichment
+    :return list: LSV info to draw volcano plots
     """
-    final_ranks_to_GSEA, final_pos_GO, final_neg_GO = {}, {}, {}
+    final_ranks_to_GSEA, final_all_genes_GO, final_pos_GO_posChange, final_pos_GO_negChange = {}, {}, {}, {}
+    final_to_volcano = []
     FINAL_LSVs = defaultdict(list)
-
+    count=0
     for i, f in enumerate(files):
-        per_file_ranks, per_file_pos_GO, per_file_neg_GO = defaultdict(list), set(), set()
+        per_file_ranks, per_file_pos_GO_posChange, \
+        per_file_pos_GO_negChange, per_file_all_genes_GO = defaultdict(list), set(), set(), set()
         print("Reading {} file.".format(f))
         if isinstance(lsv_types, dict):
             print("Corresponding deltapsi file from where LSV types were extracted: {}".format(dPSI_file_map[i]))
@@ -140,51 +311,79 @@ def process_voila_files(files, threshold, probability_threshold, groups, lsv_typ
                 lsv_id = l[2]
                 dPSIs = l[3]
                 probabilities_dPSIs = l[4]
-                idx_delta_relevant = [i for i, v in enumerate(dPSIs.split(";")) if abs(float(v)) > threshold and
-                                      float(probabilities_dPSIs.split(";")[i]) > probability_threshold]
-
-                max_dPSI = str(max([float(x) for x in dPSIs.split(";")], key=abs))
-                prob_max = probabilities_dPSIs.split(";")[dPSIs.split(";").index(max_dPSI)]
-
-                per_file_ranks[gid].append((prob_max, max_dPSI))
-                if abs(float(max_dPSI)) < threshold or float(prob_max) < probability_threshold:
-                    per_file_neg_GO.add(gid)
-                    continue
-
-                per_file_pos_GO.add(gid)
+                lsv_type = l[8]
                 njunctions = l[9]
                 nexons = l[10]
-                is_junction_new = [l[11].split(";")[i] for i in idx_delta_relevant]
+                is_junction_new = l[11].split(";")
                 number_known_junctions, has_new_junction, number_new_junctions = get_new_junctions(is_junction_new)
                 chrom = l[12]
                 strand = l[13]
-                lsv_main_exon_coords = chrom + ":" + lsv_id.split(":")[-1]
-                coord_exons = [int(i) for i in re.split(';|-', l[15]) if i != 'nan']
-                lsv_spanning_coord = chrom + ":" + str(min(coord_exons)) + "-" + str(max(coord_exons))
+                lsv_main_exon_coords = lsv_id.split(":")[-1]
+                jx_coord = [i for i in l[14].split(";")]
+                coord_exons = [i for i in l[15].split(';') if i != 'nan']
                 ri_coords = l[16]
+
                 if isinstance(lsv_types, dict):
                     try:
-                        lsv_type = lsv_types[i][lsv_id]
+                        lsv_type_str = lsv_types[i][lsv_id]
                     except KeyError:
                         raise ValueError("Please make sure the order of deltapsi and voila files match the same run")
                     if ri_coords:
-                        lsv_type += "RI" if lsv_type == "" else ";RI"
+                        lsv_type_str += "RI" if lsv_type_str == "" else ";RI"
                 else:
-                    lsv_type = "-"
+                    lsv_type_str = "-"
 
-                _final = [gname, gid, strand, lsv_type, max_dPSI, prob_max,
-                          lsv_main_exon_coords, lsv_spanning_coord,
+                # if complex event, extract max dPSI
+                if ";" in lsv_type_str:
+                    dPSI_inc_jx = str(max([float(x) for x in dPSIs.split(";")], key=abs))
+                    prob_dPSI = probabilities_dPSIs.split(";")[dPSIs.split(";").index(dPSI_inc_jx)]
+                    lsv_changed_feature = ""
+
+                else:
+                    dPSI_inc_jx, prob_dPSI, inc_idx = extract_binary_decisions(lsv_type, lsv_type_str,
+                                                                               dPSIs, probabilities_dPSIs)
+
+                    if lsv_type_str == "ES":
+                        lsv_changed_feature = chrom + ":" + [x for x in coord_exons if x != lsv_main_exon_coords][
+                            inc_idx]
+
+                    elif lsv_type_str in ["A5SS", "A3SS"]:
+                        lsv_changed_feature = chrom + ":" + coord_exons[inc_idx]
+
+                    elif lsv_type_str == "RI":
+                        lsv_changed_feature = chrom + ":" + ri_coords
+
+                final_to_volcano.append([dPSI_inc_jx, prob_dPSI, gid, lsv_type_str, group])
+                per_file_ranks[gid].append((prob_dPSI, dPSI_inc_jx))
+
+                if abs(float(dPSI_inc_jx)) < threshold or float(prob_dPSI) < probability_threshold:
+                    per_file_all_genes_GO.add(gid)
+                    continue
+
+                _aux = [int(x) for x in re.split(";|-", ';'.join(coord_exons)) if x != 'nan']
+                lsv_spanning_coord = chrom + ":" + str(min(_aux)) + "-" + str(max(_aux))
+                lsv_main_exon_coords = chrom + ":" + lsv_main_exon_coords
+                if float(dPSI_inc_jx) > threshold:
+                    per_file_pos_GO_posChange.add(gid)
+                elif float(dPSI_inc_jx) < -threshold:
+                    per_file_pos_GO_negChange.add(gid)
+
+                _final = [gname, gid, strand, lsv_type_str, str(dPSI_inc_jx), str(prob_dPSI),
+                          lsv_main_exon_coords, lsv_changed_feature, lsv_spanning_coord,
                           dPSIs, probabilities_dPSIs, njunctions, nexons,
                           str(number_known_junctions), str(has_new_junction),
                           str(number_new_junctions)]
+
                 if groups is not None:
                     _final.append(group)
                 FINAL_LSVs[lsv_id].append(_final)
 
-        final_pos_GO[group] = per_file_pos_GO
-        final_neg_GO[group] = per_file_neg_GO
+        final_pos_GO_posChange[group] = per_file_pos_GO_posChange
+        final_pos_GO_negChange[group] = per_file_pos_GO_negChange
+        final_all_genes_GO[group] = per_file_all_genes_GO
         final_ranks_to_GSEA[group] = per_file_ranks
-    return FINAL_LSVs, [final_pos_GO, final_neg_GO, final_ranks_to_GSEA]
+    return FINAL_LSVs, [final_pos_GO_posChange, final_pos_GO_negChange, final_all_genes_GO,
+                        final_ranks_to_GSEA], final_to_volcano
 
 
 def write_output(final_lsvs, outbasename, enrichment_data, groups):
@@ -197,10 +396,11 @@ def write_output(final_lsvs, outbasename, enrichment_data, groups):
     :param dict groups: Dictionary with comparison groups
     """
 
-    header = ["#lsv_id", "gene_name", "gene_id", "strand", "lsv_type", "max_deltaPSI_observed", "prob_max_deltaPSI",
-              "lsv_main_exon_coordinates", "lsv_spanning_coordinates", "delta_PSIs_observed", "prob_deltaPSIs_observed",
-              "total_numb_junction_in_lsv", "numb_exons_involved", "#relevant_known_junctions(>threshold)",
-              "is_there_any_new_relevant_junction", "#relevant_new_junctions(>threshold)"]
+    header = ["#lsv_id", "gene_name", "gene_id", "strand", "lsv_type", "deltaPSI", "probability_deltaPSI",
+              "lsv_main_exon_coordinates", "lsv_changed_exon|intron", "lsv_spanning_coordinates",
+              "all_delta_PSIs_in_lsv",
+              "all_prob_deltaPSIs_in_lsv", "total_numb_junction_in_lsv", "numb_exons_involved", "#known_junctions",
+              "is_there_any_new_junction", "#new_junctions"]
 
     if groups:
         header.append("groups_with_lsv")
@@ -222,11 +422,12 @@ def write_output(final_lsvs, outbasename, enrichment_data, groups):
         # 4: max dPSI
         # 5: prob maxDPSI
         # 6: source/target exon coord
-        # 7: LSV spanning coordinates
-        # ...
+        # 7: LSV cassette exon
+        # 8: LSV spanning coordinates
+        #
         # Iterate over LSV, if found in multiple groups
         for i, v in enumerate(data):
-            coord = data[0][7]
+            coord = data[0][8]
             l = re.split(':|-', coord)
             if groups is not None:
                 group_overlaps[lsv_id].append(v[-1])
@@ -236,7 +437,7 @@ def write_output(final_lsvs, outbasename, enrichment_data, groups):
                 groups_with_lsv = outbasename
 
             if i == 0:
-                ev_sash = [v[7], v[0], v[3].replace(";", "_"), strand_map[v[2]], groups_with_lsv, lsv_id]
+                ev_sash = [v[8], v[0], v[3].replace(";", "_"), strand_map[v[2]], groups_with_lsv, lsv_id]
                 ev_bed = [l[0], l[1], l[2], data[0][0] + "_" + data[0][3], groups_with_lsv, data[0][2], lsv_id]
                 sashimi_f.write('\t'.join(ev_sash) + '\n')
                 bed_f.write('\t'.join(ev_bed) + '\n')
@@ -262,16 +463,23 @@ def write_output(final_lsvs, outbasename, enrichment_data, groups):
             out += "_{}".format(g)
 
         pos_GO = open(out + "_positive_to_GO.txt", "w")
+        pos_GO_posChange = open(out + "_positive_to_GO_pos_dPSIChange.txt", "w")
+        pos_GO_negChange = open(out + "_positive_to_GO_neg_dPSIChange.txt", "w")
         neg_GO = open(out + "_negative_to_GO.txt", "w")
         gene_ranks = open(out + "_ranks_to_GSEA.txt", "w")
 
-        pos_GO.write("\n".join(list(enrichment_data[0][g])))
-        neg_GO.write("\n".join(list(enrichment_data[1][g])))
+        pos_go = enrichment_data[0][g].union(enrichment_data[1][g])
+        pos_GO.write("\n".join(list(pos_go)))
+        pos_GO_posChange.write("\n".join(list(enrichment_data[0][g])))
+        pos_GO_negChange.write("\n".join(list(enrichment_data[1][g])))
+        neg_GO.write("\n".join(list(enrichment_data[2][g].difference(pos_go))))
         gene_ranks.write("{}\t{}\t{}\n".format("gene_id", "probability_max_dPSI", "max_dPSI"))
-        for gene, events in enrichment_data[2][g].items():
+        for gene, events in enrichment_data[3][g].items():
             for v in events:
                 gene_ranks.write("{}\t{}\t{}\n".format(gene, v[0], v[1]))
         pos_GO.close()
+        pos_GO_posChange.close()
+        pos_GO_negChange.close()
         neg_GO.close()
         gene_ranks.close()
 
@@ -284,22 +492,23 @@ def main():
                                                                         'files must match with voila argument.')
     parser.add_argument("-o", "--outbasename", required=True, help='Basename to the output file')
     parser.add_argument("-g", "--groups", metavar="",
-                        help='Tab delimited file with groups (2snd col):q mapping filenames (1st col)')
+                        help='Tab delimited file with groups (2nd col) mapping filenames (1st col)')
     parser.add_argument("-t", "--threshold", metavar="", type=float, default=0.2, help='dPSI threshold. Default:0.2')
     parser.add_argument("-p", "--probability", metavar="", type=float, default=0.9,
                         help='probability threshold. Only LSVs with higher probability than this'
-                             'value will be kept. Default:0')
+                             'value will be kept. Default:0.9')
     args = parser.parse_args()
 
     groups = read_groups(args.voila, args.groups)
     lsv_types, dPSI_file_map = extract_LSV_types(args.deltapsi, args.voila)
-    final_lsvs, enrichment_data = process_voila_files(args.voila,
-                                                      args.threshold,
-                                                      args.probability,
-                                                      groups,
-                                                      lsv_types,
-                                                      dPSI_file_map)
+    final_lsvs, enrichment_data, volcano_data = process_voila_files(args.voila,
+                                                                    args.threshold,
+                                                                    args.probability,
+                                                                    groups,
+                                                                    lsv_types,
+                                                                    dPSI_file_map)
 
+    generate_volcano(volcano_data, args.threshold, args.probability, args.outbasename)
     write_output(final_lsvs, args.outbasename, enrichment_data, groups)
 
 
