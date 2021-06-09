@@ -42,7 +42,7 @@ if [[ ! -d $(readlink -f "$4") ]]; then
 fi
 OUTDIR=$(readlink -f "$4")
 
-CMD="rmats.py --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --anchorLength 3 --novelSS --b1 $BAM_1"
+CMD="rmats.py --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK --cstat 0.0001 --anchorLength 3 --novelSS --allow-clipping --b1 $BAM_1"
 #CMD="Darts_BHT rmats_count --b1 $BAM_1 --b2 $BAM_2 --gtf $GTF --od \$PWD -t paired --nthread \$SLURM_CPUS_PER_TASK"
 
 # If two groups should be compared

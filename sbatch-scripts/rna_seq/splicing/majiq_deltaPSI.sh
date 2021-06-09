@@ -87,7 +87,7 @@ cat > deltapsi_majiq.sbatch <<EOL
 #SBATCH --output=%j_majiq_deltapsi.log
 #SBATCH --image=mcfonsecalab/majiq:latest
 
-scratch_out=/home/pedro.barbosa/scratch/rna_seq/majiq/\$SLURM_JOB_ID
+scratch_out="/mnt/beegfs/scratch/MCFONSECA/pedro.barbosa/rna_seq/majiq/\$SLURM_JOB_ID"
 mkdir \$scratch_out
 cd \$scratch_out
 

@@ -5,7 +5,7 @@ display_usage(){
     -1nd argument must the file that describes the input data (2cols, 1st filepath, 2nd sample group). Bam location is assumed to be the same for all files. Dirname will be extracted to create the config file.
     -2th argument must the file the output directory.
     -3rd argument is optional. Refers to the gff file. If not given (-), gencode hg38 v36 primary assembly will be used.
-    -4th argument is optional. Refers whether to run simplifier to remove non-relevant splicing variations. Default: true. Values:[true|false|-].
+    -4th argument is optional. Refers whether to run simplifier to remove non-relevant splicing variations. Default: false. Values:[true|false|-].
     -5th argument is optional. Refers to the genome version to use in the config. Default: 'hg38'. Use '-' to skip argument.
     -6th argument is optional. Refers to the strandness of the RNAseq protocol: Default: 'reverse'. Values:[reverse|forward|None]. Use '-' to skip the argument.
     -7th argument is optional. Refers to the read length of the experiments. Default: 150. Use '-' to skip the argument.
@@ -50,7 +50,7 @@ else
 fi
 
 CMD="majiq build --mem-profile --logger majiq_build.log"
-if [[ -z "$4" || "$4" == "true" || "$4" == "-" ]]; then
+if [[ "$4" == "true" ]]; then
     CMD="$CMD --simplify --simplify-annotated 5 --simplify-denovo 3"
 fi
 
@@ -118,11 +118,13 @@ cat > build_majiq.sbatch <<EOL
 #SBATCH --output=%j_majiq_build.log
 #SBATCH --image=mcfonsecalab/majiq:latest
 
-scratch_out=/home/pedro.barbosa/scratch/rna_seq/majiq/\$SLURM_JOB_ID
+#scratch_out=/home/pedro.barbosa/scratch/rna_seq/majiq/\$SLURM_JOB_ID
+scratch_out="/mnt/beegfs/scratch/MCFONSECA/pedro.barbosa/rna_seq/majiq/\$SLURM_JOB_ID"
 mkdir \$scratch_out
 cd \$scratch_out
 #source activate majiq
 CMD="$CMD -j \$SLURM_CPUS_PER_TASK  --minreads $minReads --min-experiments $minExperiments --min-denovo 7 --min-intronic-cov 0.05 --dump-constitutive --dump-coverage --output \$PWD --conf $config $GFF"
+#CMD="$CMD -j \$SLURM_CPUS_PER_TASK  --minreads $minReads --min-experiments $minExperiments --min-denovo 7 --min-intronic-cov 0.05 --dump-constitutive --dump-coverage --output $OUT --conf $config $GFF"
 echo \$CMD
 srun shifter \$CMD
 mv * $OUT

@@ -55,7 +55,7 @@ fi
 
 if [[ -z "$6" || "$6" == "-" || "$6" == "false" ]]; then
     DO_MERGE="true"
-elif [[ "$5" == "true" ]]; then
+elif [[ "$6" == "true" ]]; then
     DO_MERGE="false"
 else
     printf "Please set a valid value for the 6th argument.\n"
@@ -65,7 +65,7 @@ fi
 
 if [[ -z "$7" || "$7" == "-" || "$7" == "false" ]]; then
     DO_NON_MERGE="true"
-elif [[ "$5" == "true" ]]; then
+elif [[ "$7" == "true" ]]; then
     DO_NON_MERGE="false"
 else
     printf "Please set a valid value for the 7th argument.\n"

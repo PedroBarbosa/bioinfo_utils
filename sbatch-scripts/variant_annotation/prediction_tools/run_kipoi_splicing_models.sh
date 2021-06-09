@@ -118,9 +118,13 @@ printf "`date` INFO: HAL started.\n"
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi veff score_variants HAL -o ${4}_HAL.vcf --dataloader_args='{"gtf_file":"$3", "fasta_file":"$2"}' -i "$1"
 conda deactivate
-awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_HAL.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip -f > ${4}_HAL.vcf.gz
+if [[ ! -f "${4}_HAL.vcf" ]]; then
+    printf "`date` INFO: HAL did not score any variant"
+else
+    awk '\$1 ~ /^#/ {print \$0;next} {print \$0 | "sort -k1,2 -V "}' ${4}_HAL.vcf | bcftools norm -d none | shifter --image=ummidock/ubuntu_base:latest bgzip -f > ${4}_HAL.vcf.gz
 shifter --image=ummidock/ubuntu_base:latest tabix -p vcf ${4}_HAL.vcf.gz
 printf "`date` INFO: HAL finished.\n"
+fi
 EOL
 }
 
@@ -130,10 +134,14 @@ printf "`date` INFO: kipoiSplice_4 started.\n"
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi predict KipoiSplice/4 -o ${4}_kipoisplice_4.tsv --dataloader_args='{"fasta_file":"$2", "gtf_file":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4_to_annotate.tsv
+if [[ ! -f "${4}_kipoisplice_4.tsv" ]]; then
+    printf "`date` INFO: kipoisplice_4 did not score any variant"
+else
+    awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4_to_annotate.tsv
 sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_kipoisplice_4_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -s1 -b2 -e2 ${4}_kipoisplice_4_to_annotate.tsv.gz
 printf "`date` INFO: kipoiSplice_4 finished.\n"
+fi
 EOL
 }
 
@@ -143,10 +151,14 @@ printf "`date` INFO: kipoiSplice_4cons started.\n"
 source activate kipoi-shared__envs__kipoi-py3-keras2
 kipoi predict KipoiSplice/4cons -o ${4}_kipoisplice_4cons.tsv --dataloader_args='{"fasta_file":"$2", "gtf_file":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4cons.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4cons_to_annotate.tsv
+if [[ ! -f "${4}_kipoisplice_4cons.tsv" ]]; then
+    printf "`date` INFO: kipoiSplice4Cons did not score any variant"
+else
+    awk -v OFS="\t" '{ print \$2, \$4, \$5, \$1, \$7}' ${4}_kipoisplice_4cons.tsv | tail -n+2 | sort -k1,2 -V > ${4}_kipoisplice_4cons_to_annotate.tsv
 sed  -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_kipoisplice_4cons_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_kipoisplice_4cons_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -s1 -b2 -e2 ${4}_kipoisplice_4cons_to_annotate.tsv.gz
 printf "`date` INFO: kipoiSplice_4cons finished.\n"
+fi
 EOL
 }
 
@@ -187,15 +199,18 @@ cat >> $PWD/runKipoi.sbatch <<EOL
 source activate kipoi
 printf "`date` INFO: mmsplice delta logit PSI started.\n"
 CMD="kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_deltaLogitPSI.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'"
-echo \$CMD
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_deltaLogitPSI.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
-
 conda deactivate
-awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
 
-sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f  ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
-shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv.gz
-printf "`date` INFO: mmsplice delta logit PSI finished.\n"
+if [[ ! -f "${4}_mmsplice_deltaLogitPSI.tsv" ]]; then
+    printf "`date` INFO: mmsplice delta logi PSI did not score any variant" 
+else
+    awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_deltaLogitPSI.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
+
+    sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f  ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv
+    shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_deltaLogitPSI_to_annotate.tsv.gz
+    printf "`date` INFO: mmsplice delta logit PSI finished.\n"
+fi
 EOL
 }
 
@@ -206,10 +221,14 @@ source activate kipoi
 printf "`date` INFO: mmsplice efficiency started.\n"
 kipoi predict MMSplice/deltaLogitPSI -o ${4}_mmsplice_efficiency.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_efficiency.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_efficiency_to_annotate.tsv
+if [[ ! -f "${4}_mmsplice_efficiency.tsv" ]]; then
+    printf "`date` INFO: mmsplice efficiency did not score any variant" 
+else
+    awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_efficiency.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_efficiency_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_efficiency_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_mmsplice_efficiency_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_efficiency_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice efficiency finished.\n"
+fi
 EOL
 }
 
@@ -220,10 +239,14 @@ source activate kipoi
 printf "`date` INFO: mmsplice pathogenicity started.\n"
 kipoi predict MMSplice/pathogenicity -o ${4}_mmsplice_pathogenicity.tsv --dataloader_args='{"fasta_file":"$2", "gtf":"$3", "vcf_file":"$1"}'
 conda deactivate
-awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_pathogenicity_to_annotate.tsv
+if [[ ! -f "${4}_mmsplice_deltaLogitPSI.tsv" ]]; then
+    printf "`date` INFO: mmsplice delta logi PSI did not score any variant" 
+else
+    awk -v OFS="\t" '{ print \$13,\$14,\$15,\$12,\$17}' ${4}_mmsplice_pathogenicity.tsv | tail -n+2 | sort -k1,2 -V > ${4}_mmsplice_pathogenicity_to_annotate.tsv
 sed -i $'1i#chrom\tpos\tref\talt\tscore' ${4}_mmsplice_pathogenicity_to_annotate.tsv && shifter --image=ummidock/ubuntu_base:latest bgzip -f ${4}_mmsplice_pathogenicity_to_annotate.tsv
 shifter --image=ummidock/ubuntu_base:latest tabix -f -s1 -b2 -e2 ${4}_mmsplice_pathogenicity_to_annotate.tsv.gz
 printf "`date` INFO: mmsplice pathogenicity finished.\n"
+fi
 EOL
 }
 
